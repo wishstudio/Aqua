@@ -1,0 +1,61 @@
+class Core.FileStream
+{
+	private int fileHandle;
+	private int32 bufferSize, bufferPos;
+	private uint8[] buffer;
+	private int32 mode; /* 0: Read, 1: Write */
+
+	public function .ctor(Core.String filename, int32 mode)
+	{
+		int32 GENERIC_READ = -2147483647 - 1; /* 0x80000000 */
+		int32 GENERIC_WRITE = 1073741824; /* 0x40000000 */
+		int32 FILE_SHARE_READ = 1;
+		int32 FILE_SHARE_WRITE = 2;
+		int32 CREATE_ALWAYS = 2;
+		int32 OPEN_EXISTING = 3;
+		int32 FILE_ATTRIBUTE_NORMAL = 128;
+		if (mode == 0)
+			fileHandle = Core.Native.Win32::CreateFile(Core.Native.Converter::ToWCharPtr(filename),
+				GENERIC_READ, FILE_SHARE_READ, null, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, null);
+		else if (mode == 1)
+			fileHandle = Core.Native.Win32::CreateFile(Core.Native.Converter::ToWCharPtr(filename),
+				GENERIC_WRITE, 0, null, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, null);
+		else if (mode == 2)
+			fileHandle = Core.Native.Win32::GetStdHandle(-11); /* STD_OUTPUT_HANDLE */
+
+		bufferPos = bufferSize = 0;
+		buffer = new uint8[1024];
+		this::mode = mode;
+	}
+
+	public function ReadByte() -> int32
+	{
+		if (mode != 0)
+			throw new Core.InvalidOperationException();
+		if (bufferPos == bufferSize)
+		{
+			Core.Native.Win32::ReadFile(fileHandle, &buffer[0], 1024, &bufferSize, null);
+			bufferPos = 0;
+			if (bufferSize == 0)
+				return -1;
+		}
+		uint8 byte = buffer[bufferPos];
+		bufferPos = bufferPos + 1;
+		return byte;
+	}
+
+	public function Write(uint8[] data, int32 length) -> int32
+	{
+		if (mode == 0)
+			throw new Core.InvalidOperationException();
+		int32 written;
+		Core.Native.Win32::WriteFile(fileHandle, &data[0], length, &written, null);
+		return written;
+	}
+
+	public function Close()
+	{
+		Core.Native.Win32::CloseHandle(fileHandle);
+		fileHandle = null;
+	}
+}

@@ -1,0 +1,73 @@
+class Token
+{
+	/* Binary operations */
+	public static int32 Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, BinArith;
+	public static int32 LT, LE, GT, GE, EQ, NEQ, BinComparison;
+	public static int32 And, Or, BinLogic;
+	public static int32 BinOp;
+
+	public static int32[] BinPriority;
+
+	/* Unary operations */
+	public static int32 Not, Neg, BitNot, AddressOf, Deref, UnaryOp;
+
+	/* Other symbols */
+	public static int32 EOF, Number, Ident, String, Comma;
+	public static int32 Assign, Arrow, Colon, DoubleColon, Semicolon, Array;
+	public static int32 PLeft, PRight, SLeft, SRight, BLeft, BRight;
+
+	/* Reserved identifiers */
+	public static int32 This, Null, Function, Operator, New, NewArray;
+	public static int32 If, Else, For, While, Do, Return;
+	public static int32 Continue, Break;
+	public static int32 Try, Catch, Finally, Throw;
+
+	/* Pseudo-token for AST ops */
+	public static int32 TypeCast, ArrayElement, List, MultipleNode, Definition, Call, Field;
+	public static int32 None; /* HACK: Temporary used */
+
+	public static function InitToken()
+	{
+		/* Binary operations */
+		Token::Add, Token::Sub, Token::Mul, Token::Div, Token::Rem = 0, 1, 2, 3, 4;
+		Token::BitAnd, Token::BitOr, Token::BitXor, Token::BinArith = 5, 6, 7, 7;
+
+		Token::LT, Token::LE, Token::GT, Token::GE, Token::EQ, Token::NEQ = 8, 9, 10, 11, 12, 13;
+		Token::BinComparison = 13;
+
+		Token::And, Token::Or, Token::BinLogic = 14, 15, 15;
+		Token::BinOp = 15;
+
+		int32[] priority = new int32[15];
+		priority[0], priority[1] = 10, 10; /* Add, Sub */
+		priority[2], priority[3], priority[4] = 11, 11, 11; /* Mul, Div, Rem */
+		priority[5], priority[6], priority[7] = 6, 6, 6; /* BitAnd, BitOr, BitXor */
+		priority[8], priority[9], priority[10], priority[11], priority[12], priority[13] = 5, 5, 5, 5, 5, 5; /* Comparison */
+		priority[14] = 3; /* And */
+		priority[15] = 4; /* Or */
+		Token::BinPriority = priority;
+
+		/* Unary operations */
+		Token::Not, Token::Neg, Token::BitNot, Token::AddressOf, Token::Deref = 20, 21, 22, 23, 24;
+		Token::UnaryOp = 24;
+
+		/* Other symbols */
+		Token::EOF, Token::Number, Token::Ident, Token::String, Token::Comma = 30, 31, 32, 33, 34;
+		Token::Assign, Token::Arrow, Token::Colon, Token::DoubleColon, Token::Semicolon = 35, 36, 37, 38, 39;
+		Token::Array = 40;
+		Token::PLeft, Token::PRight, Token::SLeft, Token::SRight = 41, 42, 43, 44;
+		Token::BLeft, Token::BRight = 45, 46;
+
+		/* Reserved identifiers */
+		Token::This, Token::Null, Token::Function, Token::Operator = 50, 51, 52, 53;
+		Token::New, Token::NewArray = 54, 55;
+		Token::If, Token::Else, Token::For, Token::While, Token::Do, Token::Return = 56, 57, 58, 59, 60, 61;
+		Token::Continue, Token::Break = 62, 63;
+		Token::Try, Token::Catch, Token::Finally, Token::Throw = 64, 65, 66, 67;
+
+		/* Pseudo-token for AST ops */
+		Token::TypeCast, Token::ArrayElement, Token::List = 70, 71, 72;
+		Token::MultipleNode, Token::Definition, Token::Call, Token::Field = 73, 74, 75, 76;
+		Token::None = 77;
+	}
+}

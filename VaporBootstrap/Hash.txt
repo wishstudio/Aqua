@@ -1,0 +1,38 @@
+class Hash
+{
+	private Vector keys, values;
+
+	public function .ctor()
+	{
+		keys = new Vector();
+		values = new Vector();
+	}
+
+	public function Add(Core.String key, Core.Object value)
+	{
+		keys::Add([Core.Object] key);
+		values::Add(value);
+	}
+
+	public function Contains(Core.String key) -> int32 found, Core.Object value
+	{
+		for (int32 i = 0; i < keys::size; i = i + 1)
+			if (([Core.String] keys[i])::Equals(key) > 0)
+				return 1, values[i];
+		return 0, null;
+	}
+
+	public static operator [] (Hash hash, Core.String key) -> Core.Object
+	{
+		int32 found;
+		Core.Object value;
+		if ((found, value = hash::Contains(key)) > 0)
+			return value;
+		throw new Core.KeyNotFoundException();
+	}
+
+	public function .getSize() -> int32
+	{
+		return keys::.getSize();
+	}
+}

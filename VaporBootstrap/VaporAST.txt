@@ -1,0 +1,276 @@
+class Node
+{
+	public int32 op;
+}
+
+class Int32Node: Node
+{
+	public int32 intvalue;
+}
+
+class StringNode: Node
+{
+	public Core.String stringvalue;
+}
+
+class IdentNode: Node
+{
+	public Core.String ident;
+}
+
+class FieldNode: Node
+{
+	public Node object;
+	public Core.String field;
+}
+
+class CallNode: Node
+{
+	public Node method;
+	public Vector parameters;
+
+	public function .ctor()
+	{
+		parameters = new Vector();
+	}
+}
+
+class NewNode: Node
+{
+	public Core.String type;
+	public Vector parameters;
+
+	public function .ctor()
+	{
+		parameters = new Vector();
+	}
+}
+
+class ArrayElementNode: Node
+{
+	public Node array;
+	public Node index;
+}
+
+class UnaryNode: Node
+{
+	public Node operand;
+}
+
+class BinNode: Node
+{
+	public Node left, right;
+}
+
+class ListNode: Node
+{
+	public Vector values;
+
+	public function .ctor()
+	{
+		values = new Vector();
+	}
+}
+
+class DefinitionNode: Node
+{
+	public Core.String type;
+	public Vector names;
+	public Vector values;
+
+	public function .ctor()
+	{
+		names = new Vector();
+		values = new Vector();
+	}
+}
+
+class MultipleNode: Node
+{
+	public Vector nodes;
+
+	public function .ctor()
+	{
+		nodes = new Vector();
+	}
+}
+
+class TypeCastNode: Node
+{
+	public Core.String type;
+	public Node operand;
+}
+
+class IfNode: Node
+{
+	public Node condition;
+	public Node trueBody, falseBody;
+}
+
+class WhileNode: Node
+{
+	public Node condition;
+	public Node body;
+}
+
+class ForNode: Node
+{
+	public Node init, condition, update;
+	public Node body;
+}
+
+class ReturnNode: Node
+{
+	public Vector values;
+
+	public function .ctor()
+	{
+		values = new Vector();
+	}
+}
+
+class TryNode: Node
+{
+	public Node body;
+	public Vector catchNodes;
+	public Node finallyNode;
+
+	public function .ctor()
+	{
+		catchNodes = new Vector();
+	}
+}
+
+class CatchNode: Node
+{
+	public Core.String className;
+	public Core.String name;
+	public Node body;
+}
+
+class ThrowNode: Node
+{
+	public Node exception;
+}
+
+class Field
+{
+	public int32 modifier;
+	public Core.String name;
+	public Core.String type;
+}
+
+class Method
+{
+	public int32 modifier;
+	public Core.String name;
+	public Core.String type;
+	public Vector paramTypes;
+	public Vector paramNames;
+	public Vector returnTypes;
+	public Vector returnNames;
+	public int32 callingConvention;
+	public Core.String libraryName, originalName;
+	public Node body;
+
+	public function .ctor()
+	{
+		paramTypes = new Vector();
+		paramNames = new Vector();
+		returnTypes = new Vector();
+		returnNames = new Vector();
+	}
+}
+
+class Class
+{
+	public Core.String name, baseName;
+	public Hash methods;
+	public Hash fields;
+
+	public function .ctor()
+	{
+		methods = new Hash();
+		fields = new Hash();
+	}
+}
+
+class Modifier
+{
+	public static int32 Public, Private, Protected;
+	public static int32 Static, Virtual, Override, Abstract;
+	public static int32 Internal, Native, Interface;
+	public static Hash hash;
+
+	public static function Parse(Core.String string) -> int32
+	{
+		/* HACK: int -> int32 */
+		int32 found;
+		Core.Object value;
+		if ((found, value = hash::Contains(string)) > 0)
+			return Core.Int32::Parse([Core.String] value);
+		else
+			return 0;
+	}
+
+	public static function ToString(int32 modifier) -> Core.String
+	{
+		/* FIXME: Accessing private members */
+		Core.String ret = "";
+		for (int32 i = 0; i < hash::.getSize(); i = i + 1)
+			if (modifier & Core.Int32::Parse([Core.String] hash::values[i]) > 0)
+				if (ret::Equals("") > 0)
+					ret = ret + [Core.String] hash::keys[i];
+				else
+					ret = ret + " " + [Core.String] hash::keys[i];
+		return ret;
+	}
+
+	public static function InitModifier()
+	{
+		Modifier::Public, Modifier::Private, Modifier::Protected = 1, 2, 4;
+		Modifier::Static, Modifier::Virtual, Modifier::Override, Modifier::Abstract = 8, 16, 32, 64;
+		Modifier::Internal, Modifier::Native, Modifier::Interface = 128, 256, 512;
+
+		hash = new Hash();
+		hash::Add("public", [Core.Object] Core.Int32::ToString(Modifier::Public));
+		hash::Add("private", [Core.Object] Core.Int32::ToString(Modifier::Private));
+		hash::Add("protected", [Core.Object] Core.Int32::ToString(Modifier::Protected));
+		hash::Add("static", [Core.Object] Core.Int32::ToString(Modifier::Static));
+		hash::Add("virtual", [Core.Object] Core.Int32::ToString(Modifier::Virtual));
+		hash::Add("override", [Core.Object] Core.Int32::ToString(Modifier::Override));
+		hash::Add("abstract", [Core.Object] Core.Int32::ToString(Modifier::Abstract));
+		hash::Add("internal", [Core.Object] Core.Int32::ToString(Modifier::Internal));
+		hash::Add("native", [Core.Object] Core.Int32::ToString(Modifier::Native));
+		hash::Add("interface", [Core.Object] Core.Int32::ToString(Modifier::Interface));
+	}
+}
+
+class CallingConvention
+{
+	public static int32 Unknown, Stdcall;
+
+	public static function ToString(int32 cc) -> Core.String
+	{
+		if (cc == CallingConvention::Unknown)
+			return "unknown";
+		else if (cc == CallingConvention::Stdcall)
+			return "stdcall";
+		return "";
+	}
+
+	public static function Parse(Core.String cc) -> int32
+	{
+		if (cc::Equals("unknown") > 0)
+			return CallingConvention::Unknown;
+		else if (cc::Equals("stdcall") > 0)
+			return CallingConvention::Stdcall;
+		else
+			return 0;
+	}
+
+	public static function InitCallingConvention()
+	{
+		CallingConvention::Unknown, CallingConvention::Stdcall = 1, 2;
+	}
+}

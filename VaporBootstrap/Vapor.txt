@@ -1,0 +1,42 @@
+class Vapor
+{
+	public static function InitVapor()
+	{
+		/* Initialize enumeration types */
+		Token::InitToken();
+		Modifier::InitModifier();
+		CallingConvention::InitCallingConvention();
+		Value::InitValue();
+		Context::InitContext();
+	}
+
+	public static function Main(Core.String[] args)
+	{
+		InitVapor();
+
+		Parser parser = new Parser();
+		for (int32 i = 0; i < args::Length - 1; i = i + 1)
+			parser::Parse(args[i]);
+
+		Core.Console::WriteLine("Parsing done.");
+
+		Compiler compiler = new Compiler(parser::classes);
+		compiler::Compile();
+
+		Core.Console::WriteLine("Compiling done.");
+
+		Core.Console::Write("Writing assembly file...");
+		Core.FileStream outFS = new Core.FileStream(args[args::Length - 1], 1);
+		Core.StreamWriter out = new Core.StreamWriter(
+			outFS,
+			new Core.Encoding(65001)
+		);
+		for (int32 i = 0; i < compiler::code::.getSize(); i = i + 1)
+		{
+			out::Write([Core.String] compiler::code[i]);
+			out::Write("\r\n");
+		}
+		out::Dispose();
+		Core.Console::WriteLine(" done.");
+	}
+}

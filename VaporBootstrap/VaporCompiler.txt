@@ -1,0 +1,1447 @@
+class Variable
+{
+	public int32 regid;
+	public Core.String type;
+}
+
+class Value
+{
+	public static int32 Register, Immediate, Field, Method, ArrayElement;
+	public static int32 Deref, LValue, Type, JumpTarget;
+
+	public static function InitValue()
+	{
+		Value::Register, Value::Immediate, Value::Field, Value::Method, Value::ArrayElement = 1, 2, 4, 8, 16;
+		Value::Deref, Value::LValue, Value::Type, Value::JumpTarget = 32, 64, 128, 256;
+	}
+
+	public int32 kind;
+	public int32 regid, regid2;
+	public int32 labelid;
+	public int32 intvalue;
+	public Class classObject;
+	public Method method;
+	public Field field;
+	public Core.String type;
+}
+
+class Context
+{
+	public static int32 Loop, TryCatch, Finally;
+
+	public int32 loopLevel, tryCatchLevel, finallyLevel;
+	public int32 continueLabelId;
+	public int32 breakLabelId;
+	public int32 firstReturnRegister;
+	public Stack contextType;
+	/* HACK: bool */
+	public int32 generateEpilogue;
+
+	public function .ctor()
+	{
+		contextType = new Stack();
+	}
+
+	public static function InitContext()
+	{
+		Context::Loop, Context::TryCatch, Context::Finally = 1, 2, 3;
+	}
+}
+
+class Compiler
+{
+	private Hash classes;
+
+	public Vector code;
+	private int32 tab;
+	private Stack symbolTable; /* Stack of symbol hashes */
+	private Class currentClass;
+	private Method currentMethod;
+	private int32 currentLabelId;
+
+	public function .ctor(Hash classes)
+	{
+		this::classes = classes;
+		code = new Vector();
+		symbolTable = new Stack();
+	}
+
+	private function GetLabelName(int32 labelId) -> Core.String
+	{
+		return "_L" + Core.Int32::ToString(labelId);
+	}
+
+	private function AddCode(Core.String line)
+	{
+		Core.String tabs = "";
+		for (int32 i = 0; i < tab; i = i + 1)
+			tabs = tabs + "\t";
+		code::Add([Core.Object] (tabs + line));
+	}
+
+	private function AddLabel(int32 labelId)
+	{
+		code::Add([Core.Object] (GetLabelName(labelId) + ":"));
+	}
+
+	private function AddStringLabel(Core.String label)
+	{
+		code::Add([Core.Object] (label + ":"));
+	}
+
+	private function Tab()
+	{
+		tab = tab + 1;
+	}
+
+	private function Untab()
+	{
+		tab = tab - 1;
+	}
+
+	private function PushSymbolStack()
+	{
+		symbolTable::Push([Core.Object] new Hash());
+	}
+
+	private function PopSymbolStack()
+	{
+		symbolTable::Pop();
+	}
+
+	private function FindSymbol(Core.String name) -> Variable, int32
+	{
+		for (int32 i = symbolTable::.getSize() - 1; i >= 0; i = i - 1)
+		{
+			int32 found;
+			Variable ret;
+			if ((found, ret = ([Hash] symbolTable::data[i])::Contains(name)) > 0)
+				return ret, 1;
+		}
+		return null, 0;
+	}
+
+	/* Returns field and corresponding class which the field is defined in */
+	/* HACK: int32: found */
+	private function FindField(Class classObject, Core.String name) -> int32, Field, Class
+	{
+		Class fieldClassObject = classObject;
+		/* HACK: for (;;) */
+		/* HACK: bool */
+		while (2 > 1)
+		{
+			Core.Object field;
+			int32 found;
+			if ((found, field = fieldClassObject::fields::Contains(name)) > 0)
+				return 1, [Field] field, fieldClassObject;
+			if (fieldClassObject::baseName::Equals("") > 0)
+				return 0, null, null;
+			fieldClassObject = classes[fieldClassObject::baseName];
+		}
+		/* TODO */
+		return 0, null, null;
+	}
+
+	public static function GetOperatorMethodName(int32 op) -> Core.String
+	{
+		if (op == Token::Add)
+			return ".opAdd";
+		else if (op == Token::Sub)
+			return ".opSub";
+		else if (op == Token::Mul)
+			return ".opMul";
+		else if (op == Token::Div)
+			return ".opDiv";
+		else if (op == Token::Rem)
+			return ".opRem";
+		else if (op == Token::LT)
+			return ".opLT";
+		else if (op == Token::LE)
+			return ".opLE";
+		else if (op == Token::GT)
+			return ".opGT";
+		else if (op == Token::GE)
+			return ".opGE";
+		else if (op == Token::EQ)
+			return ".opEQ";
+		else if (op == Token::NEQ)
+			return ".opNEQ";
+		else if (op == Token::Array)
+			return ".opArrayElement";
+		else
+			throw new Core.Exception();
+	}
+
+	private function IsPrimitiveType(Core.String type) -> int32
+	{
+		return type::Equals("uint8") > 0 || type::Equals("int8") > 0
+			|| type::Equals("uint16") > 0 || type::Equals("int16") > 0
+			|| type::Equals("uint32") > 0 || type::Equals("int32") > 0
+			|| type::Equals("uint64") > 0 || type::Equals("int64") > 0
+			|| type::Equals("char") > 0 || type::Equals("int") > 0;
+	}
+
+	/* Get instruction suffix for given type */
+	private function GetTypeSuffix(Core.String type) -> Core.String
+	{
+		if (type::Equals("uint8") > 0)
+			return "ub";
+		else if (type::Equals("char") > 0)
+			return "uw";
+		else if (type::Equals("int32") > 0)
+			return "i";
+		else if (type::Equals("int") > 0)
+			return "a";
+		else if (type::SubString(type::.getLength() - 2, 2)::Equals("[]") > 0)
+			return "a";
+		else if (classes::Contains(type) > 0)
+			return "a";
+		else
+			throw new Core.Exception();
+	}
+
+	/* Move register $src to $dst of type 'type' */
+	private function MoveRegisterToRegister(int32 src, int32 dst, Core.String type)
+	{
+		if (dst != src)
+		{
+			if (type::Equals("int32") > 0 || type::Equals("char") > 0 || type::Equals("uint8") > 0)
+				AddCode("ldi\t$" + Core.Int32::ToString(dst) + ", $" + Core.Int32::ToString(src));
+			else
+				AddCode("lda\t$" + Core.Int32::ToString(dst) + ", $" + Core.Int32::ToString(src));
+		}
+	}
+
+	/* Move value to register */
+	private function MoveValueToRegister(Value value, int32 regid) -> Value
+	{
+		if (value::kind & Value::Register > 0)
+			MoveRegisterToRegister(value::regid, regid, value::type);
+		else if (value::kind & Value::Immediate > 0)
+		{
+			if (value::type::Equals("int32") > 0)
+				AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", " + Core.Int32::ToString(value::intvalue));
+			else if (value::type::Equals("int") > 0) /* HACK: Only null supported now */
+				AddCode("ldnull\t$" + Core.Int32::ToString(regid));
+			else
+				throw new Core.Exception();
+		}
+		else if (value::kind & Value::Deref > 0)
+			AddCode("ldiuw\t$" + Core.Int32::ToString(regid) + ", ($" + Core.Int32::ToString(value::regid) + ")");
+		else if (value::kind & Value::JumpTarget > 0)
+		{
+			/* Default: jtrue == 0 */
+			AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 1");
+			AddCode("jmp\t" + GetLabelName(currentLabelId));
+			AddLabel(value::labelid);
+			AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 0");
+			AddLabel(currentLabelId);
+			currentLabelId = currentLabelId + 1;
+		}
+		else if (value::kind & Value::Field > 0)
+		{
+			Field field = value::field;
+			if (field::modifier & Modifier::Static > 0)
+				AddCode("lds" + GetTypeSuffix(field::type) + "\t$" + Core.Int32::ToString(regid) + ", "
+					+ value::classObject::name + "::" + field::name);
+			else
+				AddCode("ldf" + GetTypeSuffix(field::type) + "\t$" + Core.Int32::ToString(regid) + ", $"
+					+ Core.Int32::ToString(value::regid) + ", " + value::classObject::name + "::" + field::name);
+		}
+		else if (value::kind & Value::ArrayElement > 0)
+			AddCode("lde" + GetTypeSuffix(value::type) + "\t$" + Core.Int32::ToString(regid) + ", $"
+				+ Core.Int32::ToString(value::regid) + "($" + Core.Int32::ToString(value::regid2) + ")");
+		else
+			throw new Core.Exception();
+		Value ret = new Value();
+		ret::kind = Value::Register;
+		ret::regid = regid;
+		ret::type = value::type;
+		return ret;
+	}
+
+	private function EnsureRegister(Value value, int32 regid) -> Value
+	{
+		if (value::kind & Value::Register > 0)
+			return value;
+		else
+			return MoveValueToRegister(value, regid);
+	}
+
+	private function MoveValueToLValue(Value value, Value lvalue, int32 freereg)
+	{
+		if (lvalue::kind & Value::Register > 0)
+			MoveValueToRegister(value, lvalue::regid);
+		else if (lvalue::kind & Value::Deref > 0)
+		{
+			Value v = EnsureRegister(value, freereg);
+			AddCode("ldiuw\t($" + Core.Int32::ToString(lvalue::regid) + "), $" + Core.Int32::ToString(v::regid));
+		}
+		else if (lvalue::kind & Value::Field > 0)
+		{
+			Value v = EnsureRegister(value, freereg);
+			Class classObject = lvalue::classObject;
+			Field field = lvalue::field;
+			if (field::modifier & Modifier::Static > 0)
+				AddCode("lds" + GetTypeSuffix(field::type) + "\t" + classObject::name + "::" + field::name
+					+ ", $" + Core.Int32::ToString(v::regid));
+			else
+				AddCode("ldf" + GetTypeSuffix(field::type) + "\t$" + Core.Int32::ToString(lvalue::regid) + ", "
+					+ classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(v::regid));
+		}
+		else if (lvalue::kind & Value::ArrayElement > 0)
+		{
+			Value v = EnsureRegister(value, freereg);
+			AddCode("lde" + GetTypeSuffix(lvalue::type) + "\t$" + Core.Int32::ToString(lvalue::regid)
+				+ "($" + Core.Int32::ToString(lvalue::regid2) + "), $" + Core.Int32::ToString(v::regid));
+		}
+		else
+			throw new Core.Exception();
+	}
+
+	private function GetNextFreeRegister(Value value, int32 freereg) -> int32
+	{
+		if (value::kind & Value::ArrayElement > 0 && (value::regid == freereg || value::regid2 == freereg))
+		{
+			if (value::regid == freereg + 1 || value::regid2 == freereg + 1)
+				return freereg + 2;
+			else
+				return freereg + 1;
+		}
+		else if ((value::kind & Value::Register > 0 || value::kind & Value::Deref > 0) && (value::regid == freereg))
+			return freereg + 1;
+		else if (value::kind & Value::Field > 0 && value::field::modifier & Modifier::Static == 0
+			&& value::regid == freereg)
+			return freereg + 1;
+		else
+			return freereg;
+	}
+	
+	private function ToScalar(Vector values) -> Value
+	{
+		if (values::.getSize() == 0)
+			throw new Core.Exception();
+		return [Value] values[0];
+	}
+
+	private function Scalar(Value value) -> Vector
+	{
+		Vector ret = new Vector();
+		ret::Add([Core.Object] value);
+		return ret;
+	}
+
+	public function Compile()
+	{
+		tab = 0;
+		Vector classes = this::classes::values;
+		for (int32 i = 0; i < classes::.getSize(); i = i + 1)
+		{
+			currentClass = [Class] classes[i];
+			if (currentClass::baseName::Equals("") > 0)
+				AddCode(".class " + currentClass::name);
+			else
+				AddCode(".class " + currentClass::name + ": " + currentClass::baseName);
+			AddCode("{");
+			Tab();
+			Core.Console::WriteLine("Compile " + currentClass::name + "...");
+
+			Vector fields = currentClass::fields::values;
+			for (int32 j = 0; j < fields::.getSize(); j = j + 1)
+				CompileField([Field] fields[j]);
+
+			Vector methods = currentClass::methods::values;
+			for (int32 j = 0; j < methods::.getSize(); j = j + 1)
+				CompileMethod([Method] methods[j]);
+
+			Untab();
+			AddCode("}");
+		}
+	}
+
+	private function CompileField(Field field)
+	{
+		Core.String modifier = Modifier::ToString(field::modifier);
+		if (modifier::.getLength() > 0)
+			modifier = modifier + " ";
+		AddCode(".field " + modifier + field::type + " " + field::name);
+	}
+
+	private function CompileMethod(Method method)
+	{
+		Core.Console::WriteLine("  ::" + method::name);
+		Core.String modifier = Modifier::ToString(method::modifier);
+		if (modifier::.getLength() > 0)
+			modifier = modifier + " ";
+		AddCode(".method " + modifier + "function " + method::name + method::type);
+		if (method::modifier & Modifier::Internal > 0)
+		{
+			/* Do nothing */
+		}
+		else if (method::modifier & Modifier::Native > 0)
+		{
+			AddCode("[" + CallingConvention::ToString(method::callingConvention) + ", \"" + method::libraryName
+				+ "\", \"" + method::originalName + "\"]");
+		}
+		else
+		{
+			AddCode("{");
+			Tab();
+			PushSymbolStack();
+
+			Context context = new Context();
+			int32 freereg = 0;
+			if (method::modifier & Modifier::Static == 0)
+				freereg = freereg + 1;
+
+			for (int32 i = 0; i < method::paramNames::.getSize(); i = i + 1)
+			{
+				Core.String name = method::paramNames[i];
+				if (name::Equals("") == 0)
+				{
+					Variable var = new Variable();
+					var::regid = freereg + i;
+					var::type = method::paramTypes[i];
+					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
+				}
+			}
+			freereg = freereg + method::paramNames::.getSize();
+			context::firstReturnRegister = freereg;
+			for (int32 i = 0; i < method::returnNames::.getSize(); i = i + 1)
+			{
+				Core.String name = method::returnNames[i];
+				if (name::Equals("") == 0)
+				{
+					Variable var = new Variable();
+					var::regid = freereg + i;
+					var::type = method::returnTypes[i];
+					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
+				}
+			}
+			freereg = freereg + method::returnNames::.getSize();
+
+			currentMethod = method;
+			currentLabelId = 1;
+			int32 closed = CompileStatement(method::body, freereg, context);
+			if (closed == 0 || context::generateEpilogue > 0)	
+			{
+				if (context::generateEpilogue > 0)
+					AddStringLabel("_Epilogue");
+				/* Unclosed statement block, insert return statement manually */
+				if (method::returnNames::.getSize() == 0)
+					AddCode("ret");
+				else if (method::returnNames::.getSize() == 1)
+					AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister));
+				else
+					AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister) + ", $"
+						+ Core.Int32::ToString(context::firstReturnRegister + method::returnTypes::.getSize()));
+			}
+
+			PopSymbolStack();
+			Untab();
+			AddCode("}");
+		}
+	}
+
+	/* Returns whether the statement block is fully closed (has return statements in all possible control flows) */
+	/* Returns 'closed' and 'nextfreereg' */
+	private function CompileStatement(Node node, int32 freereg, Context context) -> int32, int32
+	{
+		if (node::op == Token::MultipleNode)
+		{
+			PushSymbolStack();
+			int32 closed = 0, _freereg = freereg;
+			MultipleNode mnode = [MultipleNode] node;
+			for (int32 i = 0; i < mnode::nodes::.getSize(); i = i + 1)
+				closed, _freereg = CompileStatement([Node] mnode::nodes[i], _freereg, context);
+			PopSymbolStack();
+			return closed, freereg;
+		}
+		else if (node::op == Token::Definition)
+		{
+			DefinitionNode dnode = [DefinitionNode] node;
+			for (int32 i = 0; i < dnode::names::.getSize(); i = i + 1)
+			{
+				Variable variable = new Variable();
+				variable::regid = freereg;
+				variable::type = dnode::type;
+
+				([Hash] symbolTable::Peek())::Add([Core.String] dnode::names[i], [Core.Object] variable);
+				Variable var = FindSymbol([Core.String] dnode::names[i]);
+
+				Node vnode = [Node] dnode::values[i];
+				if (vnode::op != Token::None)
+					MoveValueToRegister(CompileExpression(vnode, freereg, freereg, 0, 0), freereg);
+				freereg = freereg + 1;
+			}
+			return 0, freereg;
+		}
+		else if (node::op == Token::If)
+		{
+			IfNode inode = [IfNode] node;
+			if (inode::falseBody::op == Token::None)
+			{
+				/* If - Then */
+				int32 falseTarget = currentLabelId;
+				currentLabelId = currentLabelId + 1;
+				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
+				if (value::kind & Value::JumpTarget == 0)
+					throw new Core.Exception();
+				CompileStatement(inode::trueBody, freereg, context);
+				AddLabel(falseTarget);
+				return 0, freereg;
+			}
+			else
+			{
+				/* If - Then - Else */
+				int32 falseTarget = currentLabelId;
+				currentLabelId = currentLabelId + 1;
+				int32 endTarget = currentLabelId;
+				currentLabelId = currentLabelId + 1;
+				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
+				if (value::kind & Value::JumpTarget == 0)
+					throw new Core.Exception();
+				int32 thenClosed, elseClosed;
+				thenClosed = CompileStatement(inode::trueBody, freereg, context);
+				if (thenClosed == 0)
+					AddCode("jmp\t" + GetLabelName(endTarget));
+				AddLabel(falseTarget);
+				elseClosed = CompileStatement(inode::falseBody, freereg, context);
+				if (thenClosed == 0)
+					AddLabel(endTarget);
+				return thenClosed & elseClosed, freereg;
+			}
+		}
+		else if (node::op == Token::For)
+		{
+			PushSymbolStack();
+			context::loopLevel = context::loopLevel + 1;
+			int32 backupContinueLabelId = context::continueLabelId;
+			int32 backupBreakLabelId = context::breakLabelId;
+			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Loop));
+
+			ForNode fnode = [ForNode] node;
+			int32 bodyTarget = currentLabelId;
+			currentLabelId = currentLabelId + 1;
+			int32 conditionTarget = currentLabelId;
+			currentLabelId = currentLabelId + 1;
+			int32 closed, _freereg;
+
+			context::continueLabelId = 0;
+			context::breakLabelId = 0;
+			closed, _freereg = CompileStatement(fnode::init, freereg, context);
+			AddCode("jmp\t" + GetLabelName(conditionTarget));
+			AddLabel(bodyTarget);
+			CompileStatement(fnode::body, _freereg, context);
+			if (context::continueLabelId > 0)
+				AddLabel(context::continueLabelId);
+			CompileList(fnode::update, _freereg, -1);
+			AddLabel(conditionTarget);
+			Value value = CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1);
+			if (value::kind & Value::JumpTarget == 0)
+				throw new Core.Exception();
+
+			if (context::breakLabelId > 0)
+				AddLabel(context::breakLabelId);
+			context::contextType::Pop();
+			context::continueLabelId = backupContinueLabelId;
+			context::breakLabelId = backupBreakLabelId;
+			context::loopLevel = context::loopLevel - 1;
+			PopSymbolStack();
+			return 0, freereg;
+		}
+		else if (node::op == Token::While)
+		{
+			context::loopLevel = context::loopLevel + 1;
+			int32 backupContinueLabelId = context::continueLabelId;
+			int32 backupBreakLabelId = context::breakLabelId;
+			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Loop));
+
+			WhileNode wnode = [WhileNode] node;
+			int32 bodyTarget = currentLabelId;
+			currentLabelId = currentLabelId + 1;
+			int32 conditionTarget = currentLabelId;
+			currentLabelId = currentLabelId + 1;
+
+			context::continueLabelId = conditionTarget;
+			context::breakLabelId = 0;
+			AddCode("jmp\t" + GetLabelName(conditionTarget));
+			AddLabel(bodyTarget);
+			CompileStatement(wnode::body, freereg, context);
+			AddLabel(conditionTarget);
+			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
+			if (value::kind & Value::JumpTarget == 0)
+				throw new Core.Exception();
+
+			if (context::breakLabelId > 0)
+				AddLabel(context::breakLabelId);
+			context::contextType::Pop();
+			context::continueLabelId = backupContinueLabelId;
+			context::breakLabelId = backupBreakLabelId;
+			context::loopLevel = context::loopLevel - 1;
+			return 0, freereg;
+		}
+		else if (node::op == Token::Do)
+		{
+			context::loopLevel = context::loopLevel + 1;
+			int32 backupContinueLabelId = context::continueLabelId;
+			int32 backupBreakLabelId = context::breakLabelId;
+			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Loop));
+
+			WhileNode wnode = [WhileNode] node;
+			int32 bodyTarget = currentLabelId;
+			currentLabelId = currentLabelId + 1;
+
+			context::continueLabelId = 0;
+			context::breakLabelId = 0;
+			AddLabel(bodyTarget);
+			CompileStatement(wnode::body, freereg, context);
+			if (context::continueLabelId > 0)
+				AddLabel(context::continueLabelId);
+			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
+			if (value::kind & Value::JumpTarget == 0)
+				throw new Core.Exception();
+
+			if (context::breakLabelId > 0)
+				AddLabel(context::breakLabelId);
+			context::contextType::Pop();
+			context::continueLabelId = backupContinueLabelId;
+			context::breakLabelId = backupBreakLabelId;
+			context::loopLevel = context::loopLevel - 1;
+			return 0, freereg;
+		}
+		else if (node::op == Token::Return)
+		{
+			ReturnNode rnode = [ReturnNode] node;
+			if (rnode::values::.getSize() != currentMethod::returnTypes::.getSize() && rnode::values::.getSize() != 0)
+				throw new Core.Exception();
+			if (context::finallyLevel > 0)
+			{
+				Core.Console::WriteLine("Control cannot go out of the finally block.");
+				throw new Core.Exception();
+			}
+			if (context::tryCatchLevel > 0)
+			{
+				/* We are inside a try finally block */
+				/* First, save supplied return values into return registers */
+				for (int32 i = 0; i < rnode::values::.getSize(); i = i + 1)
+					MoveValueToRegister(
+						CompileExpression([Node] rnode::values[i], freereg, context::firstReturnRegister + i, 0, 0),
+						context::firstReturnRegister + i
+					);
+				/* Second, add leave instruction */
+				AddCode("leave\t_Epilogue");
+				/* Last, tell CompileMethod() that we need an epilogue */
+				context::generateEpilogue = 1;
+			}
+			else
+			{
+				/* Normal return */
+				if (currentMethod::returnTypes::.getSize() == 0)
+					AddCode("ret");
+				else if (currentMethod::returnTypes::.getSize() == 1)
+				{
+					if (rnode::values::.getSize() == 0)
+						AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister));
+					else
+					{
+						Value value = EnsureRegister(CompileExpression([Node] rnode::values[0], freereg, freereg, 0, 0), freereg);
+						AddCode("ret\t$" + Core.Int32::ToString(value::regid));
+					}
+				}
+				else
+				{
+					if (rnode::values::.getSize() == 0)
+						AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister) + ", $"
+							+ Core.Int32::ToString(context::firstReturnRegister + currentMethod::returnTypes::.getSize() - 1));
+					else
+					{
+						for (int32 i = 0; i < rnode::values::.getSize(); i = i + 1)
+							MoveValueToRegister(
+								CompileExpression([Node] rnode::values[i], freereg + i, freereg + i, 0, 0),
+								freereg + i
+							);
+						AddCode("ret\t$" + Core.Int32::ToString(freereg) + ", $"
+							+ Core.Int32::ToString(freereg + rnode::values::.getSize() - 1));
+					}
+				}
+			}
+			return 1, freereg;
+		}
+		else if (node::op == Token::Continue)
+		{
+			if (context::loopLevel == 0)
+			{
+				Core.Console::WriteLine("Not in a loop!");
+				throw new Core.Exception();
+			}
+			int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
+			if (ctx == Context::Finally)
+			{
+				Core.Console::WriteLine("Control cannot go out of the finally block.");
+				throw new Core.Exception();
+			}
+			context::continueLabelId = FixJumpTarget(context::continueLabelId);
+			if (ctx == Context::TryCatch)
+				AddCode("leave\t" + GetLabelName(context::continueLabelId));
+			else
+				AddCode("jmp\t" + GetLabelName(context::continueLabelId));
+			return 1, freereg;
+		}
+		else if (node::op == Token::Break)
+		{
+			if (context::loopLevel == 0)
+			{
+				Core.Console::WriteLine("Not in a loop!");
+				throw new Core.Exception();
+			}
+			int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
+			if (ctx == Context::Finally)
+			{
+				Core.Console::WriteLine("Control cannot go out of the finally block.");
+				throw new Core.Exception();
+			}
+			context::breakLabelId = FixJumpTarget(context::breakLabelId);
+			if (ctx == Context::TryCatch)
+				AddCode("leave\t" + GetLabelName(context::breakLabelId));
+			else
+				AddCode("jmp\t" + GetLabelName(context::breakLabelId));
+			return 0, freereg;
+		}
+		else if (node::op == Token::Try)
+		{
+			TryNode tnode = [TryNode] node;
+			int32 endTarget = currentLabelId;
+			currentLabelId = currentLabelId + 1;
+
+			if (tnode::finallyNode != null)
+			{
+				context::tryCatchLevel = context::tryCatchLevel + 1;
+				context::contextType::Push([Core.Object] Core.Int32::ToString(Context::TryCatch));
+			}
+
+			AddCode(".try {");
+			Tab();
+			int32 closed = CompileStatement(tnode::body, freereg, context);
+			if (closed == 0)
+				if (tnode::finallyNode == null)
+					AddCode("jmp\t" + GetLabelName(endTarget));
+				else
+					AddCode("leave\t" + GetLabelName(endTarget));
+			Untab();
+			AddCode("}");
+			for (int32 i = 0; i < tnode::catchNodes::.getSize(); i = i + 1)
+			{
+				CatchNode cnode = [CatchNode] tnode::catchNodes[i];
+				AddCode(".catch(" + cnode::className + " $" + Core.Int32::ToString(freereg) + ") {");
+				PushSymbolStack();
+				Variable var = new Variable();
+				var::regid = freereg;
+				var::type = cnode::className;
+				([Hash] symbolTable::Peek())::Add(cnode::name, [Core.Object] var);
+				Tab();
+				int32 closed = CompileStatement(cnode::body, freereg + 1, context);
+				if (closed == 0)
+					if (tnode::finallyNode == null)
+						AddCode("jmp\t" + GetLabelName(endTarget));
+					else
+						AddCode("leave\t" + GetLabelName(endTarget));
+				Untab();
+				AddCode("}");
+				PopSymbolStack(); 
+			}
+			if (tnode::finallyNode != null)
+			{
+				context::tryCatchLevel = context::tryCatchLevel - 1;
+				context::contextType::Pop();
+				context::finallyLevel = context::finallyLevel + 1;
+				context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Finally));
+
+				AddCode(".finally {");
+				Tab();
+				CompileStatement(tnode::finallyNode, freereg, context);
+				AddCode("endfinally");
+				Untab();
+				AddCode("}");
+
+				context::contextType::Pop();
+				context::finallyLevel = context::finallyLevel - 1;
+			}
+			AddLabel(endTarget);
+			return 0, freereg;
+		}
+		else if (node::op == Token::Throw)
+		{
+			ThrowNode tnode = [ThrowNode] node;
+			Value value = EnsureRegister(ToScalar(CompileList(tnode::exception, freereg, -1)), freereg);
+			AddCode("throw\t$" + Core.Int32::ToString(value::regid));
+			return 1, freereg;
+		}
+		else
+		{
+			CompileList(node, freereg, -1);
+			return 0, freereg;
+		}
+	}
+
+	/* Call node is the only 'expression'-like node that can return multiple values (or zero). */
+	/* So don't bother mentioning it many times here */
+	/* Save last scalar value to 'lastreg' if 'lastreg' != -1 */
+	private function CompileList(Node node, int32 freereg, int32 lastreg) -> Vector
+	{
+		if (node::op == Token::List)
+		{
+			ListNode lnode = [ListNode] node;
+			Vector ret = new Vector();
+			for (int32 i = 0; i < lnode::values::.getSize(); i = i + 1)
+			{
+				Node node = [Node] lnode::values[i];
+				int32 reg = freereg + ret::.getSize();
+				if (node::op == Token::Call)
+				{
+					Vector r = CompileCall(node, reg);
+					for (int32 j = 0; j < r::.getSize(); j = j + 1)
+						ret::Add(r[j]);
+				}
+				else if (lastreg != -1 && i + 1 == lnode::values::.getSize()) /* Last scalar */
+					ret::Add([Core.Object] EnsureRegister(CompileExpression(node, reg, lastreg, 0, 0), lastreg));
+				else /* Ensure value is a register at stack position */
+					ret::Add([Core.Object] MoveValueToRegister(CompileExpression(node, reg, reg, 0, 0), reg));
+			}
+			return ret;
+		}
+		else if (node::op == Token::Assign)
+		{
+			BinNode bnode = [BinNode] node;
+			if (bnode::left::op != Token::List)
+			{
+				/* Single operand assign */
+				Value left = CompileExpression(bnode::left, freereg, freereg, 0, 0);
+				freereg = GetNextFreeRegister(left, freereg);
+				if (left::kind & Value::LValue == 0)
+					throw new Core.Exception();
+				int32 targetreg = freereg;
+				if (left::kind & Value::Register > 0)
+					targetreg = left::regid;
+				Value right = CompileExpression(bnode::right, freereg, targetreg, 0, 0);
+				MoveValueToLValue(right, left, freereg);
+				return Scalar(left);
+			}
+			else
+			{
+				Vector left = new Vector();
+				ListNode lnode = [ListNode] bnode::left;
+				for (int32 i = 0; i < lnode::values::.getSize(); i = i + 1)
+				{
+					Value value = CompileExpression([Node] lnode::values[i], freereg, freereg, 0, 0);
+					freereg = GetNextFreeRegister(value, freereg);
+					if (value::kind & Value::LValue == 0)
+						throw new Core.Exception();
+					left::Add([Core.Object] value);
+				}
+
+				/* Optimize: if last element of 'left' is a register,
+				   directly store corresponding result in 'right' to that register */
+				if (([Value] left[left::.getSize() - 1])::kind & Value::Register > 0)
+					lastreg = ([Value] left[left::.getSize() - 1])::regid;
+				else
+					lastreg = -1;
+				Vector right = CompileList(bnode::right, freereg, lastreg);
+				if (left::.getSize() != right::.getSize())
+					throw new Core.Exception();
+				/* Move results to left, note the last one must be copied first, due to the optimization above */
+				for (int32 i = left::.getSize() - 1; i >= 0; i = i - 1)
+					MoveValueToLValue([Value] right[i], [Value] left[i], freereg);
+				return left;
+			}
+		}
+		else if (node::op == Token::Call)
+			return CompileCall(node, freereg);
+		else /* Scalar */
+		{
+			if (lastreg != -1)
+				return Scalar(CompileExpression(node, freereg, lastreg, 0, 0));
+			else
+				return Scalar(CompileExpression(node, freereg, freereg, 0, 0));
+		}
+	}
+
+	private function FixJumpTarget(int32 jtarget) -> int32
+	{
+		if (jtarget == 0)
+		{
+			currentLabelId = currentLabelId + 1;
+			return currentLabelId - 1;
+		}
+		else
+			return jtarget;
+	}
+
+	/* Return 'value' */
+	private function CompileExpression(Node node, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		if (node::op <= Token::BinArith)
+		{
+			BinNode bnode = [BinNode] node;
+			Value left = EnsureRegister(CompileExpression(bnode::left, freereg, freereg, 0, 0), freereg);
+			Value right = CompileExpression(bnode::right, freereg + 1, freereg + 1, 0, 0);
+			Core.String inst;
+			if (left::type::Equals(right::type) > 0 && left::type::Equals("int32") > 0)
+			{
+				if (bnode::op == Token::Add)
+					inst = "addi";
+				else if (bnode::op == Token::Sub)
+					inst = "subi";
+				else if (bnode::op == Token::Mul)
+					inst = "muli";
+				else if (bnode::op == Token::Div)
+					inst = "divi";
+				else if (bnode::op == Token::Rem)
+					inst = "remi";
+				else if (bnode::op == Token::BitAnd)
+					inst = "andi";
+				else if (bnode::op == Token::BitOr)
+					inst = "ori";
+				else if (bnode::op == Token::BitXor)
+					inst = "xori";
+				else
+					throw new Core.Exception();
+			}
+			else if (left::type::Equals("int") > 0 && right::type::Equals("int32") > 0)
+			{
+				right = EnsureRegister(right, freereg + 1);
+				if (bnode::op == Token::Add)
+					inst = "addni";
+				else if (bnode::op == Token::Sub)
+					inst = "subni";
+				else
+					throw new Core.Exception();
+			}
+			else
+				return CompileCustomBinaryOperator(bnode::op, left, right, freereg);
+
+			if (right::kind & Value::Immediate > 0 && right::type::Equals("int32") > 0)
+				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
+					+ ", $" + Core.Int32::ToString(left::regid)
+					+ ", " + Core.Int32::ToString(right::intvalue));
+			else
+				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
+					+ ", $" + Core.Int32::ToString(left::regid)
+					+ ", $" + Core.Int32::ToString(EnsureRegister(right, freereg + 1)::regid));
+			Value ret = new Value();
+			ret::kind = Value::Register;
+			ret::regid = targetreg;
+			ret::type = left::type;
+			return ret;
+		}
+		else if (node::op <= Token::BinComparison)
+		{
+			jtarget = FixJumpTarget(jtarget);
+
+			BinNode bnode = [BinNode] node;
+			Value left = EnsureRegister(CompileExpression(bnode::left, freereg, freereg, 0, 0), freereg);
+			Value right = CompileExpression(bnode::right, freereg + 1, freereg + 1, 0, 0);
+			Core.String inst;
+			if ((left::type::Equals("int32") > 0 || left::type::Equals("char") > 0) && left::type::Equals(right::type) > 0)
+			{
+				if (jtrue > 0) /* jump on true */
+				{
+					if (bnode::op == Token::LT)
+						inst = "lt";
+					else if (bnode::op == Token::LE)
+						inst = "le";
+					else if (bnode::op == Token::GT)
+						inst = "gt";
+					else if (bnode::op == Token::GE)
+						inst = "ge";
+					else if (bnode::op == Token::EQ)
+						inst = "eq";
+					else if (bnode::op == Token::NEQ)
+						inst = "neq";
+					else
+						throw new Core.InvalidOperationException();
+				}
+				else /* jump on false */
+				{
+					if (bnode::op == Token::LT)
+						inst = "ge";
+					else if (bnode::op == Token::LE)
+						inst = "gt";
+					else if (bnode::op == Token::GT)
+						inst = "le";
+					else if (bnode::op == Token::GE)
+						inst = "lt";
+					else if (bnode::op == Token::EQ)
+						inst = "neq";
+					else if (bnode::op == Token::NEQ)
+						inst = "eq";
+					else
+						throw new Core.InvalidOperationException();
+				}
+				if (right::kind & Value::Immediate > 0 && right::intvalue == 0)
+					AddCode("j" + inst + "zi\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
+				else
+				{
+					right = EnsureRegister(right, freereg + 1);
+					AddCode("j" + inst + "i\t$" + Core.Int32::ToString(left::regid) + ", $"
+						+ Core.Int32::ToString(right::regid) + ", " + GetLabelName(jtarget));
+				}
+			}
+			else if ((IsPrimitiveType(left::type) == 0 || left::type::Equals("int") > 0) && right::type::Equals("int") > 0)
+			{
+				if (right::kind & Value::Immediate == 0)
+				{
+					Core.Console::WriteLine("Right should be null!");
+					throw new Core.Exception();
+				}
+				if (jtrue > 0) /* jump on true */
+					if (bnode::op == Token::EQ)
+						inst = "jn";
+					else if (bnode::op == Token::NEQ)
+						inst = "jnn";
+					else
+						throw new Core.Exception();
+				else /* jump on false */
+					if (bnode::op == Token::EQ)
+						inst = "jnn";
+					else if (bnode::op == Token::NEQ)
+						inst = "jn";
+					else
+						throw new Core.Exception();
+				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
+			}
+			else
+			{
+				Core.Console::WriteLine("Unhandled jcc case.");
+				throw new Core.Exception();
+			}
+			Value ret = new Value();
+			ret::kind = Value::JumpTarget;
+			ret::labelid = jtarget;
+			ret::type = "int32"; /* HACK: bool type */
+			return ret;
+		}
+		else if (node::op <= Token::BinLogic)
+		{
+			jtarget = FixJumpTarget(jtarget);
+
+			BinNode bnode = [BinNode] node;
+			int32 leftjtrue, rightjtrue;
+			int32 leftjtarget, rightjtarget;
+			/* Calculate jump target of left/right */
+			if (node::op == Token::And)
+			{
+				if (jtrue > 0)
+				{
+					leftjtrue = 0;
+					leftjtarget = currentLabelId;
+					rightjtrue = 1;
+					rightjtarget = jtarget;
+					currentLabelId = currentLabelId + 1;
+				}
+				else
+				{
+					leftjtrue = 0;
+					rightjtrue = 0;
+					leftjtarget = rightjtarget = jtarget;
+				}
+			}
+			else if (node::op == Token::Or)
+			{
+				if (jtrue > 0)
+				{
+					leftjtrue = 1;
+					rightjtrue = 1;
+					leftjtarget = rightjtarget = jtarget;
+				}
+				else
+				{
+					leftjtrue = 1;
+					leftjtarget = currentLabelId;
+					rightjtrue = 0;
+					rightjtarget = jtarget;
+					currentLabelId = currentLabelId + 1;
+				}
+			}
+			else
+				throw new Core.InvalidOperationException();
+			Value left = CompileExpression(bnode::left, freereg, freereg, leftjtarget, leftjtrue);
+			Value right = CompileExpression(bnode::right, freereg, freereg, rightjtarget, rightjtrue);
+			if (left::kind & Value::JumpTarget == 0 || right::kind & Value::JumpTarget == 0)
+				throw new Core.Exception();
+			if (leftjtarget != jtarget)
+				AddLabel(leftjtarget);
+
+			Value ret = new Value();
+			ret::kind = Value::JumpTarget;
+			ret::labelid = jtarget;
+			ret::type = "int32"; /* HACK: bool type */
+			return ret;
+		}
+		else if (node::op <= Token::UnaryOp)
+		{
+			UnaryNode unode = [UnaryNode] node;
+			if (node::op == Token::Deref)
+			{
+				/* Deference */
+				Value value = EnsureRegister(CompileExpression(unode::operand, freereg, freereg, 0, 0), freereg);
+				if (value::type::Equals("int") == 0)
+					throw new Core.Exception();
+				Value ret = new Value();
+				ret::kind = Value::Deref | Value::LValue;
+				ret::regid = value::regid;
+				ret::type = "char";
+				return ret;
+			}
+			else if (node::op == Token::AddressOf)
+			{
+				Value value = CompileExpression(unode::operand, freereg, freereg, 0, 0);
+				if (value::kind & Value::LValue == 0)
+					throw new Core.Exception();
+				if (value::kind & Value::Register > 0)
+					AddCode("lar\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid));
+				else if (value::kind & Value::Field > 0)
+				{
+					Class classObject = value::classObject;
+					Field field = value::field;
+					if (field::modifier & Modifier::Static > 0)
+						AddCode("las\t$" + Core.Int32::ToString(targetreg) + ", " + classObject::name
+							+ "::" + field::name);
+					else
+						AddCode("laf\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
+							+ ", " + classObject::name + "::" + field::name);
+				}
+				else if (value::kind & Value::ArrayElement > 0)
+				{
+					AddCode("lae\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
+						+ "($" + Core.Int32::ToString(value::regid2) + ")");
+				}
+				else
+					throw new Core.Exception();
+				Value ret = new Value();
+				ret::kind = Value::Register;
+				ret::regid = targetreg;
+				ret::type = "int";
+				return ret;
+			}
+			else
+			{
+				Value value = EnsureRegister(CompileExpression(unode::operand, freereg, targetreg, 0, 0), targetreg);
+				if (value::type::Equals("int32") == 0)
+					throw new Core.Exception();
+				Core.String inst;
+				if (node::op == Token::Neg)
+					inst = "negi";
+				else if (node::op == Token::BitNot)
+					inst = "noti";
+				else
+					throw new Core.Exception();
+				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid));
+				Value ret = new Value();
+				ret::kind = Value::Register;
+				ret::regid = targetreg;
+				ret::type = value::type;
+				return ret;
+			}
+		}
+		else if (node::op == Token::New)
+		{
+			NewNode nnode = [NewNode] node;
+			Class classObject = [Class] classes[nnode::type];
+			Method method = [Method] classObject::methods[".ctor"];
+			if (method::paramTypes::.getSize() != nnode::parameters::.getSize())
+				throw new Core.Exception();
+			for (int32 i = 0; i < nnode::parameters::.getSize(); i = i + 1)
+			{
+				Value value = ToScalar(CompileList([Node] nnode::parameters[i], freereg + 2 + i, -1));
+				MoveValueToRegister(value, freereg + 2 + i);
+				if (value::type::Equals([Core.String] method::paramTypes[i]) == 0)
+					throw new Core.Exception();
+			}
+			AddCode("new\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
+				+ method::name + method::type);
+			Value ret = new Value();
+			ret::kind = Value::Register;
+			ret::regid = freereg;
+			ret::type = classObject::name;
+			return ret;
+		}
+		else if (node::op == Token::NewArray)
+		{
+			NewNode nnode = [NewNode] node;
+			if (nnode::parameters::.getSize() != 1)
+				throw new Core.Exception();
+
+			Value value = EnsureRegister(ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1)), freereg);
+			AddCode("newarr\t$" + Core.Int32::ToString(targetreg) + ", " + nnode::type + "($"
+				+ Core.Int32::ToString(value::regid) + ")");
+			Value ret = new Value();
+			ret::kind = Value::Register;
+			ret::regid = targetreg;
+			ret::type = nnode::type + "[]";
+			return ret;
+		}
+		else if (node::op == Token::Call)
+			return ToScalar(CompileCall(node, freereg));
+		else if (node::op == Token::Assign)
+			return ToScalar(CompileList(node, freereg, -1));
+		else if (node::op == Token::TypeCast)
+		{
+			TypeCastNode tnode = [TypeCastNode] node;
+			Value value = EnsureRegister(CompileExpression(tnode::operand, freereg, targetreg, 0, 0), targetreg);
+			if (IsPrimitiveType(value::type) > 0)
+			{
+				/* No boxing/unboxing now */
+				if (IsPrimitiveType(tnode::type) == 0)
+					throw new Core.Exception();
+				value::type = tnode::type;
+				return value;
+			}
+			else
+			{
+				AddCode("cast\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
+					+ ", " + tnode::type);
+				Value ret = new Value();
+				ret::kind = Value::Register;
+				ret::regid = targetreg;
+				ret::type = tnode::type;
+				return ret;
+			}
+		}
+		else if (node::op == Token::ArrayElement)
+		{
+			ArrayElementNode anode = [ArrayElementNode] node;
+			Value array = EnsureRegister(ToScalar(CompileList(anode::array, freereg, -1)), freereg);
+			if (array::type::.getLength() > 2 && array::type::SubString(array::type::.getLength() - 2, 2)::Equals("[]") > 0)
+			{
+				freereg = GetNextFreeRegister(array, freereg);
+				Value index = EnsureRegister(ToScalar(CompileList(anode::index, freereg, -1)), freereg);
+				Value ret = new Value();
+				ret::kind = Value::ArrayElement | Value::LValue;
+				ret::regid = array::regid;
+				ret::regid2 = index::regid;
+				ret::type = array::type::SubString(0, array::type::.getLength() - 2);
+				return ret;
+			}
+			else
+			{
+				Value index = EnsureRegister(CompileExpression(anode::index, freereg + 1, freereg + 1, 0, 0), freereg + 1);
+				Value value = CompileCustomBinaryOperator(Token::Array, array, index, freereg);
+				return value;
+			}
+		}
+		else if (node::op == Token::Field)
+		{
+			FieldNode fnode = [FieldNode] node;
+			Value object = CompileExpression(fnode::object, freereg, freereg, 0, 0);
+			if (object::type::SubString(object::type::.getLength() - 2, 2)::Equals("[]") > 0)
+			{
+				if (fnode::field::Equals("Length") == 0)
+					throw new Core.Exception();
+				object = EnsureRegister(object, freereg);
+				AddCode("ldlen\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(object::regid));
+				Value ret = new Value();
+				ret::kind = Value::Register;
+				ret::regid = targetreg;
+				ret::type = "int32";
+				return ret;
+			}
+
+			Value ret = new Value();
+			if (object::kind & Value::Type > 0)
+				ret::classObject = object::classObject;
+			else
+			{
+				object = EnsureRegister(object, freereg);
+				ret::regid = object::regid;
+				ret::classObject = [Class] classes[object::type];
+			}
+
+			Class fieldClassObject;
+			Field field;
+			int32 found;
+			if ((found, field, fieldClassObject = FindField(ret::classObject, fnode::field)) > 0)
+			{
+				/* Field */
+				ret::kind = Value::Field | Value::LValue;
+				ret::classObject = fieldClassObject;
+				ret::field = field;
+				ret::type = field::type;
+			}
+			else
+			{
+				/* Method */
+				Method method;
+				if ((found, method = ret::classObject::methods::Contains(fnode::field)) == 0)
+					throw new Core.Exception();
+				ret::kind = Value::Method;
+				ret::method = method;
+			}
+			return ret;
+		}
+		else if (node::op == Token::Ident)
+		{
+			IdentNode inode = [IdentNode] node;
+			int32 found;
+			Class classObject;
+			if ((found, classObject = classes::Contains(inode::ident)) > 0)
+			{
+				Value ret = new Value();
+				ret::kind = Value::Type;
+				ret::classObject = classObject;
+				ret::type = classObject::name;
+				return ret;
+			}
+			else
+			{
+				Variable variable;
+				int32 found;
+				variable, found = FindSymbol(inode::ident);
+				if (found > 0)
+				{
+					Value ret = new Value();
+					ret::kind = Value::Register | Value::LValue;
+					ret::regid = variable::regid;
+					ret::type = variable::type;
+					return ret;
+				}
+				else
+				{
+					Field field;
+					if ((found, field = currentClass::fields::Contains(inode::ident)) > 0)
+					{
+						Value ret = new Value();
+						ret::kind = Value::Field | Value::LValue;
+						ret::regid = 0;
+						ret::classObject = currentClass;
+						ret::field = field;
+						ret::type = ret::field::type;
+						return ret;
+					}
+					else
+					{
+						Method method;
+						if ((found, method = currentClass::methods::Contains(inode::ident)) > 0)
+						{
+							Value ret = new Value();
+							ret::kind = Value::Method;
+							ret::regid = 0;
+							ret::classObject = currentClass;
+							ret::method = method;
+							return ret;
+						}
+						else
+							throw new Core.Exception();
+					}
+				}
+			}
+		}
+		else if (node::op == Token::This)
+		{
+			if (currentMethod::modifier & Modifier::Static > 0)
+				throw new Core.Exception();
+			Value ret = new Value();
+			ret::kind = Value::Register;
+			ret::regid = 0;
+			ret::type = currentClass::name;
+			return ret;
+		}
+		else if (node::op == Token::Number)
+		{
+			Int32Node inode = [Int32Node] node;
+			Value ret = new Value();
+			ret::kind = Value::Immediate;
+			ret::intvalue = inode::intvalue;
+			ret::type = "int32";
+			return ret;
+		}
+		else if (node::op == Token::String)
+		{
+			StringNode snode = [StringNode] node;
+			AddCode("ldstr\t$" + Core.Int32::ToString(targetreg) + ", \"" + snode::stringvalue + "\"");
+			Value ret = new Value();
+			ret::kind = Value::Register;
+			ret::regid = targetreg;
+			ret::type = "Core.String";
+			return ret;
+		}
+		else if (node::op == Token::Null)
+		{
+			Value ret = new Value();
+			ret::kind = Value::Immediate;
+			ret::type = "int";
+
+			return ret;
+		}
+		else
+			throw new Core.Exception();
+	}
+
+	private function CompileCall(Node node, int32 freereg) -> Vector
+	{
+		CallNode cnode = [CallNode] node;
+		Value methodValue = ToScalar(CompileList(cnode::method, freereg, -1));
+		if (methodValue::kind & Value::Method == 0)
+			throw new Core.Exception();
+		Class classObject = methodValue::classObject;
+		Method method = methodValue::method;
+
+		/* Push 'this' if necessary */
+		int32 firstreg = freereg;
+		if (method::modifier & Modifier::Static > 0)
+			firstreg = freereg;
+		else
+		{
+			MoveRegisterToRegister(methodValue::regid, freereg, classObject::name);
+			firstreg = firstreg + 1;
+		}
+
+		/* Push parameters */
+		if (cnode::parameters::.getSize() != method::paramTypes::.getSize())
+			throw new Core.Exception();
+		for (int32 i = 0; i < method::paramTypes::.getSize(); i = i + 1)
+		{
+			Value value = ToScalar(CompileList([Node] cnode::parameters[i], firstreg + i, -1));
+			if (value::type::Equals([Core.String] method::paramTypes[i]) == 0)
+				throw new Core.Exception();
+			MoveValueToRegister(value, firstreg + i);
+		}
+
+		/* Call function */
+		AddCode("call\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::" + method::name + method::type);
+
+		/* Return value */
+		Vector ret = new Vector();
+		for (int32 i = 0; i < method::returnTypes::.getSize(); i = i + 1)
+		{
+			Value value = new Value();
+			value::kind = Value::Register;
+			value::regid = freereg + i;
+			value::type = [Core.String] method::returnTypes[i];
+			ret::Add([Core.Object] value);
+		}
+		return ret;
+	}
+
+	private function CompileCustomBinaryOperator(int32 op, Value left, Value right, int32 firstreg) -> Value
+	{
+		/* TODO: Currently we only try finding the method in the type */
+		MoveValueToRegister(left, firstreg);
+		MoveValueToRegister(right, firstreg + 1);
+
+		Core.String methodName = GetOperatorMethodName(op);
+		Method method = [Method] ([Class] classes[left::type])::methods[methodName];
+		if (method::paramTypes::.getSize() != 2 || method::returnTypes::.getSize() != 1
+			|| ([Core.String] method::paramTypes[0])::Equals(left::type) == 0
+			|| ([Core.String] method::paramTypes[1])::Equals(right::type) == 0
+			|| method::modifier & Modifier::Static == 1)
+			throw new Core.Exception();
+
+		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + left::type + "::" + methodName + method::type);
+		Value ret = new Value();
+		ret::kind = Value::Register;
+		ret::regid = firstreg;
+		ret::type = method::returnTypes[0];
+		return ret;
+	}
+}

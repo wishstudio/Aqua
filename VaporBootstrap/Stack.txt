@@ -1,0 +1,40 @@
+class Stack
+{
+	private Vector data;
+	private int32 size;
+
+	public function .ctor()
+	{
+		data = new Vector();
+		size = 0;
+	}
+
+	public function Push(Core.Object item)
+	{
+		if (size == data::.getSize())
+			data::Add(item);
+		else
+			data::Set(size, item);
+		size = size + 1;
+	}
+
+	public function Pop() -> Core.Object
+	{
+		if (size == 0)
+			throw new Core.InvalidOperationException();
+		size = size - 1;
+		return data[size];
+	}
+
+	public function Peek() -> Core.Object
+	{
+		if (size == 0)
+			throw new Core.InvalidOperationException();
+		return data[size - 1];
+	}
+
+	public function .getSize() -> int32
+	{
+		return size;
+	}
+}

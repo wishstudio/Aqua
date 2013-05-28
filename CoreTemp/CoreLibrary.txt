@@ -1,0 +1,36 @@
+.class Core.Object
+{
+	.method public internal function .getName() -> Core.String
+}
+
+
+.class Core.String
+{
+	.field private internal int32 length
+	.field private internal char firstChar
+
+	.method private static internal function AllocateString(int32) -> Core.String
+}
+
+.class Core.Native.Converter
+{
+}
+
+.class Core.Native.Memory
+{
+	.method public static internal function MoveMemory(int, int, int32)
+	
+	.method public static internal function CopyMemory(int, int, int32)
+	
+	.method public static internal function AllocateMemory(int32) -> int
+	
+	.method public static internal function FreeMemory(int)
+}
+
+.class Core.Exception
+{
+}
+
+.class Core.InvalidCastException: Core.Exception
+{
+}

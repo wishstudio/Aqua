@@ -1,0 +1,32 @@
+class Core.Encoding
+{
+	private static native function WideCharToMultiByte(
+		int32 CodePage,
+		int32 dwFlags,
+		int lpWideCharStr,
+		int32 cchWideChar,
+		int lpMultiByteStr,
+		int32 cbMultiByte,
+		int lpDefaultChar,
+		int lpUsedDefaultChar
+	) -> int32;
+	[stdcall, "kernel32.dll", "WideCharToMultiByte"]
+
+	int32 codePage;
+
+	public function .ctor(int32 codePage)
+	{
+		this::codePage = codePage;
+	}
+
+	/* Only UTF-8 implemented now */
+	public function ToBytes(char[] text, int32 length, uint8[] buffer) -> int32
+	{
+		return WideCharToMultiByte(codePage, 0, &text[0], length, &buffer[0], buffer::Length, null, null);
+	}
+
+	public function GetMaxByteLength(int32 maxCharLength) -> int32
+	{
+		return maxCharLength * 2;
+	}
+}

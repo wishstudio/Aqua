@@ -1,0 +1,79 @@
+class Core.String
+{
+	private internal int32 length;
+	private internal char firstChar;
+
+	private static internal function AllocateString(int32 length) -> Core.String;
+
+	private static function CopyStringData(Core.String dest, int32 destPos, Core.String source, int32 sourcePos, int32 length)
+	{
+		Core.Native.Memory::CopyMemory(dest::.getRawData() + destPos * 2, source::.getRawData() + sourcePos * 2, length * 2);
+	}
+
+	public static function FromCharBuffer(int buffer, int32 length) -> Core.String
+	{
+		Core.String ret = Core.String::AllocateString(length);
+		Core.Native.Memory::CopyMemory(&ret::firstChar, buffer, length * 2);
+		return ret;
+	}
+
+	public function AppendChar(char ch) -> Core.String
+	{
+		Core.String ret = Core.String::AllocateString(length + 1);
+		Core.Native.Memory::CopyMemory(&ret::firstChar, &firstChar, length * 2);
+		*(&ret::firstChar + length * 2) = ch;
+		return ret;
+	}
+
+	public function Equals(Core.String right) -> int32
+	{
+		if (length != right::length)
+			return 0;
+		int rawLeft = &firstChar, rawRight = &right::firstChar;
+		for (int32 i = 0; i < length; i = i + 1)
+		{
+			if (*rawLeft != *rawRight)
+				return 0;
+			rawLeft = rawLeft + 2;
+			rawRight = rawRight + 2;
+		}
+		return 1;
+	}
+
+	public function SubString(int32 offset, int32 length) -> Core.String
+	{
+		if (offset < 0 || offset >= this::length)
+			throw new Core.IndexOutOfBoundException();
+		if (length > this::length - offset)
+			length = this::length - offset;
+		return Core.String::FromCharBuffer(&firstChar + offset * 2, length);
+	}
+
+	public function CopyTo(int32 sourceIndex, char[] destination, int32 destinationIndex, int32 count)
+	{
+		Core.Native.Memory::CopyMemory(&destination[destinationIndex], &firstChar + sourceIndex * 2, count * 2);
+	}
+
+	public static operator + (Core.String left, Core.String right) -> Core.String
+	{
+		Core.String ret = Core.String::AllocateString(left::.getLength() + right::.getLength());
+		Core.String::CopyStringData(ret, 0, left, 0, left::.getLength());
+		Core.String::CopyStringData(ret, left::.getLength(), right, 0, right::.getLength());
+		return ret;
+	}
+
+	public static operator [] (Core.String string, int32 index) -> char
+	{
+		return *(&string::firstChar + index * 2);
+	}
+
+	public function .getLength() -> int32
+	{
+		return length;
+	}
+
+	public function .getRawData() -> int
+	{
+		return &firstChar;
+	}
+}

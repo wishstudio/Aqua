@@ -1,0 +1,48 @@
+class Core.StreamWriter
+{
+	private Core.FileStream stream;
+	private Core.Encoding encoding;
+	private int32 bufferSize, currentBufferPos;
+	private char[] charBuffer;
+	private uint8[] byteBuffer;
+
+	public function .ctor(Core.FileStream stream, Core.Encoding encoding)
+	{
+		this::stream = stream;
+		this::encoding = encoding;
+
+		bufferSize = 1024;
+		charBuffer = new char[bufferSize];
+		byteBuffer = new uint8[encoding::GetMaxByteLength(bufferSize)];
+
+		currentBufferPos = 0;
+	}
+
+	public function Dispose()
+	{
+		Flush();
+		stream::Close();
+	}
+
+	public function Write(Core.String string)
+	{
+		int32 current = 0, length = string::.getLength();
+		while (current < length)
+		{
+			int32 count = Core.Math::Min(length - current, bufferSize - currentBufferPos);
+			string::CopyTo(current, charBuffer, currentBufferPos, count);
+			current = current + count;
+			currentBufferPos = currentBufferPos + count;
+
+			if (currentBufferPos == bufferSize)
+				Flush();
+		}
+	}
+
+	public function Flush()
+	{
+		int32 byteCount = encoding::ToBytes(charBuffer, currentBufferPos, byteBuffer);
+		currentBufferPos = 0;
+		stream::Write(byteBuffer, byteCount);
+	}
+}

@@ -1,0 +1,425 @@
+class UnknownTokenException: Core.Exception
+{
+}
+
+class UnexpectedTokenException: Core.Exception
+{
+}
+
+class Lexer
+{
+	private Core.FileStream file;
+	private int32 ch;
+	private int32 currentLine;
+
+	public int32 token;
+	public Core.String ident;
+
+	public Vector rollbackToken;
+	public Vector rollbackIdent;
+	int32 recording;
+	int32 currentPosition, recordPosition;
+
+	public function .ctor(Core.String fileName)
+	{
+		file = new Core.FileStream(fileName, 0);
+		currentLine = 0;
+		NextChar();
+		recording = 0;
+		rollbackToken = new Vector();
+		rollbackIdent = new Vector();
+	}
+
+	public function Dispose()
+	{
+		file::Close();
+	}
+
+	public function NextChar()
+	{
+		ch = file::ReadByte();
+		if (ch == '\n')
+			currentLine = currentLine + 1;
+	}
+
+	/* Establish a checkpoint for potential later rollback */
+	public function Checkpoint()
+	{
+		if (recording > 0)
+			throw new Core.InvalidOperationException();
+		recording = 1;
+		recordPosition = 0;
+	}
+
+	/* Rollback to saved checkpoint */
+	public function RollbackCheckpoint()
+	{
+		/* Save last token */
+		RecordToken();
+
+		/* Get first token */
+		recording = 0;
+		currentPosition = 0;
+		Next();
+	}
+
+	/* Finish/Destroy current checkpoint */
+	public function FinishCheckpoint()
+	{
+		recording = 0;
+		currentPosition = 0;
+		recordPosition = 0;
+	}
+
+	/* Record current token */
+	public function RecordToken()
+	{
+		if (recordPosition < rollbackToken::.getSize())
+		{
+			rollbackToken::Set(recordPosition, [Core.Object] Core.Int32::ToString(token));
+			rollbackIdent::Set(recordPosition, [Core.Object] ident);
+		}
+		else
+		{
+			rollbackToken::Add([Core.Object] Core.Int32::ToString(token));
+			rollbackIdent::Add([Core.Object] ident);
+		}
+		recordPosition = recordPosition + 1;
+	}
+
+	/* Check current token type against expectation, throw exception if mismatch */
+	public function Assert(int32 expectedToken)
+	{
+		if (token != expectedToken)
+			throw new UnexpectedTokenException();
+	}
+
+	/* Get next token and check its type against expectation, throw exception if mismatch */
+	public function CheckNext(int32 expectedToken)
+	{
+		Next();
+		Assert(expectedToken);
+	}
+
+	public function Next()
+	{
+		if (recording == 0 && currentPosition < recordPosition)
+		{
+			token = Core.Int32::Parse([Core.String] rollbackToken[currentPosition]);
+			ident = [Core.String] rollbackIdent[currentPosition];
+			currentPosition = currentPosition + 1;
+			return;
+		}
+		else if (recording > 0)
+			RecordToken();
+
+		while (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n')
+			NextChar();
+		if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || ch == '.')
+		{
+			ident = "";
+			token = Token::Ident;
+			while ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
+				|| ch == '_' || ch == '.')
+			{
+				ident = ident::AppendChar([char] ch);
+				NextChar();
+			}
+			if (ident::Equals("this") > 0)
+				token = Token::This;
+			else if (ident::Equals("null") > 0)
+				token = Token::Null;
+			else if (ident::Equals("function") > 0)
+				token = Token::Function;
+			else if (ident::Equals("operator") > 0)
+				token = Token::Operator;
+			else if (ident::Equals("new") > 0)
+				token = Token::New;
+			else if (ident::Equals("if") > 0)
+				token = Token::If;
+			else if (ident::Equals("else") > 0)
+				token = Token::Else;
+			else if (ident::Equals("for") > 0)
+				token = Token::For;
+			else if (ident::Equals("while") > 0)
+				token = Token::While;
+			else if (ident::Equals("do") > 0)
+				token = Token::Do;
+			else if (ident::Equals("return") > 0)
+				token = Token::Return;
+			else if (ident::Equals("continue") > 0)
+				token = Token::Continue;
+			else if (ident::Equals("break") > 0)
+				token = Token::Break;
+			else if (ident::Equals("try") > 0)
+				token = Token::Try;
+			else if (ident::Equals("catch") > 0)
+				token = Token::Catch;
+			else if (ident::Equals("finally") > 0)
+				token = Token::Finally;
+			else if (ident::Equals("throw") > 0)
+				token = Token::Throw;
+		}
+		else if (ch == '-' || (ch >= '0' && ch <= '9'))
+		{
+			ident = "";
+			ident = ident::AppendChar([char] ch);
+			NextChar();
+			if (ident::Equals("-") > 0 && (ch < '0' || ch > '9'))
+			{
+				if (ch == '>')
+				{
+					token = Token::Arrow;
+					NextChar();
+					return;
+				}
+				token = Token::Sub;
+			}
+			else
+			{
+				token = Token::Number;
+				while (ch >= '0' && ch <= '9')
+				{
+					ident = ident::AppendChar([char] ch);
+					NextChar();
+				}
+			}
+		}
+		else if (ch == '"')
+		{
+			token = Token::String;
+			ident = "";
+			NextChar();
+			while (ch != '"')
+			{
+				ident = ident::AppendChar([char] ch);
+				if (ch == '\\')
+				{
+					NextChar();
+					ident = ident::AppendChar([char] ch);
+				}
+				NextChar();
+			}
+			NextChar();
+		}
+		else if (ch == '\'')
+		{
+			NextChar();
+			token = Token::Number;
+			if (ch == '\\')
+			{
+				NextChar();
+				if (ch == 'n')
+					ident = Core.Int32::ToString('\n');
+				else if (ch == 'r')
+					ident = Core.Int32::ToString('\r');
+				else if (ch == 't')
+					ident = Core.Int32::ToString('\t');
+				else if (ch == '\\')
+					ident = Core.Int32::ToString('\\');
+				else if (ch == '\'')
+					ident = Core.Int32::ToString('\'');
+				else
+					throw new UnknownTokenException();
+			}
+			else
+				ident = Core.Int32::ToString(ch);
+			NextChar();
+			if (ch != '\'')
+				throw new UnknownTokenException();
+			NextChar();
+		}
+		else if (ch == -1)
+		{
+			NextChar();
+			token = Token::EOF;
+		}
+		else if (ch == ',')
+		{
+			NextChar();
+			token = Token::Comma;
+		}
+		else if (ch == ':')
+		{
+			NextChar();
+			if (ch == ':')
+			{
+				token = Token::DoubleColon;
+				NextChar();
+			}
+			else
+				token = Token::Colon;
+		}
+		else if (ch == ';')
+		{
+			NextChar();
+			token = Token::Semicolon;
+		}
+		else if (ch == '&')
+		{
+			NextChar();
+			if (ch == '&')
+			{
+				token = Token::And;
+				NextChar();
+			}
+			else
+				token = Token::BitAnd;
+		}
+		else if (ch == '|')
+		{
+			NextChar();
+			if (ch == '|')
+			{
+				token = Token::Or;
+				NextChar();
+			}
+			else
+				token = Token::BitOr;
+		}
+		else if (ch == '!')
+		{
+			NextChar();
+			if (ch == '=')
+			{
+				token = Token::NEQ;
+				NextChar();
+			}
+			else
+				token = Token::Not;
+		}
+		else if (ch == '~')
+		{
+			NextChar();
+			token = Token::BitNot;
+		}
+		else if (ch == '^')
+		{
+			NextChar();
+			token = Token::BitXor;
+		}
+		else if (ch == '<')
+		{
+			NextChar();
+			if (ch == '=')
+			{
+				token = Token::LE;
+				NextChar();
+			}
+			else
+				token = Token::LT;
+		}
+		else if (ch == '>')
+		{
+			NextChar();
+			if (ch == '=')
+			{
+				token = Token::GE;
+				NextChar();
+			}
+			else
+				token = Token::GT;
+		}
+		else if (ch == '=')
+		{
+			NextChar();
+			if (ch == '=')
+			{
+				token = Token::EQ;
+				NextChar();
+			}
+			else
+				token = Token::Assign;
+		}
+		else if (ch == '+')
+		{
+			NextChar();
+			token = Token::Add;
+		}
+		/* Subtract operator '-' is handled as a case in numbers */
+		else if (ch == '*')
+		{
+			NextChar();
+			token = Token::Mul;
+		}
+		else if (ch == '/')
+		{
+			NextChar();
+			if (ch == '*')
+			{
+				/* Block comment */
+				/* HACK: for (;;) */
+				/* HACK: break */
+				int32 BREAK = 0;
+				while (BREAK == 0)
+				{
+					NextChar();
+					if (ch == '*')
+					{
+						NextChar();
+						if (ch == '/')
+							BREAK = 1;
+						NextChar();
+					}
+				}
+				Next();
+			}
+			else
+				token = Token::Div;
+		}
+		else if (ch == '%')
+		{
+			NextChar();
+			token = Token::Rem;
+		}
+		else if (ch == '(')
+		{
+			NextChar();
+			token = Token::PLeft;
+		}
+		else if (ch == ')')
+		{
+			NextChar();
+			token = Token::PRight;
+		}
+		else if (ch == '[')
+		{
+			NextChar();
+			if (ch == ']')
+			{
+				token = Token::Array;
+				NextChar();
+			}
+			else
+				token = Token::SLeft;
+		}
+		else if (ch == ']')
+		{
+			NextChar();
+			token = Token::SRight;
+		}
+		else if (ch == '{')
+		{
+			NextChar();
+			token = Token::BLeft;
+		}
+		else if (ch == '}')
+		{
+			NextChar();
+			token = Token::BRight;
+		}
+		else
+			throw new UnknownTokenException();
+	}
+
+	/* Fix token to an unary operation */
+	public function FixUnary()
+	{
+		if (token == Token::Mul)
+			token = Token::Deref;
+		else if (token == Token::Sub)
+			token = Token::Neg;
+		else if (token == Token::BitAnd)
+			token = Token::AddressOf;
+	}
+}

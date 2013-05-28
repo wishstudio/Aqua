@@ -1,0 +1,43 @@
+class Vector
+{
+	private int32 capacity, size;
+	private Core.Object[] elements;
+
+	public function .ctor()
+	{
+		capacity = 4;
+		size = 0;
+		elements = new Core.Object[capacity];
+	}
+
+	private function Grow()
+	{
+		capacity = capacity * 2;
+		Core.Object[] e = new Core.Object[capacity];
+		Core.Native.Memory::CopyMemory(&e[0], &elements[0], size * 4); /* HACK: sizeof(Core.Object) */
+		elements = e;
+	}
+
+	public static operator [] (Vector vector, int32 index) -> Core.Object
+	{
+		return vector::elements[index];
+	}
+
+	public function Set(int32 index, Core.Object object)
+	{
+		elements[index] = object;
+	}
+
+	public function Add(Core.Object object)
+	{
+		if (size == capacity)
+			Grow();
+		elements[size] = object;
+		size = size + 1;
+	}
+
+	public function .getSize() -> int32
+	{
+		return size;
+	}
+}

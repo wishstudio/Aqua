@@ -1,0 +1,23 @@
+class Core.Exception
+{
+}
+
+class Core.InvalidOperationException: Core.Exception
+{
+}
+
+class Core.InvalidCastException: Core.Exception
+{
+}
+
+class Core.FileNotFoundException: Core.Exception
+{
+}
+
+class Core.KeyNotFoundException: Core.Exception
+{
+}
+
+class Core.IndexOutOfBoundException: Core.Exception
+{
+}

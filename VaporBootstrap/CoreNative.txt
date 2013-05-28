@@ -1,0 +1,75 @@
+class Core.Native.Converter
+{
+	static public function ToWCharPtr(Core.String string) -> int
+	{
+		return string::.getRawData();
+	}
+}
+
+class Core.Native.Memory
+{
+	static public internal function CopyMemory(int destination, int source, int32 size);
+	static public internal function MoveMemory(int destination, int source, int32 size);
+	static public internal function AllocateMemory(int32 size) -> int data;
+	static public internal function FreeMemory(int data);
+}
+
+class Core.Native.Win32
+{
+	/* File functions */
+	public static native function CreateFile(
+		int lpFileName,
+		int32 dwDesiredAccess,
+		int32 dwShareMode,
+		int lpSecurityAttributes, /* TODO */
+		int32 dwCreationDisposition,
+		int32 dwFlagsAndAttributes,
+		int hTemplateFile
+	) -> int;
+	[stdcall, "kernel32.dll", "CreateFileW"]
+
+	public static native function ReadFile(
+		int hFile,
+		int lpBuffer,
+		int32 nNumberOfBytesToRead,
+		int lpNumberOfBytesRead,
+		int lpOverlapped
+	) -> int32;
+	[stdcall, "kernel32.dll", "ReadFile"]
+
+	public static native function WriteFile(
+		int hFile,
+		int lpBuffer,
+		int32 nNumberOfBytesToWrite,
+		int lpNumberOfBytesWritten,
+		int lpOverlapped
+	) -> int32;
+	[stdcall, "kernel32.dll", "WriteFile"]
+
+	public static native function CloseHandle(
+		int hObject
+	) -> int32;
+	[stdcall, "kernel32.dll", "CloseHandle"]
+
+	/* Console functions */
+	public static native function GetConsoleOutputCP() -> int32;
+	[stdcall, "kernel32.dll", "GetConsoleOutputCP"]
+
+	public static native function SetConsoleOutputCP(int32 wCodePageID);
+	[stdcall, "kernel32.dll", "SetConsoleOutputCP"]
+
+	public static native function GetStdHandle(int32 nStdHandle) -> int;
+	[stdcall, "kernel32.dll", "GetStdHandle"]
+
+	public static native function SetConsoleTitle(int lpConsoleTitle) -> int32;
+	[stdcall, "kernel32.dll", "SetConsoleTitleW"]
+
+	public static native function WriteConsole(
+		int hConsoleOutput,
+		int lpBuffer,
+		int32 nNumberOfCharsToWrite,
+		int lpNumberOfCharsWritten,
+		int lpReserved
+	) -> int32;
+	[stdcall, "kernel32.dll", "WriteConsoleW"]
+}

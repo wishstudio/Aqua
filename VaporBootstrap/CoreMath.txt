@@ -1,0 +1,27 @@
+class Core.Math
+{
+	public static function Abs(int32 x) -> int32
+	{
+		if (x >= 0)
+			return x;
+		else
+			return -x;
+	}
+	/* TODO: SafeAbs: Throw exception on overflow */
+
+	public static function Min(int32 left, int32 right) -> int32
+	{
+		if (left <= right)
+			return left;
+		else
+			return right;
+	}
+
+	public static function Max(int32 left, int32 right) -> int32
+	{
+		if (left <= right)
+			return right;
+		else
+			return left;
+	}
+}
