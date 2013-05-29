@@ -460,7 +460,6 @@ MAIN_DISPATCH:
 
 		case 0xE2: // LEAVE addr
 			currentFrame->nextExceptionClause = 0;
-			currentException = nullptr;
 			currentLeaveTarget = pc + _imm32;
 			pc = pc - 1;
 			goto HANDLE_LEAVE;
@@ -590,6 +589,7 @@ HANDLE_EXCEPTION: /* Handles throw */
 						if (isFrameInvalidated)
 							ENTERFRAME();
 						POINTER(REG(clause->catchRegister)) = currentException;
+						currentException = nullptr;
 					}
 					else /* finally */
 						if (isFrameInvalidated)
