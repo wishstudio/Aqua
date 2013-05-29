@@ -33,7 +33,6 @@ class Vapor
 			return;
 		}
 
-		Core.Console::Write("Writing assembly file...");
 		Core.FileStream outFS = new Core.FileStream(args[args::Length - 1], 1);
 		Core.StreamWriter out = new Core.StreamWriter(
 			outFS,
@@ -45,6 +44,5 @@ class Vapor
 			out::Write("\r\n");
 		}
 		out::Dispose();
-		Core.Console::WriteLine(" done.");
 	}
 }

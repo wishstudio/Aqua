@@ -23,15 +23,20 @@ class Parser
 
 	public function Parse(Core.String fileName)
 	{
-		lex = new Lexer(fileName);
-		lex::Next();
-		currentFileName = fileName;
 		try
+		{
+			currentFileName = fileName;
+			lex = new Lexer(fileName);
+			lex::Next();
 			ParseFile();
+		}
 		catch (ParserException e)
 			throw new CompilerException("Parser error.", GetCurrentLocation());
 		finally
-			lex::Dispose();
+		{
+			if (lex != null)
+				lex::Dispose();
+		}
 	}
 
 	private function ParseModifier() -> int32
