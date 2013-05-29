@@ -16,6 +16,10 @@ class Core.Native.Memory
 
 class Core.Native.Win32
 {
+	/* Debug helper */
+	public static native function DebugBreak();
+	[stdcall, "kernel32.dll", "DebugBreak"]
+
 	/* File functions */
 	public static native function CreateFile(
 		int lpFileName,
