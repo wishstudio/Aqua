@@ -1,3 +1,4 @@
+#include <functional>
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -274,7 +275,7 @@ int new_method_ref(int class_ref, const std::string &method_name, int method_typ
 	}
 }
 
-enum TTokenType
+enum TokenType
 {
 	tkEOF,
 	tkNum,
@@ -895,405 +896,362 @@ int getCallingConvention()
 #define EXCEPTION_CLAUSE_CATCH		0
 #define EXCEPTION_CLAUSE_FINALLY	1
 
-#define EXCEPTION_NONE			0
-#define EXCEPTION_IN_TRY		1
-#define EXCEPTION_IN_CATCH		2
-#define EXCEPTION_IN_FINALLY	3
-struct try_block
-{
-	int flag;
-	int try_start, try_stop;
-	int catch_class_ref, catch_reg, handler_start;
-
-	try_block()
-	{
-		flag = EXCEPTION_NONE;
-		try_start = 0;
-		try_stop = 0;
-		catch_reg = 0;
-		catch_class_ref = 0;
-		handler_start = 0;
-	}
-};
-
 std::string compile_method(int *register_count, int *code_size, int *exception_clause_count)
 {
 	std::unordered_map<std::string, int> labels;
 	std::vector<std::pair<int, std::string>> label_patch_list;
 	maxRegister = 0;
 	std::string code, handler_table;
-	std::vector<try_block> try_blocks;
-	try_blocks.push_back(try_block());
 	int clauseCount = 0;
-	for (;;)
-	{
-		if (tt == tkBRight)
-		{
-			/* Pop current block */
-			try_blocks.pop_back();
-			if (try_blocks.size() == 0)
-				break;
-			if (try_blocks.back().flag == EXCEPTION_IN_TRY)
-				/* Update try clause stop position */
-				try_blocks.back().try_stop = code.size() / 4;
-			else if (try_blocks.back().flag != EXCEPTION_NONE)
-			{
-				/* Add handler clause */
-				try_block block = try_blocks.back();
-				if (block.flag == EXCEPTION_IN_CATCH)
-					_PUT4(handler_table, EXCEPTION_CLAUSE_CATCH);
-				else
-					_PUT4(handler_table, EXCEPTION_CLAUSE_FINALLY);
-				_PUT4(handler_table, block.try_start);
-				_PUT4(handler_table, block.try_stop);
-				_PUT4(handler_table, block.handler_start);
-				_PUT4(handler_table, code.size() / 4); /* handler_stop */
-				_PUT2(handler_table, block.catch_class_ref);
-				_PUT2(handler_table, block.catch_reg);
 
-				/* Update try block end for use with next block */
-				try_blocks.back().try_stop = code.size() / 4;
-				clauseCount++;
-			}
-			getToken();
-		}
-
-		std::string opcode = ti;
-		TTokenType opcode_tt = tt;
+	std::function<void()> compile_method_internal = [&]() {
+		assert(tt == tkBLeft);
 		getToken();
-		while (tt == tkColon)
+		for (;;)
 		{
-			labels.insert(std::make_pair(opcode, code.size() / 4));
-			getToken();
-			opcode = ti;
-			getToken();
-		}
-		/* Exception handling */
-		if (opcode == ".try")
-		{
-			assert(try_blocks.back().flag != EXCEPTION_IN_TRY);
-			assert(tt == tkBLeft);
-			getToken();
-			/* Modify current block */
-			try_blocks.back().flag = EXCEPTION_IN_TRY;
-			try_blocks.back().try_start = code.size() / 4;
-			try_blocks.back().catch_class_ref = 0;
-			try_blocks.back().catch_reg = 0;
-			/* Push a new blank block as current block */
-			try_blocks.push_back(try_block());
-			continue;
-		}
-		else if (opcode == ".catch")
-		{
-			assert(try_blocks.back().flag == EXCEPTION_IN_TRY || try_blocks.back().flag == EXCEPTION_IN_CATCH);
-			try_blocks.back().flag = EXCEPTION_IN_CATCH;
-			try_blocks.back().handler_start = code.size() / 4;
-			assert(tt == tkPLeft);
-			getToken();
-			assert(tt == tkIdent);
-			try_blocks.back().catch_class_ref = new_class_ref(ti);
-			getToken();
-			assert(tt == tkRegister);
-			try_blocks.back().catch_reg = tn;
-			getToken();
-			assert(tt == tkPRight);
-			getToken();
-			assert(tt == tkBLeft);
-			getToken();
-			/* Push a new blank block as current block */
-			try_blocks.push_back(try_block());
-			continue;
-		}
-		else if (opcode == ".finally")
-		{
-			assert(try_blocks.back().flag == EXCEPTION_IN_TRY || try_blocks.back().flag == EXCEPTION_IN_CATCH);
-			try_blocks.back().flag = EXCEPTION_IN_FINALLY;
-			try_blocks.back().handler_start = code.size() / 4;
-			assert(tt == tkBLeft);
-			getToken();
-			/* Push a new blank block as current block */
-			try_blocks.push_back(try_block());
-			continue;
-		}
-		if (false);
-		OP("addi", BINI(0x00))
-		OP("subi", BINI(0x02))
-		OP("muli", BINI(0x04))
-		OP("mulu", BINI(0x06))
-		OP("divi", BINI(0x08))
-		OP("divu", BINI(0x0A))
-		OP("remi", BINI(0x0C))
-		OP("remu", BINI(0x0E))
-
-		OP("andi", BINI(0x10))
-		OP("ori", BINI(0x12))
-		OP("xori", BINI(0x14))
-		OP("noti", UNARY(0x16))
-		OP("negi", UNARY(0x17))
-		OP("sli", BINI(0x18))
-		OP("sri", BINI(0x1A))
-		OP("sru", BINI(0x1C))
-
-		OP("andl", BIN(0x20))
-		OP("subl", BIN(0x21))
-		OP("mull", BIN(0x22))
-		OP("mulul", BIN(0x23))
-		OP("divl", BIN(0x24))
-		OP("divul", BIN(0x25))
-		OP("reml", BIN(0x26))
-		OP("remul", BIN(0x27))
-		OP("andl", BIN(0x28))
-		OP("orl", BIN(0x29))
-		OP("xorl", BIN(0x2A))
-		OP("notl", BIN(0x2B))
-		OP("negl", BIN(0x2C))
-		OP("sll", BIN(0x2D))
-		OP("srl", BIN(0x2E))
-		OP("srul", BIN(0x2F))
-
-		OP("addn", BIN(0x30))
-		OP("addni", BIN(0x31))
-		OP("subn", BIN(0x32))
-		OP("subni", BIN(0x33))
-
-		OP("jmp", JMP(0x60))
-		OP("jn", UNARYADDR(0x61))
-		OP("jnn", UNARYADDR(0x62))
-
-		OP("jzi", UNARYADDR(0x70))
-		OP("jeqzi", UNARYADDR(0x70))
-		OP("jnzi", UNARYADDR(0x71))
-		OP("jneqzi", UNARYADDR(0x71))
-		OP("jgtzi", UNARYADDR(0x72))
-		OP("jgezi", UNARYADDR(0x73))
-		OP("jltzi", UNARYADDR(0x74))
-		OP("jlezi", UNARYADDR(0x75))
-		OP("jeqi", BINADDR(0x76))
-		OP("jneqi", BINADDR(0x77))
-		OP("jgti", BINADDR(0x78))
-		OP("jgtu", BINADDR(0x79))
-		OP("jgei", BINADDR(0x7A))
-		OP("jgeu", BINADDR(0x7B))
-		OP("jlti", BINADDR(0x7C))
-		OP("jltu", BINADDR(0x7D))
-		OP("jlei", BINADDR(0x7E))
-		OP("jleu", BINADDR(0x7F))
-
-		OP("ldfb", LDF(0x80, 0x88))
-		OP("ldfub", LDF(0x81, 0x89))
-		OP("ldfw", LDF(0x82, 0x8A))
-		OP("ldfuw", LDF(0x83, 0x8B))
-		OP("ldfi", LDF(0x84, 0x8C))
-		OP("ldfl", LDF(0x85, 0x8D))
-		OP("ldfv", LDF(0x86, 0x8E))
-		OP("ldfa", LDF(0x87, 0x8F))
-
-		OP("ldsb", LDS(0x90, 0x98))
-		OP("ldsub", LDS(0x91, 0x99))
-		OP("ldsw", LDS(0x92, 0x9A))
-		OP("ldsuw", LDS(0x93, 0x9B))
-		OP("ldsi", LDS(0x94, 0x9C))
-		OP("ldsl", LDS(0x95, 0x9D))
-		OP("ldsv", LDS(0x96, 0x9E))
-		OP("ldsa", LDS(0x97, 0x9F))
-
-		OP("ldib", LDI(0xA0, 0xA8))
-		OP("ldiub", LDI(0xA1, 0xA9))
-		OP("ldiw", LDI(0xA2, 0xAA))
-		OP("ldiuw", LDI(0xA3, 0xAB))
-		OP("ldii", LDI(0xA4, 0xAC))
-		OP("ldil", LDI(0xA5, 0xAD))
-		OP("ldiv", LDI(0xA6, 0xAE))
-		OP("ldia", LDI(0xA7, 0xAF))
-
-		OP("ldeb", LDE(0xB0, 0xB8))
-		OP("ldeub", LDE(0xB1, 0xB9))
-		OP("ldew", LDE(0xB2, 0xBA))
-		OP("ldeuw", LDE(0xB3, 0xBB))
-		OP("ldei", LDE(0xB4, 0xBC))
-		OP("ldel", LDE(0xB5, 0xBD))
-		//OP("ldev", LDEV(0xB6, 0xBE))
-		OP("ldea", LDE(0xB7, 0xBF))
-		else if (opcode == "ldi")
-		{
-			assert(tt == tkRegister);
-			int a = tn;
-			getToken();
-			assert(tt == tkComma);
-			getToken();
-			if (tt == tkRegister) // register
-				PUT(0xC0), PUT(a), PUT(tn), PUT(0x00);
-			else // immediate
+			if (tt == tkBRight)
 			{
-				assert(tt == tkNum);
-				PUT(0xC4), PUT(a), PUT(0x00), PUT(0x00), PUT4(tn);
+				getToken();
+				return;
 			}
+			assert(tt == tkIdent);
+			std::string opcode = ti;
 			getToken();
-		}
-		else if (opcode == "lda")
-		{
-			assert(tt == tkRegister);
-			int a = tn;
-			getToken();
-			assert(tt == tkComma);
-			getToken();
-			assert(tt == tkRegister);
-			PUT(0xC3), PUT(a), PUT(tn), PUT(0);
-			getToken();
-		}
-		else if (opcode == "ldstr")
-		{
-			assert(tt == tkRegister);
-			int a = tn;
-			getToken();
-			assert(tt == tkComma);
-			getToken();
-			assert(tt == tkString);
-			PUT(0xC8), PUT(a), PUT2(new_string(ts));
-			getToken();
-		}
-		OP("ldlen", UNARY(0xC9))
-		OP("ldnull", SINGLE(0xCB))
-		OP("laf", LDF(0xCC, 0xCC)) /* FIXME */
-		OP("las", LDF(0xCD, 0xCD)) /* FIXME */
-		OP("lar", UNARY(0xCE))
-		OP("lae", LDE(0xCF, 0xCF)) /* FIXME */
-		else if (opcode == "ret")
-		{
-			if (tt == tkRegister)
+			while (tt == tkColon)
 			{
+				labels.insert(std::make_pair(opcode, code.size() / 4));
+				getToken();
+				opcode = ti;
+				getToken();
+			}
+			if (opcode == ".try")
+			{
+				int try_start = code.size() / 4;
+				compile_method_internal();
+				int try_end = code.size() / 4;
+				while (tt == tkIdent && (ti == ".catch" || ti == ".finally"))
+				{
+					int flags;
+					int catch_class_ref = 0, catch_reg = 0;
+					if (ti == ".catch")
+					{
+						flags = EXCEPTION_CLAUSE_CATCH;
+						getToken();
+						assert(tt == tkPLeft);
+						getToken();
+						assert(tt == tkIdent);
+						catch_class_ref = new_class_ref(ti);
+						getToken();
+						assert(tt == tkRegister);
+						catch_reg = tn;
+						getToken();
+						assert(tt == tkPRight);
+						getToken();
+					}
+					else if (ti == ".finally")
+					{
+						flags = EXCEPTION_CLAUSE_FINALLY;
+						getToken();
+					}
+					int handler_start = code.size() / 4;
+					compile_method_internal();
+					int handler_end = code.size() / 4;
+
+					/* Update handler table */
+					_PUT4(handler_table, flags);
+					_PUT4(handler_table, try_start);
+					_PUT4(handler_table, try_end);
+					_PUT4(handler_table, handler_start);
+					_PUT4(handler_table, handler_end);
+					_PUT2(handler_table, catch_class_ref);
+					_PUT2(handler_table, catch_reg);
+					clauseCount++;
+					/* Update try block end for use with next block */
+					try_end = code.size() / 4;
+				}
+			}
+			OP("addi", BINI(0x00))
+			OP("subi", BINI(0x02))
+			OP("muli", BINI(0x04))
+			OP("mulu", BINI(0x06))
+			OP("divi", BINI(0x08))
+			OP("divu", BINI(0x0A))
+			OP("remi", BINI(0x0C))
+			OP("remu", BINI(0x0E))
+	
+			OP("andi", BINI(0x10))
+			OP("ori", BINI(0x12))
+			OP("xori", BINI(0x14))
+			OP("noti", UNARY(0x16))
+			OP("negi", UNARY(0x17))
+			OP("sli", BINI(0x18))
+			OP("sri", BINI(0x1A))
+			OP("sru", BINI(0x1C))
+	
+			OP("andl", BIN(0x20))
+			OP("subl", BIN(0x21))
+			OP("mull", BIN(0x22))
+			OP("mulul", BIN(0x23))
+			OP("divl", BIN(0x24))
+			OP("divul", BIN(0x25))
+			OP("reml", BIN(0x26))
+			OP("remul", BIN(0x27))
+			OP("andl", BIN(0x28))
+			OP("orl", BIN(0x29))
+			OP("xorl", BIN(0x2A))
+			OP("notl", BIN(0x2B))
+			OP("negl", BIN(0x2C))
+			OP("sll", BIN(0x2D))
+			OP("srl", BIN(0x2E))
+			OP("srul", BIN(0x2F))
+	
+			OP("addn", BIN(0x30))
+			OP("addni", BIN(0x31))
+			OP("subn", BIN(0x32))
+			OP("subni", BIN(0x33))
+	
+			OP("jmp", JMP(0x60))
+			OP("jn", UNARYADDR(0x61))
+			OP("jnn", UNARYADDR(0x62))
+	
+			OP("jzi", UNARYADDR(0x70))
+			OP("jeqzi", UNARYADDR(0x70))
+			OP("jnzi", UNARYADDR(0x71))
+			OP("jneqzi", UNARYADDR(0x71))
+			OP("jgtzi", UNARYADDR(0x72))
+			OP("jgezi", UNARYADDR(0x73))
+			OP("jltzi", UNARYADDR(0x74))
+			OP("jlezi", UNARYADDR(0x75))
+			OP("jeqi", BINADDR(0x76))
+			OP("jneqi", BINADDR(0x77))
+			OP("jgti", BINADDR(0x78))
+			OP("jgtu", BINADDR(0x79))
+			OP("jgei", BINADDR(0x7A))
+			OP("jgeu", BINADDR(0x7B))
+			OP("jlti", BINADDR(0x7C))
+			OP("jltu", BINADDR(0x7D))
+			OP("jlei", BINADDR(0x7E))
+			OP("jleu", BINADDR(0x7F))
+	
+			OP("ldfb", LDF(0x80, 0x88))
+			OP("ldfub", LDF(0x81, 0x89))
+			OP("ldfw", LDF(0x82, 0x8A))
+			OP("ldfuw", LDF(0x83, 0x8B))
+			OP("ldfi", LDF(0x84, 0x8C))
+			OP("ldfl", LDF(0x85, 0x8D))
+			OP("ldfv", LDF(0x86, 0x8E))
+			OP("ldfa", LDF(0x87, 0x8F))
+	
+			OP("ldsb", LDS(0x90, 0x98))
+			OP("ldsub", LDS(0x91, 0x99))
+			OP("ldsw", LDS(0x92, 0x9A))
+			OP("ldsuw", LDS(0x93, 0x9B))
+			OP("ldsi", LDS(0x94, 0x9C))
+			OP("ldsl", LDS(0x95, 0x9D))
+			OP("ldsv", LDS(0x96, 0x9E))
+			OP("ldsa", LDS(0x97, 0x9F))
+	
+			OP("ldib", LDI(0xA0, 0xA8))
+			OP("ldiub", LDI(0xA1, 0xA9))
+			OP("ldiw", LDI(0xA2, 0xAA))
+			OP("ldiuw", LDI(0xA3, 0xAB))
+			OP("ldii", LDI(0xA4, 0xAC))
+			OP("ldil", LDI(0xA5, 0xAD))
+			OP("ldiv", LDI(0xA6, 0xAE))
+			OP("ldia", LDI(0xA7, 0xAF))
+	
+			OP("ldeb", LDE(0xB0, 0xB8))
+			OP("ldeub", LDE(0xB1, 0xB9))
+			OP("ldew", LDE(0xB2, 0xBA))
+			OP("ldeuw", LDE(0xB3, 0xBB))
+			OP("ldei", LDE(0xB4, 0xBC))
+			OP("ldel", LDE(0xB5, 0xBD))
+			//OP("ldev", LDEV(0xB6, 0xBE))
+			OP("ldea", LDE(0xB7, 0xBF))
+			else if (opcode == "ldi")
+			{
+				assert(tt == tkRegister);
 				int a = tn;
 				getToken();
-				if (tt == tkComma)
+				assert(tt == tkComma);
+				getToken();
+				if (tt == tkRegister) // register
+					PUT(0xC0), PUT(a), PUT(tn), PUT(0x00);
+				else // immediate
 				{
-					/* retn */
-					getToken();
-					assert(tt == tkRegister);
-					PUT(0xDA), PUT(a), PUT(tn), PUT(0);
-					getToken();
+					assert(tt == tkNum);
+					PUT(0xC4), PUT(a), PUT(0x00), PUT(0x00), PUT4(tn);
 				}
-				else /* ret1 */
-					PUT(0xD9), PUT(a), PUT(0), PUT(0);
+				getToken();
 			}
-			else /* ret0 */
-				PUT(0xD8), PUT(0), PUT(0), PUT(0);
+			else if (opcode == "lda")
+			{
+				assert(tt == tkRegister);
+				int a = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				assert(tt == tkRegister);
+				PUT(0xC3), PUT(a), PUT(tn), PUT(0);
+				getToken();
+			}
+			else if (opcode == "ldstr")
+			{
+				assert(tt == tkRegister);
+				int a = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				assert(tt == tkString);
+				PUT(0xC8), PUT(a), PUT2(new_string(ts));
+				getToken();
+			}
+			OP("ldlen", UNARY(0xC9))
+			OP("ldnull", SINGLE(0xCB))
+			OP("laf", LDF(0xCC, 0xCC)) /* FIXME */
+			OP("las", LDF(0xCD, 0xCD)) /* FIXME */
+			OP("lar", UNARY(0xCE))
+			OP("lae", LDE(0xCF, 0xCF)) /* FIXME */
+			else if (opcode == "ret")
+			{
+				if (tt == tkRegister)
+				{
+					int a = tn;
+					getToken();
+					if (tt == tkComma)
+					{
+						/* retn */
+						getToken();
+						assert(tt == tkRegister);
+						PUT(0xDA), PUT(a), PUT(tn), PUT(0);
+						getToken();
+					}
+					else /* ret1 */
+						PUT(0xD9), PUT(a), PUT(0), PUT(0);
+				}
+				else /* ret0 */
+					PUT(0xD8), PUT(0), PUT(0), PUT(0);
+			}
+			OP("new", CALL(0xD0))
+			else if (opcode == "newarr")
+			{
+				/* newarr $a, type($b) */
+				assert(tt == tkRegister);
+				int a = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				int type_ref = getType();
+				assert(tt == tkPLeft);
+				getToken();
+				assert(tt == tkRegister);
+				int b = tn;
+				getToken();
+				assert(tt == tkPRight);
+				getToken();
+				PUT(0xD1), PUT(a), PUT(b), PUT(0);
+				PUT2(new_type_ref(TYPE_ARRAY, type_ref)), PUT2(0);
+			}
+			OP("call", CALL(0xDB))
+			OP("callv", CALL(0xDC))
+			OP("throw", SINGLE(0xE0))
+			OP("rethrow", NOP(0xE1))
+			OP("leave", JMP(0xE2))
+			OP("endfinally", NOP(0xE3))
+			else if (opcode == "cast")
+			{
+				/* cast $a, $b, type */
+				assert(tt == tkRegister);
+				int a = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				assert(tt == tkRegister);
+				int b = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				int type_ref = getType();
+				PUT(0xE7), PUT(a), PUT(b), PUT(0);
+				PUT2(type_ref), PUT2(0);
+			}
+			// special opcodes
+			else if (opcode == "printi")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x00), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "printu")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x01), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "printl")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x02), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "printul")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x03), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "prints")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x04), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "printc")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x05), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "readi")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x08), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "readu")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x09), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "readl")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x0A), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "readul")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x0B), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else if (opcode == "reads")
+			{
+				assert(tt == tkRegister);
+				PUT(0xFF), PUT(0x0C), PUT(0x00), PUT(tn);
+				getToken();
+			}
+			else
+			{
+				printf("Unknown opcode: %s\n", opcode.c_str());
+				assert(("Unknown opcode.", 0));
+			}
 		}
-		OP("new", CALL(0xD0))
-		else if (opcode == "newarr")
-		{
-			/* newarr $a, type($b) */
-			assert(tt == tkRegister);
-			int a = tn;
-			getToken();
-			assert(tt == tkComma);
-			getToken();
-			int type_ref = getType();
-			assert(tt == tkPLeft);
-			getToken();
-			assert(tt == tkRegister);
-			int b = tn;
-			getToken();
-			assert(tt == tkPRight);
-			getToken();
-			PUT(0xD1), PUT(a), PUT(b), PUT(0);
-			PUT2(new_type_ref(TYPE_ARRAY, type_ref)), PUT2(0);
-		}
-		OP("call", CALL(0xDB))
-		OP("callv", CALL(0xDC))
-		OP("throw", SINGLE(0xE0))
-		OP("rethrow", NOP(0xE1))
-		OP("leave", JMP(0xE2))
-		OP("endfinally", NOP(0xE3))
-		else if (opcode == "cast")
-		{
-			/* cast $a, $b, type */
-			assert(tt == tkRegister);
-			int a = tn;
-			getToken();
-			assert(tt == tkComma);
-			getToken();
-			assert(tt == tkRegister);
-			int b = tn;
-			getToken();
-			assert(tt == tkComma);
-			getToken();
-			int type_ref = getType();
-			PUT(0xE7), PUT(a), PUT(b), PUT(0);
-			PUT2(type_ref), PUT2(0);
-		}
-		// special opcodes
-		else if (opcode == "printi")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x00), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "printu")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x01), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "printl")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x02), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "printul")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x03), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "prints")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x04), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "printc")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x05), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "readi")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x08), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "readu")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x09), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "readl")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x0A), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "readul")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x0B), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else if (opcode == "reads")
-		{
-			assert(tt == tkRegister);
-			PUT(0xFF), PUT(0x0C), PUT(0x00), PUT(tn);
-			getToken();
-		}
-		else
-		{
-			printf("Unknown opcode: %s\n", opcode.c_str());
-			assert(("Unknown opcode.", 0));
-		}
-	}
+	};
+
+	compile_method_internal();
+
 	*register_count = maxRegister + 1;
 	*exception_clause_count = clauseCount;
 	*code_size = code.size() / 4;
@@ -1394,17 +1352,13 @@ void compile_class()
 			}
 			else
 			{
-				assert(tt == tkBLeft);
-				getToken();
 				int register_count, code_size, clause_count;
 				std::string code = compile_method(&register_count, &code_size, &clause_count);
-				assert(tt == tkBRight);
 				_PUT2(data, register_count);
 				_PUT4(data, code_heap.size());
 				_PUT4(data, code_size);
 				_PUT4(data, clause_count);
 				code_heap += code;
-				getToken();
 			}
 			method_def_table.push_back(data);
 			method_count++;
