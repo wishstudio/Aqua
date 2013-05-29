@@ -26,7 +26,6 @@ class Parser
 		lex = new Lexer(fileName);
 		lex::Next();
 		currentFileName = fileName;
-		Core.Console::WriteLine("Parsing " + fileName + "...");
 		try
 			ParseFile();
 		catch (ParserException e)
@@ -122,7 +121,6 @@ class Parser
 						lex::Next();
 						method::name = Compiler::GetOperatorMethodName(lex::token);
 					}
-					Core.Console::WriteLine("  ::" + method::name);
 
 					/* Get parameters */
 					lex::CheckNext(Token::PLeft);

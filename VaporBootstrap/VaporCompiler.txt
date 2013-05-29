@@ -361,7 +361,6 @@ class Compiler
 				AddCode(".class " + currentClass::name + ": " + currentClass::baseName);
 			AddCode("{");
 			Tab();
-			Core.Console::WriteLine("Compile " + currentClass::name + "...");
 
 			Vector fields = currentClass::fields::values;
 			for (int32 j = 0; j < fields::.getSize(); j = j + 1)
@@ -386,7 +385,6 @@ class Compiler
 
 	private function CompileMethod(Method method)
 	{
-		Core.Console::WriteLine("  ::" + method::name);
 		Core.String modifier = Modifier::ToString(method::modifier);
 		if (modifier::.getLength() > 0)
 			modifier = modifier + " ";
