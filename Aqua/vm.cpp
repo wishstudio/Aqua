@@ -587,11 +587,13 @@ HANDLE_EXCEPTION: /* Handles throw */
 						if (!instanceOf(currentException, clause->catchClass))
 							continue;
 						/* Got ya */
+						if (isFrameInvalidated)
+							ENTERFRAME();
 						POINTER(REG(clause->catchRegister)) = currentException;
 					}
-					/* catch or finally */
-					if (isFrameInvalidated)
-						ENTERFRAME();
+					else /* finally */
+						if (isFrameInvalidated)
+							ENTERFRAME();
 					pc = clause->handlerStart;
 					OP_END();
 				}
