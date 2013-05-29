@@ -1,8 +1,12 @@
-class UnknownTokenException: Core.Exception
+class ParserException: Core.Exception
 {
 }
 
-class UnexpectedTokenException: Core.Exception
+class UnexpectedTokenException: ParserException
+{
+}
+
+class UnexpectedCharacterException: ParserException
 {
 }
 
@@ -10,24 +14,26 @@ class Lexer
 {
 	private Core.FileStream file;
 	private int32 ch;
-	private int32 currentLine;
 
 	public int32 token;
 	public Core.String ident;
+	public int32 lineNumber;
 
 	public Vector rollbackToken;
 	public Vector rollbackIdent;
+	public Vector rollbackLineNumber;
 	int32 recording;
 	int32 currentPosition, recordPosition;
 
 	public function .ctor(Core.String fileName)
 	{
 		file = new Core.FileStream(fileName, 0);
-		currentLine = 0;
+		lineNumber = 1;
 		NextChar();
 		recording = 0;
 		rollbackToken = new Vector();
 		rollbackIdent = new Vector();
+		rollbackLineNumber = new Vector();
 	}
 
 	public function Dispose()
@@ -39,7 +45,7 @@ class Lexer
 	{
 		ch = file::ReadByte();
 		if (ch == '\n')
-			currentLine = currentLine + 1;
+			lineNumber = lineNumber + 1;
 	}
 
 	/* Establish a checkpoint for potential later rollback */
@@ -78,11 +84,13 @@ class Lexer
 		{
 			rollbackToken::Set(recordPosition, [Core.Object] Core.Int32::ToString(token));
 			rollbackIdent::Set(recordPosition, [Core.Object] ident);
+			rollbackLineNumber::Set(recordPosition, [Core.Object] Core.Int32::ToString(lineNumber));
 		}
 		else
 		{
 			rollbackToken::Add([Core.Object] Core.Int32::ToString(token));
 			rollbackIdent::Add([Core.Object] ident);
+			rollbackLineNumber::Add([Core.Object] Core.Int32::ToString(lineNumber));
 		}
 		recordPosition = recordPosition + 1;
 	}
@@ -107,6 +115,7 @@ class Lexer
 		{
 			token = Core.Int32::Parse([Core.String] rollbackToken[currentPosition]);
 			ident = [Core.String] rollbackIdent[currentPosition];
+			lineNumber = Core.Int32::Parse([Core.String] rollbackLineNumber[currentPosition]);
 			currentPosition = currentPosition + 1;
 			return;
 		}
@@ -220,13 +229,13 @@ class Lexer
 				else if (ch == '\'')
 					ident = Core.Int32::ToString('\'');
 				else
-					throw new UnknownTokenException();
+					throw new UnexpectedCharacterException();
 			}
 			else
 				ident = Core.Int32::ToString(ch);
 			NextChar();
 			if (ch != '\'')
-				throw new UnknownTokenException();
+				throw new UnexpectedCharacterException();
 			NextChar();
 		}
 		else if (ch == -1)
@@ -409,7 +418,7 @@ class Lexer
 			token = Token::BRight;
 		}
 		else
-			throw new UnknownTokenException();
+			throw new UnexpectedCharacterException();
 	}
 
 	/* Fix token to an unary operation */

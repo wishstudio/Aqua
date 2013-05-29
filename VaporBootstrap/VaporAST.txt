@@ -1,27 +1,64 @@
+class Location
+{
+	public Core.String fileName;
+	public int32 lineNumber;
+
+	public function ToString() -> Core.String
+	{
+		return fileName + ":" + Core.Int32::ToString(lineNumber);
+	}
+}
+
 class Node
 {
 	public int32 op;
+	Location location;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class Int32Node: Node
 {
 	public int32 intvalue;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class StringNode: Node
 {
 	public Core.String stringvalue;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class IdentNode: Node
 {
 	public Core.String ident;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class FieldNode: Node
 {
 	public Node object;
 	public Core.String field;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class CallNode: Node
@@ -29,8 +66,9 @@ class CallNode: Node
 	public Node method;
 	public Vector parameters;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		parameters = new Vector();
 	}
 }
@@ -40,8 +78,9 @@ class NewNode: Node
 	public Core.String type;
 	public Vector parameters;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		parameters = new Vector();
 	}
 }
@@ -50,24 +89,40 @@ class ArrayElementNode: Node
 {
 	public Node array;
 	public Node index;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class UnaryNode: Node
 {
 	public Node operand;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class BinNode: Node
 {
 	public Node left, right;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class ListNode: Node
 {
 	public Vector values;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		values = new Vector();
 	}
 }
@@ -78,8 +133,9 @@ class DefinitionNode: Node
 	public Vector names;
 	public Vector values;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		names = new Vector();
 		values = new Vector();
 	}
@@ -89,8 +145,9 @@ class MultipleNode: Node
 {
 	public Vector nodes;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		nodes = new Vector();
 	}
 }
@@ -99,32 +156,53 @@ class TypeCastNode: Node
 {
 	public Core.String type;
 	public Node operand;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class IfNode: Node
 {
 	public Node condition;
 	public Node trueBody, falseBody;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class WhileNode: Node
 {
 	public Node condition;
 	public Node body;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class ForNode: Node
 {
 	public Node init, condition, update;
 	public Node body;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class ReturnNode: Node
 {
 	public Vector values;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		values = new Vector();
 	}
 }
@@ -135,8 +213,9 @@ class TryNode: Node
 	public Vector catchNodes;
 	public Node finallyNode;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		catchNodes = new Vector();
 	}
 }
@@ -146,11 +225,21 @@ class CatchNode: Node
 	public Core.String className;
 	public Core.String name;
 	public Node body;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class ThrowNode: Node
 {
 	public Node exception;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class Field
@@ -158,6 +247,12 @@ class Field
 	public int32 modifier;
 	public Core.String name;
 	public Core.String type;
+	public Location location;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
 }
 
 class Method
@@ -172,9 +267,12 @@ class Method
 	public int32 callingConvention;
 	public Core.String libraryName, originalName;
 	public Node body;
+	public Location location;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
+
 		paramTypes = new Vector();
 		paramNames = new Vector();
 		returnTypes = new Vector();
@@ -187,9 +285,12 @@ class Class
 	public Core.String name, baseName;
 	public Hash methods;
 	public Hash fields;
+	public Location location;
 
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
+
 		methods = new Hash();
 		fields = new Hash();
 	}

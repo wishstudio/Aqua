@@ -6,19 +6,33 @@ class Parser
 	public Hash classes;
 
 	private Lexer lex;
+	private Core.String currentFileName;
 
 	public function .ctor()
 	{
 		classes = new Hash();
 	}
 
+	public function GetCurrentLocation() -> Location
+	{
+		Location location = new Location();
+		location::fileName = currentFileName;
+		location::lineNumber = lex::lineNumber;
+		return location;
+	}
+
 	public function Parse(Core.String fileName)
 	{
 		lex = new Lexer(fileName);
 		lex::Next();
+		currentFileName = fileName;
 		Core.Console::WriteLine("Parsing " + fileName + "...");
-		ParseFile();
-		lex::Dispose();
+		try
+			ParseFile();
+		catch (ParserException e)
+			throw new CompilerException("Parser error.", GetCurrentLocation());
+		finally
+			lex::Dispose();
 	}
 
 	private function ParseModifier() -> int32
@@ -75,7 +89,7 @@ class Parser
 	{
 		while (lex::token == Token::Ident && lex::ident::Equals("class") > 0)
 		{
-			Class classObject = new Class();
+			Class classObject = new Class(GetCurrentLocation());
 			lex::CheckNext(Token::Ident);
 			classObject::name = lex::ident;
 			lex::Next();
@@ -94,7 +108,7 @@ class Parser
 				int32 modifier = ParseModifier();
 				if (lex::token == Token::Function || lex::token == Token::Operator)
 				{
-					Method method = new Method();
+					Method method = new Method(GetCurrentLocation());
 					method::modifier = modifier;
 					if (lex::token == Token::Function)
 					{
@@ -104,7 +118,7 @@ class Parser
 					else
 					{
 						if (method::modifier & Modifier::Static == 0)
-							throw new Core.Exception();
+							throw new Core.Exception(); /* TODO */
 						lex::Next();
 						method::name = Compiler::GetOperatorMethodName(lex::token);
 					}
@@ -225,7 +239,7 @@ class Parser
 					{
 						lex::Assert(Token::Ident);
 
-						Field field = new Field();
+						Field field = new Field(GetCurrentLocation());
 						field::modifier = modifier;
 						field::type = type;
 						field::name = lex::ident;
@@ -250,10 +264,10 @@ class Parser
 			/* Generate constructor if there isn't one */
 			if (classObject::methods::Contains(".ctor") == 0)
 			{
-				ReturnNode body = new ReturnNode();
+				ReturnNode body = new ReturnNode(GetCurrentLocation());
 				body::op = Token::Return;
 
-				Method method = new Method();
+				Method method = new Method(GetCurrentLocation());
 				method::name = ".ctor";
 				method::modifier = Modifier::Public;
 				method::type = "()";
@@ -268,7 +282,7 @@ class Parser
 	{
 		if (lex::token == Token::BLeft)
 		{
-			MultipleNode node = new MultipleNode();
+			MultipleNode node = new MultipleNode(GetCurrentLocation());
 			node::op = Token::MultipleNode;
 			lex::Next();
 			/* TODO: This cannot handle bugs */
@@ -279,7 +293,7 @@ class Parser
 		}
 		else if (lex::token == Token::If)
 		{
-			IfNode node = new IfNode();
+			IfNode node = new IfNode(GetCurrentLocation());
 			node::op = Token::If;
 			lex::CheckNext(Token::PLeft);
 			lex::Next();
@@ -295,7 +309,7 @@ class Parser
 			else
 			{
 				/* HACK: null */
-				Node nnode = new Node();
+				Node nnode = new Node(GetCurrentLocation());
 				nnode::op = Token::None;
 				node::falseBody = nnode;
 			}
@@ -303,7 +317,7 @@ class Parser
 		}
 		else if (lex::token == Token::For)
 		{
-			ForNode node = new ForNode();
+			ForNode node = new ForNode(GetCurrentLocation());
 			node::op = Token::For;
 			lex::CheckNext(Token::PLeft);
 			lex::Next();
@@ -321,7 +335,7 @@ class Parser
 		}
 		else if (lex::token == Token::While)
 		{
-			WhileNode node = new WhileNode();
+			WhileNode node = new WhileNode(GetCurrentLocation());
 			node::op = Token::While;
 			lex::CheckNext(Token::PLeft);
 			lex::Next();
@@ -333,7 +347,7 @@ class Parser
 		}
 		else if (lex::token == Token::Do)
 		{
-			WhileNode node = new WhileNode();
+			WhileNode node = new WhileNode(GetCurrentLocation());
 			node::op = Token::Do;
 			lex::Next();
 			node::body = ParseStatement();
@@ -349,7 +363,7 @@ class Parser
 		else if (lex::token == Token::Return)
 		{
 			lex::Next();
-			ReturnNode node = new ReturnNode();
+			ReturnNode node = new ReturnNode(GetCurrentLocation());
 			node::op = Token::Return;
 			if (lex::token != Token::Semicolon)
 			{
@@ -374,7 +388,7 @@ class Parser
 		{
 			lex::CheckNext(Token::Semicolon);
 			lex::Next();
-			Node node = new Node();
+			Node node = new Node(GetCurrentLocation());
 			node::op = Token::Continue;
 			return node;
 		}
@@ -382,19 +396,19 @@ class Parser
 		{
 			lex::CheckNext(Token::Semicolon);
 			lex::Next();
-			Node node = new Node();
+			Node node = new Node(GetCurrentLocation());
 			node::op = Token::Break;
 			return node;
 		}
 		else if (lex::token == Token::Try)
 		{
 			lex::Next();
-			TryNode node = new TryNode();
+			TryNode node = new TryNode(GetCurrentLocation());
 			node::op = Token::Try;
 			node::body = ParseStatement();
 			while (lex::token == Token::Catch)
 			{
-				CatchNode cnode = new CatchNode();
+				CatchNode cnode = new CatchNode(GetCurrentLocation());
 				lex::CheckNext(Token::PLeft);
 				lex::CheckNext(Token::Ident);
 				cnode::className = lex::ident;
@@ -411,13 +425,13 @@ class Parser
 				node::finallyNode = ParseStatement();
 			}
 			if (node::catchNodes::.getSize() == 0 && node::finallyNode == null)
-				throw new Core.Exception();
+				throw new Core.Exception(); /* TODO */
 			return node;
 		}
 		else if (lex::token == Token::Throw)
 		{
 			lex::Next();
-			ThrowNode node = new ThrowNode();
+			ThrowNode node = new ThrowNode(GetCurrentLocation());
 			node::op = Token::Throw;
 			node::exception = ParseList();
 			lex::Assert(Token::Semicolon);
@@ -445,7 +459,7 @@ class Parser
 		}
 		lex::FinishCheckpoint();
 
-		DefinitionNode node = new DefinitionNode();
+		DefinitionNode node = new DefinitionNode(GetCurrentLocation());
 		node::op = Token::Definition;
 		node::type = type;
 		/* HACK: for (;;) */
@@ -464,7 +478,7 @@ class Parser
 			else
 			{
 				/* HACK: null with op */
-				Node n = new Node();
+				Node n = new Node(GetCurrentLocation());
 				n::op = Token::None;
 				node::values::Add([Core.Object] n);
 			}
@@ -482,7 +496,7 @@ class Parser
 		Node node = ParseExpression(0);
 		if (lex::token == Token::Comma)
 		{
-			ListNode ret = new ListNode();
+			ListNode ret = new ListNode(GetCurrentLocation());
 			ret::op = Token::List;
 			ret::values::Add([Core.Object] node);
 			while (lex::token == Token::Comma)
@@ -496,7 +510,7 @@ class Parser
 		if (lex::token == Token::Assign)
 		{
 			lex::Next();
-			BinNode ret = new BinNode();
+			BinNode ret = new BinNode(GetCurrentLocation());
 			ret::op = Token::Assign;
 			ret::left = node;
 			ret::right = ParseList();
@@ -512,7 +526,7 @@ class Parser
 		Node left = ParseObjectAccess();
 		while (lex::token <= Token::BinOp && Token::BinPriority[lex::token] > priority)
 		{
-			BinNode node = new BinNode();
+			BinNode node = new BinNode(GetCurrentLocation());
 			node::op = lex::token;
 			node::left = left;
 			lex::Next();
@@ -537,7 +551,7 @@ class Parser
 			{
 				lex::CheckNext(Token::Ident);
 
-				FieldNode node = new FieldNode();
+				FieldNode node = new FieldNode(GetCurrentLocation());
 				node::op = Token::Field;
 				node::object = object;
 				node::field = lex::ident;
@@ -549,7 +563,7 @@ class Parser
 			{
 				lex::Next();
 
-				CallNode node = new CallNode();
+				CallNode node = new CallNode(GetCurrentLocation());
 				node::op = Token::Call;
 				node::method = object;
 
@@ -578,7 +592,7 @@ class Parser
 			{
 				lex::Next();
 
-				ArrayElementNode node = new ArrayElementNode();
+				ArrayElementNode node = new ArrayElementNode(GetCurrentLocation());
 				node::op = Token::ArrayElement;
 				node::array = object;
 				node::index = ParseList();
@@ -599,7 +613,7 @@ class Parser
 		lex::FixUnary();
 		if (lex::token > Token::BinOp && lex::token <= Token::UnaryOp)
 		{
-			UnaryNode node = new UnaryNode();
+			UnaryNode node = new UnaryNode(GetCurrentLocation());
 			node::op = lex::token;
 			lex::Next();
 			node::operand = ParseObjectAccess();
@@ -616,7 +630,7 @@ class Parser
 		else if (lex::token == Token::SLeft)
 		{
 			lex::Next();
-			TypeCastNode node = new TypeCastNode();
+			TypeCastNode node = new TypeCastNode(GetCurrentLocation());
 			node::op = Token::TypeCast;
 			node::type = ParseType();
 			lex::Assert(Token::SRight);
@@ -627,7 +641,7 @@ class Parser
 		else if (lex::token == Token::New)
 		{
 			lex::Next();
-			NewNode node = new NewNode();
+			NewNode node = new NewNode(GetCurrentLocation());
 			node::type = ParseType();
 			if (lex::token == Token::SLeft)
 			{
@@ -665,20 +679,20 @@ class Parser
 		else if (lex::token == Token::This)
 		{
 			lex::Next();
-			Node node = new Node();
+			Node node = new Node(GetCurrentLocation());
 			node::op = Token::This;
 			return node;
 		}
 		else if (lex::token == Token::Null)
 		{
 			lex::Next();
-			Node node = new Node();
+			Node node = new Node(GetCurrentLocation());
 			node::op = Token::Null;
 			return node;
 		}
 		else if (lex::token == Token::Number)
 		{
-			Int32Node node = new Int32Node();
+			Int32Node node = new Int32Node(GetCurrentLocation());
 			node::op = Token::Number;
 			node::intvalue = Core.Int32::Parse(lex::ident);
 			lex::Next();
@@ -686,7 +700,7 @@ class Parser
 		}
 		else if (lex::token == Token::String)
 		{
-			StringNode node = new StringNode();
+			StringNode node = new StringNode(GetCurrentLocation());
 			node::op = Token::String;
 			node::stringvalue = lex::ident;
 			lex::Next();
@@ -694,7 +708,7 @@ class Parser
 		}
 		else if (lex::token == Token::Ident)
 		{
-			IdentNode node = new IdentNode();
+			IdentNode node = new IdentNode(GetCurrentLocation());
 			node::op = Token::Ident;
 			node::ident = lex::ident;
 			lex::Next();

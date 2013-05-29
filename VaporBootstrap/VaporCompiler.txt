@@ -1,3 +1,20 @@
+class CompilerException
+{
+	public Core.String message;
+	public Location location;
+
+	public function .ctor(Core.String message, Location location)
+	{
+		this::message = message;
+		this::location = location;
+	}
+
+	public function ToString() -> Core.String
+	{
+		return location::ToString() + ": " + message;
+	}
+}
+
 class Variable
 {
 	public int32 regid;
@@ -169,7 +186,7 @@ class Compiler
 		else if (op == Token::Array)
 			return ".opArrayElement";
 		else
-			throw new Core.Exception();
+			return null;
 	}
 
 	private function IsPrimitiveType(Core.String type) -> int32
@@ -197,7 +214,7 @@ class Compiler
 		else if (classes::Contains(type) > 0)
 			return "a";
 		else
-			throw new Core.Exception();
+			throw new Core.InvalidOperationException();
 	}
 
 	/* Move register $src to $dst of type 'type' */
@@ -224,7 +241,7 @@ class Compiler
 			else if (value::type::Equals("int") > 0) /* HACK: Only null supported now */
 				AddCode("ldnull\t$" + Core.Int32::ToString(regid));
 			else
-				throw new Core.Exception();
+				throw new Core.InvalidOperationException();
 		}
 		else if (value::kind & Value::Deref > 0)
 			AddCode("ldiuw\t$" + Core.Int32::ToString(regid) + ", ($" + Core.Int32::ToString(value::regid) + ")");
@@ -252,7 +269,7 @@ class Compiler
 			AddCode("lde" + GetTypeSuffix(value::type) + "\t$" + Core.Int32::ToString(regid) + ", $"
 				+ Core.Int32::ToString(value::regid) + "($" + Core.Int32::ToString(value::regid2) + ")");
 		else
-			throw new Core.Exception();
+			throw new Core.InvalidOperationException();
 		Value ret = new Value();
 		ret::kind = Value::Register;
 		ret::regid = regid;
@@ -296,7 +313,7 @@ class Compiler
 				+ "($" + Core.Int32::ToString(lvalue::regid2) + "), $" + Core.Int32::ToString(v::regid));
 		}
 		else
-			throw new Core.Exception();
+			throw new Core.InvalidOperationException();
 	}
 
 	private function GetNextFreeRegister(Value value, int32 freereg) -> int32
@@ -320,7 +337,7 @@ class Compiler
 	private function ToScalar(Vector values) -> Value
 	{
 		if (values::.getSize() == 0)
-			throw new Core.Exception();
+			throw new Core.Exception(); /* TODO */
 		return [Value] values[0];
 	}
 
@@ -486,7 +503,7 @@ class Compiler
 				currentLabelId = currentLabelId + 1;
 				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
 				if (value::kind & Value::JumpTarget == 0)
-					throw new Core.Exception();
+					throw new CompilerException("Jump target expected.", node::location); /* TODO */
 				CompileStatement(inode::trueBody, freereg, context);
 				AddLabel(falseTarget);
 				return 0, freereg;
@@ -500,7 +517,7 @@ class Compiler
 				currentLabelId = currentLabelId + 1;
 				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
 				if (value::kind & Value::JumpTarget == 0)
-					throw new Core.Exception();
+					throw new CompilerException("Jump target expected.", node::location); /* TODO */
 				int32 thenClosed, elseClosed;
 				thenClosed = CompileStatement(inode::trueBody, freereg, context);
 				if (thenClosed == 0)
@@ -539,7 +556,7 @@ class Compiler
 			AddLabel(conditionTarget);
 			Value value = CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1);
 			if (value::kind & Value::JumpTarget == 0)
-				throw new Core.Exception();
+				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 
 			if (context::breakLabelId > 0)
 				AddLabel(context::breakLabelId);
@@ -571,7 +588,7 @@ class Compiler
 			AddLabel(conditionTarget);
 			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
 			if (value::kind & Value::JumpTarget == 0)
-				throw new Core.Exception();
+				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 
 			if (context::breakLabelId > 0)
 				AddLabel(context::breakLabelId);
@@ -600,7 +617,7 @@ class Compiler
 				AddLabel(context::continueLabelId);
 			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
 			if (value::kind & Value::JumpTarget == 0)
-				throw new Core.Exception();
+				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 
 			if (context::breakLabelId > 0)
 				AddLabel(context::breakLabelId);
@@ -614,12 +631,9 @@ class Compiler
 		{
 			ReturnNode rnode = [ReturnNode] node;
 			if (rnode::values::.getSize() != currentMethod::returnTypes::.getSize() && rnode::values::.getSize() != 0)
-				throw new Core.Exception();
+				throw new CompilerException("Unmatched number of return values.", node::location);
 			if (context::finallyLevel > 0)
-			{
-				Core.Console::WriteLine("Control cannot go out of the finally block.");
-				throw new Core.Exception();
-			}
+				throw new CompilerException("Control cannot go out of the finally block.", node::location);
 			if (context::tryCatchLevel > 0)
 			{
 				/* We are inside a try finally block */
@@ -671,16 +685,11 @@ class Compiler
 		else if (node::op == Token::Continue)
 		{
 			if (context::loopLevel == 0)
-			{
-				Core.Console::WriteLine("Not in a loop!");
-				throw new Core.Exception();
-			}
+				throw new CompilerException("Not in a loop.", node::location);
 			int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
 			if (ctx == Context::Finally)
-			{
-				Core.Console::WriteLine("Control cannot go out of the finally block.");
-				throw new Core.Exception();
-			}
+				throw new CompilerException("Control cannot go out of the finally block.", node::location);
+
 			context::continueLabelId = FixJumpTarget(context::continueLabelId);
 			if (ctx == Context::TryCatch)
 				AddCode("leave\t" + GetLabelName(context::continueLabelId));
@@ -691,16 +700,11 @@ class Compiler
 		else if (node::op == Token::Break)
 		{
 			if (context::loopLevel == 0)
-			{
-				Core.Console::WriteLine("Not in a loop!");
-				throw new Core.Exception();
-			}
+				throw new CompilerException("Not in a loop.", node::location);
 			int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
 			if (ctx == Context::Finally)
-			{
-				Core.Console::WriteLine("Control cannot go out of the finally block.");
-				throw new Core.Exception();
-			}
+				throw new CompilerException("Control cannot go out of the finally block.", node::location);
+
 			context::breakLabelId = FixJumpTarget(context::breakLabelId);
 			if (ctx == Context::TryCatch)
 				AddCode("leave\t" + GetLabelName(context::breakLabelId));
@@ -819,7 +823,7 @@ class Compiler
 				Value left = CompileExpression(bnode::left, freereg, freereg, 0, 0);
 				freereg = GetNextFreeRegister(left, freereg);
 				if (left::kind & Value::LValue == 0)
-					throw new Core.Exception();
+					throw new CompilerException("Lvalue expected.", node::location);
 				int32 targetreg = freereg;
 				if (left::kind & Value::Register > 0)
 					targetreg = left::regid;
@@ -836,7 +840,7 @@ class Compiler
 					Value value = CompileExpression([Node] lnode::values[i], freereg, freereg, 0, 0);
 					freereg = GetNextFreeRegister(value, freereg);
 					if (value::kind & Value::LValue == 0)
-						throw new Core.Exception();
+						throw new CompilerException("Lvalue expected.", node::location);
 					left::Add([Core.Object] value);
 				}
 
@@ -848,7 +852,7 @@ class Compiler
 					lastreg = -1;
 				Vector right = CompileList(bnode::right, freereg, lastreg);
 				if (left::.getSize() != right::.getSize())
-					throw new Core.Exception();
+					throw new CompilerException("List size unmatch.", node::location);
 				/* Move results to left, note the last one must be copied first, due to the optimization above */
 				for (int32 i = left::.getSize() - 1; i >= 0; i = i - 1)
 					MoveValueToLValue([Value] right[i], [Value] left[i], freereg);
@@ -905,7 +909,7 @@ class Compiler
 				else if (bnode::op == Token::BitXor)
 					inst = "xori";
 				else
-					throw new Core.Exception();
+					throw new CompilerException("Unsupported binary operatior.", node::location);
 			}
 			else if (left::type::Equals("int") > 0 && right::type::Equals("int32") > 0)
 			{
@@ -915,10 +919,10 @@ class Compiler
 				else if (bnode::op == Token::Sub)
 					inst = "subni";
 				else
-					throw new Core.Exception();
+					throw new CompilerException("Unsupported binary operatior.", node::location);
 			}
 			else
-				return CompileCustomBinaryOperator(bnode::op, left, right, freereg);
+				return CompileCustomBinaryOperator(node, bnode::op, left, right, freereg);
 
 			if (right::kind & Value::Immediate > 0 && right::type::Equals("int32") > 0)
 				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
@@ -959,7 +963,7 @@ class Compiler
 					else if (bnode::op == Token::NEQ)
 						inst = "neq";
 					else
-						throw new Core.InvalidOperationException();
+						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				}
 				else /* jump on false */
 				{
@@ -976,7 +980,7 @@ class Compiler
 					else if (bnode::op == Token::NEQ)
 						inst = "eq";
 					else
-						throw new Core.InvalidOperationException();
+						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				}
 				if (right::kind & Value::Immediate > 0 && right::intvalue == 0)
 					AddCode("j" + inst + "zi\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
@@ -990,31 +994,25 @@ class Compiler
 			else if ((IsPrimitiveType(left::type) == 0 || left::type::Equals("int") > 0) && right::type::Equals("int") > 0)
 			{
 				if (right::kind & Value::Immediate == 0)
-				{
-					Core.Console::WriteLine("Right should be null!");
-					throw new Core.Exception();
-				}
+					throw new CompilerException("Right hand value should be null.", node::location);
 				if (jtrue > 0) /* jump on true */
 					if (bnode::op == Token::EQ)
 						inst = "jn";
 					else if (bnode::op == Token::NEQ)
 						inst = "jnn";
 					else
-						throw new Core.Exception();
+						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				else /* jump on false */
 					if (bnode::op == Token::EQ)
 						inst = "jnn";
 					else if (bnode::op == Token::NEQ)
 						inst = "jn";
 					else
-						throw new Core.Exception();
+						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
 			}
 			else
-			{
-				Core.Console::WriteLine("Unhandled jcc case.");
-				throw new Core.Exception();
-			}
+				throw new CompilerException("Unhandled jcc case.", node::location);
 			Value ret = new Value();
 			ret::kind = Value::JumpTarget;
 			ret::labelid = jtarget;
@@ -1068,7 +1066,7 @@ class Compiler
 			Value left = CompileExpression(bnode::left, freereg, freereg, leftjtarget, leftjtrue);
 			Value right = CompileExpression(bnode::right, freereg, freereg, rightjtarget, rightjtrue);
 			if (left::kind & Value::JumpTarget == 0 || right::kind & Value::JumpTarget == 0)
-				throw new Core.Exception();
+				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 			if (leftjtarget != jtarget)
 				AddLabel(leftjtarget);
 
@@ -1097,7 +1095,7 @@ class Compiler
 			{
 				Value value = CompileExpression(unode::operand, freereg, freereg, 0, 0);
 				if (value::kind & Value::LValue == 0)
-					throw new Core.Exception();
+					throw new CompilerException("LValue expected.", node::location);
 				if (value::kind & Value::Register > 0)
 					AddCode("lar\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid));
 				else if (value::kind & Value::Field > 0)
@@ -1117,7 +1115,7 @@ class Compiler
 						+ "($" + Core.Int32::ToString(value::regid2) + ")");
 				}
 				else
-					throw new Core.Exception();
+					throw new CompilerException("Unhandled addressof case.", node::location);
 				Value ret = new Value();
 				ret::kind = Value::Register;
 				ret::regid = targetreg;
@@ -1128,14 +1126,14 @@ class Compiler
 			{
 				Value value = EnsureRegister(CompileExpression(unode::operand, freereg, targetreg, 0, 0), targetreg);
 				if (value::type::Equals("int32") == 0)
-					throw new Core.Exception();
+					throw new CompilerException("Int32 expected.", node::location); /* TODO */
 				Core.String inst;
 				if (node::op == Token::Neg)
 					inst = "negi";
 				else if (node::op == Token::BitNot)
 					inst = "noti";
 				else
-					throw new Core.Exception();
+					throw new CompilerException("Unsupported unary operatior.", node::location);
 				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid));
 				Value ret = new Value();
 				ret::kind = Value::Register;
@@ -1150,13 +1148,13 @@ class Compiler
 			Class classObject = [Class] classes[nnode::type];
 			Method method = [Method] classObject::methods[".ctor"];
 			if (method::paramTypes::.getSize() != nnode::parameters::.getSize())
-				throw new Core.Exception();
+				throw new CompilerException("Invalid number of parameters.", node::location);
 			for (int32 i = 0; i < nnode::parameters::.getSize(); i = i + 1)
 			{
 				Value value = ToScalar(CompileList([Node] nnode::parameters[i], freereg + 2 + i, -1));
 				MoveValueToRegister(value, freereg + 2 + i);
 				if (value::type::Equals([Core.String] method::paramTypes[i]) == 0)
-					throw new Core.Exception();
+					throw new CompilerException("Parameter type mismatch.", node::location);
 			}
 			AddCode("new\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
 				+ method::name + method::type);
@@ -1170,7 +1168,7 @@ class Compiler
 		{
 			NewNode nnode = [NewNode] node;
 			if (nnode::parameters::.getSize() != 1)
-				throw new Core.Exception();
+				throw new CompilerException("Currently only 1 dim array supported.", node::location);
 
 			Value value = EnsureRegister(ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1)), freereg);
 			AddCode("newarr\t$" + Core.Int32::ToString(targetreg) + ", " + nnode::type + "($"
@@ -1193,7 +1191,7 @@ class Compiler
 			{
 				/* No boxing/unboxing now */
 				if (IsPrimitiveType(tnode::type) == 0)
-					throw new Core.Exception();
+					throw new CompilerException("No boxing/unboxing now.", node::location);
 				value::type = tnode::type;
 				return value;
 			}
@@ -1226,7 +1224,7 @@ class Compiler
 			else
 			{
 				Value index = EnsureRegister(CompileExpression(anode::index, freereg + 1, freereg + 1, 0, 0), freereg + 1);
-				Value value = CompileCustomBinaryOperator(Token::Array, array, index, freereg);
+				Value value = CompileCustomBinaryOperator(node, Token::Array, array, index, freereg);
 				return value;
 			}
 		}
@@ -1237,7 +1235,7 @@ class Compiler
 			if (object::type::SubString(object::type::.getLength() - 2, 2)::Equals("[]") > 0)
 			{
 				if (fnode::field::Equals("Length") == 0)
-					throw new Core.Exception();
+					throw new CompilerException("Unknown field.", node::location);
 				object = EnsureRegister(object, freereg);
 				AddCode("ldlen\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(object::regid));
 				Value ret = new Value();
@@ -1273,7 +1271,7 @@ class Compiler
 				/* Method */
 				Method method;
 				if ((found, method = ret::classObject::methods::Contains(fnode::field)) == 0)
-					throw new Core.Exception();
+					throw new CompilerException("Unknown field.", node::location);
 				ret::kind = Value::Method;
 				ret::method = method;
 			}
@@ -1331,7 +1329,7 @@ class Compiler
 							return ret;
 						}
 						else
-							throw new Core.Exception();
+							throw new CompilerException("Unknown ident.", node::location);
 					}
 				}
 			}
@@ -1339,7 +1337,7 @@ class Compiler
 		else if (node::op == Token::This)
 		{
 			if (currentMethod::modifier & Modifier::Static > 0)
-				throw new Core.Exception();
+				throw new CompilerException("'this' cannot be used in a static method.", node::location);
 			Value ret = new Value();
 			ret::kind = Value::Register;
 			ret::regid = 0;
@@ -1374,7 +1372,7 @@ class Compiler
 			return ret;
 		}
 		else
-			throw new Core.Exception();
+			throw new CompilerException("INTERNAL: Unhandled expression case.", node::location);
 	}
 
 	private function CompileCall(Node node, int32 freereg) -> Vector
@@ -1382,7 +1380,7 @@ class Compiler
 		CallNode cnode = [CallNode] node;
 		Value methodValue = ToScalar(CompileList(cnode::method, freereg, -1));
 		if (methodValue::kind & Value::Method == 0)
-			throw new Core.Exception();
+			throw new CompilerException("Method expected.", node::location);
 		Class classObject = methodValue::classObject;
 		Method method = methodValue::method;
 
@@ -1398,12 +1396,12 @@ class Compiler
 
 		/* Push parameters */
 		if (cnode::parameters::.getSize() != method::paramTypes::.getSize())
-			throw new Core.Exception();
+			throw new CompilerException("Invalid number of parameters.", node::location);
 		for (int32 i = 0; i < method::paramTypes::.getSize(); i = i + 1)
 		{
 			Value value = ToScalar(CompileList([Node] cnode::parameters[i], firstreg + i, -1));
 			if (value::type::Equals([Core.String] method::paramTypes[i]) == 0)
-				throw new Core.Exception();
+				throw new CompilerException("Parameter type mismatch", node::location);
 			MoveValueToRegister(value, firstreg + i);
 		}
 
@@ -1423,19 +1421,21 @@ class Compiler
 		return ret;
 	}
 
-	private function CompileCustomBinaryOperator(int32 op, Value left, Value right, int32 firstreg) -> Value
+	private function CompileCustomBinaryOperator(Node node, int32 op, Value left, Value right, int32 firstreg) -> Value
 	{
 		/* TODO: Currently we only try finding the method in the type */
 		MoveValueToRegister(left, firstreg);
 		MoveValueToRegister(right, firstreg + 1);
 
 		Core.String methodName = GetOperatorMethodName(op);
+		if (methodName == null)
+			throw new CompilerException("Unsupported operator.", node::location);
 		Method method = [Method] ([Class] classes[left::type])::methods[methodName];
 		if (method::paramTypes::.getSize() != 2 || method::returnTypes::.getSize() != 1
 			|| ([Core.String] method::paramTypes[0])::Equals(left::type) == 0
 			|| ([Core.String] method::paramTypes[1])::Equals(right::type) == 0
 			|| method::modifier & Modifier::Static == 1)
-			throw new Core.Exception();
+			throw new CompilerException("Operator parameter error.", node::location); /* TODO */
 
 		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + left::type + "::" + methodName + method::type);
 		Value ret = new Value();
