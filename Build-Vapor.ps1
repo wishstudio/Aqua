@@ -12,7 +12,7 @@ foreach ($file in $list)
     $params.Add($file.FullName)
 }
 
-& ..\Vapor $params ..\Vapor_stage1.txt
+& ..\Aqua Vapor Vapor.aqua - $params ..\Vapor_stage1.txt
 & ..\Assembler ..\Vapor_stage1.txt ..\Vapor_stage1.aqua
 
 Pop-Location
