@@ -566,6 +566,42 @@ int getType()
 	}
 }
 
+int getPrimitiveType()
+{
+	assert(tt == tkIdent);
+	std::string t = ti;
+	getToken();
+	if (t == "int8")
+		return TYPE_INT8;
+	else if (t == "uint8")
+		return TYPE_UINT8;
+	else if (t == "int16")
+		return TYPE_INT16;
+	else if (t == "uint16")
+		return TYPE_UINT16;
+	else if (t == "int32")
+		return TYPE_INT32;
+	else if (t == "uint32")
+		return TYPE_UINT32;
+	else if (t == "int64")
+		return TYPE_INT64;
+	else if (t == "uint64")
+		return TYPE_UINT64;
+	else if (t == "float32")
+		return TYPE_FLOAT32;
+	else if (t == "float64")
+		return TYPE_FLOAT64;
+	else if (t == "int")
+		return TYPE_INT;
+	else if (t == "uint")
+		return TYPE_UINT;
+	else
+	{
+		puts("Unknown primitive type.");
+		return 0;
+	}
+}
+
 int getFieldRef()
 {
 	assert(tt == tkIdent);
@@ -1174,6 +1210,22 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				int type_ref = getType();
 				PUT(0xE7), PUT(a), PUT(b), PUT(0);
 				PUT2(type_ref), PUT2(0);
+			}
+			/* conversion */
+			else if (opcode == "conv")
+			{
+				/* conv dsttype $a, srctype $b */
+				int dsttype = getPrimitiveType();
+				assert(tt == tkRegister);
+				int a = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				int srctype = getPrimitiveType();
+				assert(tt == tkRegister);
+				int b = tn;
+				getToken();
+				PUT(0xE6), PUT(a), PUT(b), PUT((dsttype << 4) | srctype);
 			}
 			// special opcodes
 			else if (opcode == "printi")

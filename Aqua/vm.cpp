@@ -172,6 +172,43 @@ L2:
 		POINTER(rA) = (pointer) (object + sizeof(VTable *) + sizeof(int32) + INT32(rC) * getTypeSize(elementType)); \
 	}
 
+/* Conversion */
+#define _C(dstt, dstst, dst, srct, src) \
+	case (dstt << 4) | srct: \
+		typedValue(rA, dstst) = (dstst) (dst) typedValue(rB, src); \
+		OP_END();
+
+#define _CROW(dstt, dstst, dst) \
+	_C(dstt, dstst, dst, TYPE_INT8, int32) \
+	_C(dstt, dstst, dst, TYPE_UINT8, uint32) \
+	_C(dstt, dstst, dst, TYPE_INT16, int32) \
+	_C(dstt, dstst, dst, TYPE_UINT16, uint32) \
+	_C(dstt, dstst, dst, TYPE_INT32, int32) \
+	_C(dstt, dstst, dst, TYPE_UINT32, uint32) \
+	_C(dstt, dstst, dst, TYPE_INT64, int64) \
+	_C(dstt, dstst, dst, TYPE_UINT64, uint64) \
+	_C(dstt, dstst, dst, TYPE_FLOAT32, float32) \
+	_C(dstt, dstst, dst, TYPE_FLOAT64, float64) \
+	_C(dstt, dstst, dst, TYPE_INT, nativeint) \
+	_C(dstt, dstst, dst, TYPE_UINT, nativeuint)
+
+#define CONV() \
+	switch (OP_C) \
+	{ \
+		_CROW(TYPE_INT8, int32, int8) \
+		_CROW(TYPE_UINT8, uint32, uint8) \
+		_CROW(TYPE_INT16, int32, int16) \
+		_CROW(TYPE_UINT16, uint32, uint16) \
+		_CROW(TYPE_INT32, int32, int32) \
+		_CROW(TYPE_UINT32, uint32, uint32) \
+		_CROW(TYPE_INT64, int64, int64) \
+		_CROW(TYPE_UINT64, uint64, uint64) \
+		_CROW(TYPE_FLOAT32, float32, float32) \
+		_CROW(TYPE_FLOAT64, float64, float64) \
+		_CROW(TYPE_INT, nativeint, nativeint) \
+		_CROW(TYPE_UINT, nativeuint, nativeuint) \
+	}
+
 /* Frame helpers */
 #define ISLASTFRAME() (currentFrame == startFrame)
 #define ENTERFRAME() \
@@ -470,6 +507,10 @@ MAIN_DISPATCH:
 				goto HANDLE_LEAVE;
 			else
 				goto HANDLE_EXCEPTION;
+
+		case 0xE6:
+			CONV();
+			assert(("Should not come here.", 0));
 
 		case 0xE7: // CAST $a, $b, class
 		{
