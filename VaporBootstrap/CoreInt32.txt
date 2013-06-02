@@ -8,14 +8,14 @@ class Core.Int32
 		do
 		{
 			i = i - 2;
-			*(buffer + i) = n % 10 + 48; /* '0' */
+			*(buffer + i) = [char] (n % 10 + 48); /* '0' */
 			n = n / 10;
 		}
 		while (n > 0);
 		if (number < 0)
 		{
 			i = i - 2;
-			*(buffer + i) = 45; /* '-' */
+			*(buffer + i) = [char] 45; /* '-' */
 		}
 		Core.String ret = Core.String::FromCharBuffer(buffer + i, (22 - i) / 2);
 		Core.Native.Memory::FreeMemory(buffer);

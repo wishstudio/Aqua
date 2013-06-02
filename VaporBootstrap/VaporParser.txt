@@ -274,7 +274,7 @@ class Parser
 				method::name = ".ctor";
 				method::modifier = Modifier::Public;
 				method::type = "()";
-				method::body = body;
+				method::body = [Node] body;
 				classObject::methods::Add(".ctor", [Core.Object] method);
 			}
 			classes::Add(classObject::name, [Core.Object] classObject);
@@ -536,7 +536,7 @@ class Parser
 			/* Parse binary operations with higher priority */
 			node::right = ParseExpression(Token::BinPriority[node::op]);
 
-			left = node;
+			left = [Node] node;
 		}
 		return left;
 	}
@@ -558,7 +558,7 @@ class Parser
 				node::op = Token::Field;
 				node::object = object;
 				node::field = lex::ident;
-				object = node;
+				object = [Node] node;
 
 				lex::Next();
 			}
@@ -589,7 +589,7 @@ class Parser
 				}
 				lex::Next(); /* ')' */
 
-				object = node;
+				object = [Node] node;
 			}
 			else if (lex::token == Token::SLeft)
 			{
@@ -599,7 +599,7 @@ class Parser
 				node::op = Token::ArrayElement;
 				node::array = object;
 				node::index = ParseList();
-				object = node;
+				object = [Node] node;
 
 				lex::Assert(Token::SRight);
 				lex::Next();
