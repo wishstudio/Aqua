@@ -23,19 +23,19 @@ class Variable
 
 class Value
 {
-	public static int32 Register, Immediate, Field, Method, ArrayElement;
+	public static int32 Register, IntegerImmediate, Immediate, Field, Method, ArrayElement;
 	public static int32 Deref, LValue, Type, JumpTarget;
 
 	public static function InitValue()
 	{
-		Value::Register, Value::Immediate, Value::Field, Value::Method, Value::ArrayElement = 1, 2, 4, 8, 16;
-		Value::Deref, Value::LValue, Value::Type, Value::JumpTarget = 32, 64, 128, 256;
+		Value::Register, Value::IntegerImmediate, Value::Immediate, Value::Field, Value::Method = 1, 2, 4, 8, 16;
+		Value::ArrayElement, Value::Deref, Value::LValue, Value::Type, Value::JumpTarget = 32, 64, 128, 256, 512;
 	}
 
 	public int32 kind;
 	public int32 regid, regid2;
 	public int32 labelid;
-	public int32 intvalue;
+	public Core.String intvalue;
 	public Class classObject;
 	public Method method;
 	public Field field;
@@ -241,7 +241,16 @@ class Compiler
 	/* HACK: bool */
 	private function IsConvertible(Value value, Core.String type) -> int32
 	{
-		if (value::type::Equals("bool") > 0)
+		if (value::kind & Value::IntegerImmediate > 0)
+		{
+			/* TODO */
+			if (type::Equals("int8") > 0 || type::Equals("uint8") > 0 || type::Equals("int16") > 0
+				|| type::Equals("uint16") > 0 || type::Equals("int32") > 0 || type::Equals("uint32") > 0)
+				return 1;
+			else
+				return 0;
+		}
+		else if (value::type::Equals("bool") > 0)
 			if (type::Equals("bool") > 0)
 				return 1;
 			else
@@ -277,8 +286,27 @@ class Compiler
 				return 1;
 			else
 				return 0;
+		/* Null */
 		else if (value::type::Equals("int") > 0 && value::kind & Value::Immediate > 0 && IsPrimitiveType(type) == 0)
 			return 1;
+		else if (value::type::Equals("int") > 0 && type::Equals("int") > 0)
+			return 1;
+		else if (value::type::Equals(type) > 0) /* TODO: This is for array type */
+			return 1;
+		else if (IsPrimitiveType(value::type) == 0 && IsPrimitiveType(type) == 0)
+		{
+			/* TODO: This should be a function */
+			Class c = [Class] classes[value::type];
+			if (c::name::Equals(type) > 0)
+				return 1;
+			while (c::baseName::Equals("") == 0)
+			{
+				c = [Class] classes[c::baseName];
+				if (c::name::Equals(type) > 0)
+					return 1;
+			}
+			return 0;
+		}
 		else
 			return 0;
 	}
@@ -293,18 +321,21 @@ class Compiler
 	/* Move value to register */
 	private function MoveValueToRegister(Value value, int32 regid) -> Value
 	{
+		Value ret = new Value();
+		ret::kind = Value::Register;
+		ret::regid = regid;
+		ret::type = value::type;
+
 		if (value::kind & Value::Register > 0)
 			MoveRegisterToRegister(value::regid, regid, GetStackType(value::type));
-		else if (value::kind & Value::Immediate > 0)
+		else if (value::kind & Value::IntegerImmediate > 0)
 		{
 			/* TODO */
-			if (value::type::Equals("int32") > 0)
-				AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", " + Core.Int32::ToString(value::intvalue));
-			else if (value::type::Equals("int") > 0) /* HACK: Only null supported now */
-				AddCode("ldnull\t$" + Core.Int32::ToString(regid));
-			else
-				throw new Core.InvalidOperationException();
+			AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", " + value::intvalue);
+			ret::type = "int32";
 		}
+		else if (value::kind & Value::Immediate > 0 && value::type::Equals("int") > 0) /* HACK: Only null supported now */
+			AddCode("ldnull\t$" + Core.Int32::ToString(regid));
 		else if (value::kind & Value::Deref > 0)
 			AddCode("ldiuw\t$" + Core.Int32::ToString(regid) + ", ($" + Core.Int32::ToString(value::regid) + ")");
 		else if (value::kind & Value::JumpTarget > 0)
@@ -332,10 +363,6 @@ class Compiler
 				+ Core.Int32::ToString(value::regid) + "($" + Core.Int32::ToString(value::regid2) + ")");
 		else
 			throw new Core.InvalidOperationException();
-		Value ret = new Value();
-		ret::kind = Value::Register;
-		ret::regid = regid;
-		ret::type = value::type;
 		return ret;
 	}
 
@@ -347,18 +374,24 @@ class Compiler
 			return MoveValueToRegister(value, regid);
 	}
 
-	/* Convert value to a type and move in to given register, 
-	 * throws an exception if the conversion cannot be done
-	 */
-	private function MoveValueToTypedRegister(Node node, Value value, int32 regid, Core.String type) -> Value
+	/* Ensure value is of given type, convert it otherwise
+	   Caller ensures that value is convertible to type */
+	private function EnsureTypedValue(Node node, Value value, int32 freereg, Core.String type) -> Value
 	{
+		if (value::kind & Value::IntegerImmediate > 0)
+		{
+			/* TODO */
+			return value;
+		}
+
 		Core.String stacktype = GetStackType(value::type);
-		if (stacktype::Equals(type) > 0)
-			return MoveValueToRegister(value, regid);
+		if (stacktype::Equals(type) > 0 || value::type::Equals(type) > 0)
+			return value;
 		else if (IsPrimitiveType(value::type) > 0 && IsPrimitiveType(type) > 0)
 		{
-			Value ret = EnsureRegister(value, regid);
-			AddCode("conv\t" + type + " $" + Core.Int32::ToString(regid) + ", "
+			/* TODO: Maybe we could cut off some unnecessary convertions */
+			Value ret = EnsureRegister(value, freereg);
+			AddCode("conv\t" + type + " $" + Core.Int32::ToString(freereg) + ", "
 				+ stacktype + " $" + Core.Int32::ToString(ret::regid));
 			ret::type = type;
 			return ret;
@@ -366,16 +399,33 @@ class Compiler
 		else if (value::kind & Value::Immediate > 0 && value::type::Equals("int") > 0 /* null */
 			&& IsPrimitiveType(type) == 0)
 		{
-			AddCode("ldnull\t$" + Core.Int32::ToString(regid));
+			AddCode("ldnull\t$" + Core.Int32::ToString(freereg));
 			Value ret = new Value();
 			ret::kind = Value::Register;
-			ret::regid = regid;
+			ret::regid = freereg;
 			ret::type = type;
 			return ret;
 		}
+		else if (IsPrimitiveType(value::type) == 0 && IsPrimitiveType(type) == 0)
+		{
+			/* Object cast */
+			/* TODO */
+			if (IsConvertible(value, type) > 0)
+			{
+				value::type = type;
+				return value;
+			}
+			else
+			{
+				Value ret = EnsureRegister(value, freereg);
+				AddCode("cast\t$" + Core.Int32::ToString(freereg) + ", $" + Core.Int32::ToString(value::regid) + ", " + type);
+				ret::regid = freereg;
+				ret::type = type;
+				return ret;
+			}
+		}
 		else
 		{
-			/* TODO: Object cast */
 			throw new CompilerException(
 				"Cannot convert \"" + value::type + "\" to \"" + type + "\"",
 				node::location
@@ -383,45 +433,54 @@ class Compiler
 		}
 	}
 
+	/* Convert value to a given type and move in to given register, 
+	 * throws an exception if the conversion cannot be done
+	 */
+	private function MoveValueToTypedRegister(Node node, Value value, int32 regid, Core.String type) -> Value
+	{
+		return MoveValueToRegister(EnsureTypedValue(node, value, regid, type), regid);
+	}
+
 	private function MoveValueToLValue(Node node, Value value, Value lvalue, int32 freereg)
 	{
-		if (value::type::Equals(lvalue::type) == 0)
-		{
-			if (IsConvertible(value, lvalue::type) == 0)
-				throw new CompilerException(
-					"Cannot implicitly convert \"" + value::type + "\" to \"" + lvalue::type + "\"",
-					node::location
-				);
-			value = MoveValueToTypedRegister(node, value, freereg, lvalue::type);
-		}
 		if (lvalue::kind & Value::Register > 0)
-			MoveValueToRegister(value, lvalue::regid);
-		else if (lvalue::kind & Value::Deref > 0)
+		{
+			MoveValueToTypedRegister(node, value, lvalue::regid, lvalue::type);
+			return;
+		}
+
+		if (IsConvertible(value, lvalue::type) == 0)
+			throw new CompilerException(
+				"Cannot implicitly convert \"" + value::type + "\" to \"" + lvalue::type + "\"",
+				node::location
+			);
+
+		/* TODO */
+		value = EnsureRegister(EnsureTypedValue(node, value, freereg, lvalue::type), freereg);
+		
+		if (lvalue::kind & Value::Deref > 0)
 		{
 			/* TODO: pointer types */
 			/* TODO: throw when type mismatch */
-			Value v = EnsureRegister(value, freereg);
-			AddCode("ldiuw\t($" + Core.Int32::ToString(lvalue::regid) + "), $" + Core.Int32::ToString(v::regid));
+			AddCode("ldiuw\t($" + Core.Int32::ToString(lvalue::regid) + "), $" + Core.Int32::ToString(value::regid));
 		}
 		else if (lvalue::kind & Value::Field > 0)
 		{
 			/* TODO: throw when type mismatch */
-			Value v = EnsureRegister(value, freereg);
 			Class classObject = lvalue::classObject;
 			Field field = lvalue::field;
 			if (field::modifier & Modifier::Static > 0)
 				AddCode("lds" + GetTypeSuffix(field::type) + "\t" + classObject::name + "::" + field::name
-					+ ", $" + Core.Int32::ToString(v::regid));
+					+ ", $" + Core.Int32::ToString(value::regid));
 			else
 				AddCode("ldf" + GetTypeSuffix(field::type) + "\t$" + Core.Int32::ToString(lvalue::regid) + ", "
-					+ classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(v::regid));
+					+ classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(value::regid));
 		}
 		else if (lvalue::kind & Value::ArrayElement > 0)
 		{
 			/* TODO: throw when type mismatch */
-			Value v = EnsureRegister(value, freereg);
 			AddCode("lde" + GetTypeSuffix(lvalue::type) + "\t$" + Core.Int32::ToString(lvalue::regid)
-				+ "($" + Core.Int32::ToString(lvalue::regid2) + "), $" + Core.Int32::ToString(v::regid));
+				+ "($" + Core.Int32::ToString(lvalue::regid2) + "), $" + Core.Int32::ToString(value::regid));
 		}
 		else /* TODO: Can this happen? */
 			throw new Core.InvalidOperationException();
@@ -1020,10 +1079,8 @@ class Compiler
 		/* If stack type of start type is equal to target stack type, we don't need a conversion,
 		   e.g. int8 -> int16, int8 -> int32 */
 		Core.String stacktype = GetStackType(type);
-		if (GetStackType(left::type)::Equals(stacktype) == 0)
-			left = MoveValueToTypedRegister(node, left, leftreg, stacktype);
-		if (GetStackType(right::type)::Equals(stacktype) == 0)
-			right = MoveValueToTypedRegister(node, right, rightreg, stacktype);
+		left = EnsureTypedValue(node, left, leftreg, stacktype);
+		right = EnsureTypedValue(node, right, rightreg, stacktype);
 
 		return left, right;
 	}
@@ -1031,6 +1088,7 @@ class Compiler
 	/* Convert to a typed value from its corresponding raw stack value */
 	private function FixRawValue(Value value, int32 targetreg) -> Value
 	{
+		/* TODO: IntegerImmediate value */
 		Core.String stacktype = GetStackType(value::type);
 		if (value::type::Equals(stacktype) == 0)
 		{
@@ -1096,10 +1154,10 @@ class Compiler
 			ret::type = left::type;
 			
 			/* TODO */
-			if (right::kind & Value::Immediate > 0 && right::type::Equals("int32") > 0 && left::type::Equals("int32") > 0)
+			if (right::kind & Value::IntegerImmediate > 0 && left::type::Equals("int32") > 0)
 				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
 					+ ", $" + Core.Int32::ToString(left::regid)
-					+ ", " + Core.Int32::ToString(right::intvalue));
+					+ ", " + right::intvalue);
 			else
 			{
 				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
@@ -1153,7 +1211,7 @@ class Compiler
 					else
 						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				}
-				if (right::kind & Value::Immediate > 0 && right::intvalue == 0)
+				if (right::kind & Value::IntegerImmediate > 0 && right::intvalue::Equals("0") > 0)
 					AddCode("j" + inst + "zi\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
 				else
 				{
@@ -1517,11 +1575,11 @@ class Compiler
 		}
 		else if (node::op == Token::Number)
 		{
-			Int32Node inode = [Int32Node] node;
+			IntegerNode inode = [IntegerNode] node;
 			Value ret = new Value();
-			ret::kind = Value::Immediate;
+			ret::kind = Value::IntegerImmediate;
 			ret::intvalue = inode::intvalue;
-			ret::type = "int32";
+			ret::type = "int32"; /* FIXME: Should be ret::type = "" */
 			return ret;
 		}
 		else if (node::op == Token::String)

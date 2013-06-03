@@ -695,9 +695,9 @@ class Parser
 		}
 		else if (lex::token == Token::Number)
 		{
-			Int32Node node = new Int32Node(GetCurrentLocation());
+			IntegerNode node = new IntegerNode(GetCurrentLocation());
 			node::op = Token::Number;
-			node::intvalue = Core.Int32::Parse(lex::ident);
+			node::intvalue = lex::ident;
 			lex::Next();
 			return node;
 		}

@@ -20,9 +20,9 @@ class Node
 	}
 }
 
-class Int32Node: Node
+class IntegerNode: Node
 {
-	public int32 intvalue;
+	public Core.String intvalue;
 
 	public function .ctor(Location location)
 	{
