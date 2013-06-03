@@ -234,7 +234,7 @@ class Compiler
 		else if (type::Equals("int") > 0)
 			return "int";
 		else
-			throw new Core.InvalidOperationException();
+			return "int";
 	}
 
 	/* Test if value can be implicitly converted to type */
@@ -294,7 +294,7 @@ class Compiler
 	private function MoveValueToRegister(Value value, int32 regid) -> Value
 	{
 		if (value::kind & Value::Register > 0)
-			MoveRegisterToRegister(value::regid, regid, value::type);
+			MoveRegisterToRegister(value::regid, regid, GetStackType(value::type));
 		else if (value::kind & Value::Immediate > 0)
 		{
 			/* TODO */
@@ -352,13 +352,14 @@ class Compiler
 	 */
 	private function MoveValueToTypedRegister(Node node, Value value, int32 regid, Core.String type) -> Value
 	{
-		if (value::type::Equals(type) > 0)
+		Core.String stacktype = GetStackType(value::type);
+		if (stacktype::Equals(type) > 0)
 			return MoveValueToRegister(value, regid);
 		else if (IsPrimitiveType(value::type) > 0 && IsPrimitiveType(type) > 0)
 		{
 			Value ret = EnsureRegister(value, regid);
 			AddCode("conv\t" + type + " $" + Core.Int32::ToString(regid) + ", "
-				+ value::type + " $" + Core.Int32::ToString(ret::regid));
+				+ stacktype + " $" + Core.Int32::ToString(ret::regid));
 			ret::type = type;
 			return ret;
 		}
@@ -1016,26 +1017,13 @@ class Compiler
 		else
 			throw new CompilerException("Uncompatible types.", node::location);
 
+		/* If stack type of start type is equal to target stack type, we don't need a conversion,
+		   e.g. int8 -> int16, int8 -> int32 */
 		Core.String stacktype = GetStackType(type);
-		Core.String lefttype = GetStackType(left::type);
-		if (lefttype::Equals(stacktype) == 0)
-		{
-			left = EnsureRegister(left, leftreg);
-			AddCode("conv\t" + stacktype + " $" + Core.Int32::ToString(leftreg) + ", "
-				+ lefttype + " $" + Core.Int32::ToString(left::regid));
-			left::regid = leftreg;
-		}
-		left::type = type;
-
-		Core.String righttype = GetStackType(right::type);
-		if (righttype::Equals(stacktype) == 0)
-		{
-			right = EnsureRegister(right, rightreg);
-			AddCode("conv\t" + stacktype + " $" + Core.Int32::ToString(rightreg) + ", "
-				+ righttype + " $" + Core.Int32::ToString(right::regid));
-			right::regid = rightreg;
-		}
-		right::type = type;
+		if (GetStackType(left::type)::Equals(stacktype) == 0)
+			left = MoveValueToTypedRegister(node, left, leftreg, stacktype);
+		if (GetStackType(right::type)::Equals(stacktype) == 0)
+			right = MoveValueToTypedRegister(node, right, rightreg, stacktype);
 
 		return left, right;
 	}
