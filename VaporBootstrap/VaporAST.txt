@@ -244,6 +244,7 @@ class ThrowNode: Node
 
 class Field
 {
+	public Class classObject;
 	public int32 modifier;
 	public Core.String name;
 	public Core.String type;
@@ -257,6 +258,7 @@ class Field
 
 class Method
 {
+	public Class classObject;
 	public int32 modifier;
 	public Core.String name;
 	public Core.String type;

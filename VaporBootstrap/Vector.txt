@@ -20,11 +20,15 @@ class Vector
 
 	public static operator [] (Vector vector, int32 index) -> Core.Object
 	{
+		if (index < 0 || index >= size)
+			throw new Core.IndexOutOfBoundException();
 		return vector::elements[index];
 	}
 
 	public function Set(int32 index, Core.Object object)
 	{
+		if (index < 0 || index >= size)
+			throw new Core.IndexOutOfBoundException();
 		elements[index] = object;
 	}
 

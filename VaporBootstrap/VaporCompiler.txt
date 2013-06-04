@@ -37,7 +37,7 @@ class Value
 	public int32 labelid;
 	public Core.String intvalue;
 	public Class classObject;
-	public Method method;
+	public Vector methods;
 	public Field field;
 	public Core.String type;
 }
@@ -138,27 +138,6 @@ class Compiler
 		return null, 0;
 	}
 
-	/* Returns field and corresponding class which the field is defined in */
-	/* HACK: int32: found */
-	private function FindField(Class classObject, Core.String name) -> int32, Field, Class
-	{
-		Class fieldClassObject = classObject;
-		/* HACK: for (;;) */
-		/* HACK: bool */
-		while (2 > 1)
-		{
-			Core.Object field;
-			int32 found;
-			if ((found, field = fieldClassObject::fields::Contains(name)) > 0)
-				return 1, [Field] field, fieldClassObject;
-			if (fieldClassObject::baseName::Equals("") > 0)
-				return 0, null, null;
-			fieldClassObject = [Class] classes[fieldClassObject::baseName];
-		}
-		/* TODO */
-		return 0, null, null;
-	}
-
 	public static function GetOperatorMethodName(int32 op) -> Core.String
 	{
 		if (op == Token::Add)
@@ -237,6 +216,68 @@ class Compiler
 			return "int";
 	}
 
+	/* Test if `srctype` can be implicitly converted to `dsttype` */
+	/* HACK: bool */
+	private function IsTypeConvertible(Core.String srctype, Core.String dsttype) -> int32
+	{
+		if (srctype::Equals("bool") > 0)
+			if (dsttype::Equals("bool") > 0)
+				return 1;
+			else
+				return 0;
+		else if (srctype::Equals("int8") > 0)
+			if (dsttype::Equals("int8") > 0 || dsttype::Equals("int16") > 0 || dsttype::Equals("int32") > 0)
+				return 1;
+			else
+				return 0;
+		else if (srctype::Equals("uint8") > 0)
+			if (dsttype::Equals("uint8") > 0 || dsttype::Equals("int16") > 0 || dsttype::Equals("uint16") > 0
+				|| dsttype::Equals("int32") > 0 || dsttype::Equals("uint32") > 0)
+				return 1;
+			else
+				return 0;
+		else if (srctype::Equals("int16") > 0)
+			if (dsttype::Equals("int16") > 0 || dsttype::Equals("int32") > 0)
+				return 1;
+			else
+				return 0;
+		else if (srctype::Equals("uint16") > 0)
+			if (dsttype::Equals("uint16") > 0 || dsttype::Equals("int32") > 0 || dsttype::Equals("uint32") > 0)
+				return 1;
+			else
+				return 0;
+		else if (srctype::Equals("int32") > 0)
+			if (dsttype::Equals("int32") > 0)
+				return 1;
+			else
+				return 0;
+		else if (srctype::Equals("uint32") > 0)
+			if (dsttype::Equals("uint32") > 0)
+				return 1;
+			else
+				return 0;
+		else if (srctype::Equals("int") > 0 && dsttype::Equals("int") > 0)
+			return 1;
+		else if (srctype::Equals(dsttype) > 0) /* TODO: This is for array dsttype */
+			return 1;
+		else if (IsPrimitiveType(srctype) == 0 && IsPrimitiveType(dsttype) == 0)
+		{
+			/* TODO: This should be a function */
+			Class c = [Class] classes[srctype];
+			if (c::name::Equals(dsttype) > 0)
+				return 1;
+			while (c::baseName::Equals("") == 0)
+			{
+				c = [Class] classes[c::baseName];
+				if (c::name::Equals(dsttype) > 0)
+					return 1;
+			}
+			return 0;
+		}
+		else
+			return 0;
+	}
+
 	/* Test if value can be implicitly converted to type */
 	/* HACK: bool */
 	private function IsConvertible(Value value, Core.String type) -> int32
@@ -250,65 +291,11 @@ class Compiler
 			else
 				return 0;
 		}
-		else if (value::type::Equals("bool") > 0)
-			if (type::Equals("bool") > 0)
-				return 1;
-			else
-				return 0;
-		else if (value::type::Equals("int8") > 0)
-			if (type::Equals("int8") > 0 || type::Equals("int16") > 0 || type::Equals("int32") > 0)
-				return 1;
-			else
-				return 0;
-		else if (value::type::Equals("uint8") > 0)
-			if (type::Equals("uint8") > 0 || type::Equals("int16") > 0 || type::Equals("uint16") > 0
-				|| type::Equals("int32") > 0 || type::Equals("uint32") > 0)
-				return 1;
-			else
-				return 0;
-		else if (value::type::Equals("int16") > 0)
-			if (type::Equals("int16") > 0 || type::Equals("int32") > 0)
-				return 1;
-			else
-				return 0;
-		else if (value::type::Equals("uint16") > 0)
-			if (type::Equals("uint16") > 0 || type::Equals("int32") > 0 || type::Equals("uint32") > 0)
-				return 1;
-			else
-				return 0;
-		else if (value::type::Equals("int32") > 0)
-			if (type::Equals("int32") > 0)
-				return 1;
-			else
-				return 0;
-		else if (value::type::Equals("uint32") > 0)
-			if (type::Equals("uint32") > 0)
-				return 1;
-			else
-				return 0;
 		/* Null */
 		else if (value::type::Equals("int") > 0 && value::kind & Value::Immediate > 0 && IsPrimitiveType(type) == 0)
 			return 1;
-		else if (value::type::Equals("int") > 0 && type::Equals("int") > 0)
-			return 1;
-		else if (value::type::Equals(type) > 0) /* TODO: This is for array type */
-			return 1;
-		else if (IsPrimitiveType(value::type) == 0 && IsPrimitiveType(type) == 0)
-		{
-			/* TODO: This should be a function */
-			Class c = [Class] classes[value::type];
-			if (c::name::Equals(type) > 0)
-				return 1;
-			while (c::baseName::Equals("") == 0)
-			{
-				c = [Class] classes[c::baseName];
-				if (c::name::Equals(type) > 0)
-					return 1;
-			}
-			return 0;
-		}
 		else
-			return 0;
+			return IsTypeConvertible(value::type, type);
 	}
 
 	/* Move register $src to $dst of type 'type' */
@@ -353,10 +340,10 @@ class Compiler
 			Field field = value::field;
 			if (field::modifier & Modifier::Static > 0)
 				AddCode("lds" + GetTypeSuffix(field::type) + "\t$" + Core.Int32::ToString(regid) + ", "
-					+ value::classObject::name + "::" + field::name);
+					+ field::classObject::name + "::" + field::name);
 			else
 				AddCode("ldf" + GetTypeSuffix(field::type) + "\t$" + Core.Int32::ToString(regid) + ", $"
-					+ Core.Int32::ToString(value::regid) + ", " + value::classObject::name + "::" + field::name);
+					+ Core.Int32::ToString(value::regid) + ", " + field::classObject::name + "::" + field::name);
 		}
 		else if (value::kind & Value::ArrayElement > 0)
 			AddCode("lde" + GetTypeSuffix(value::type) + "\t$" + Core.Int32::ToString(regid) + ", $"
@@ -372,6 +359,15 @@ class Compiler
 			return value;
 		else
 			return MoveValueToRegister(value, regid);
+	}
+
+	/* Ensure a value occupies a single register slot at most */
+	private function EnsureSingleSlotValue(Value value, int32 regid) -> Value
+	{
+		if (value::kind & Value::Immediate > 0)
+			return value;
+		else
+			return EnsureRegister(value, regid);
 	}
 
 	/* Ensure value is of given type, convert it otherwise
@@ -467,14 +463,13 @@ class Compiler
 		else if (lvalue::kind & Value::Field > 0)
 		{
 			/* TODO: throw when type mismatch */
-			Class classObject = lvalue::classObject;
 			Field field = lvalue::field;
 			if (field::modifier & Modifier::Static > 0)
-				AddCode("lds" + GetTypeSuffix(field::type) + "\t" + classObject::name + "::" + field::name
+				AddCode("lds" + GetTypeSuffix(field::type) + "\t" + field::classObject::name + "::" + field::name
 					+ ", $" + Core.Int32::ToString(value::regid));
 			else
 				AddCode("ldf" + GetTypeSuffix(field::type) + "\t$" + Core.Int32::ToString(lvalue::regid) + ", "
-					+ classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(value::regid));
+					+ field::classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(value::regid));
 		}
 		else if (lvalue::kind & Value::ArrayElement > 0)
 		{
@@ -1461,6 +1456,7 @@ class Compiler
 		{
 			FieldNode fnode = [FieldNode] node;
 			Value object = CompileExpression(fnode::object, freereg, freereg, 0, 0);
+			/* TODO */
 			if (object::type::SubString(object::type::.getLength() - 2, 2)::Equals("[]") > 0)
 			{
 				if (fnode::field::Equals("Length") == 0)
@@ -1484,25 +1480,21 @@ class Compiler
 				ret::classObject = [Class] classes[object::type];
 			}
 
-			Class fieldClassObject;
-			Field field;
-			int32 found;
-			if ((found, field, fieldClassObject = FindField(ret::classObject, fnode::field)) > 0)
+			Field field = ResolveField(ret::classObject, fnode::field);
+			if (field != null)
 			{
 				/* Field */
 				ret::kind = Value::Field | Value::LValue;
-				ret::classObject = fieldClassObject;
 				ret::field = field;
 				ret::type = field::type;
 			}
 			else
 			{
 				/* Method */
-				Core.Object method;
-				if ((found, method = ret::classObject::methods::Contains(fnode::field)) == 0)
-					throw new CompilerException("Unknown field.", node::location);
 				ret::kind = Value::Method;
-				ret::method = [Method] method;
+				ret::methods = new Vector();
+				/* HACK */
+				ResolveMethod(ret::classObject, fnode::field, ret::methods);
 			}
 			return ret;
 		}
@@ -1534,8 +1526,8 @@ class Compiler
 				}
 				else
 				{
-					Core.Object field;
-					if ((found, field = currentClass::fields::Contains(inode::ident)) > 0)
+					Field field = ResolveField(currentClass, inode::ident);
+					if (field != null)
 					{
 						Value ret = new Value();
 						ret::kind = Value::Field | Value::LValue;
@@ -1547,18 +1539,15 @@ class Compiler
 					}
 					else
 					{
-						Core.Object method;
-						if ((found, method = currentClass::methods::Contains(inode::ident)) > 0)
-						{
-							Value ret = new Value();
-							ret::kind = Value::Method;
-							ret::regid = 0;
-							ret::classObject = currentClass;
-							ret::method = [Method] method;
-							return ret;
-						}
-						else
+						Value ret = new Value();
+						ret::kind = Value::Method;
+						ret::regid = 0;
+						ret::classObject = currentClass;
+						ret::methods = new Vector();
+						ResolveMethod(currentClass, inode::ident, ret::methods);
+						if (ret::methods::.getSize() == 0)
 							throw new CompilerException("Unknown ident.", node::location);
+						return ret;
 					}
 				}
 			}
@@ -1611,11 +1600,12 @@ class Compiler
 		if (methodValue::kind & Value::Method == 0)
 			throw new CompilerException("Method expected.", node::location);
 		Class classObject = methodValue::classObject;
-		Method method = methodValue::method;
+		Vector methods = methodValue::methods;
 
 		/* Push 'this' if necessary */
+		/* TODO: We do not allow overload mixed static/unstatic methods */
 		int32 firstreg = freereg;
-		if (method::modifier & Modifier::Static > 0)
+		if (([Method] methods[0])::modifier & Modifier::Static > 0)
 			firstreg = freereg;
 		else
 		{
@@ -1623,16 +1613,15 @@ class Compiler
 			firstreg = firstreg + 1;
 		}
 
-		/* Push parameters */
-		if (cnode::parameters::.getSize() != method::paramTypes::.getSize())
-			throw new CompilerException("Invalid number of parameters.", node::location);
-		for (int32 i = 0; i < method::paramTypes::.getSize(); i = i + 1)
+		/* Evaluate parameters */
+		Vector values = new Vector();
+		for (int32 i = 0; i < cnode::parameters::.getSize(); i = i + 1)
 		{
 			Value value = ToScalar(CompileList([Node] cnode::parameters[i], firstreg + i, -1));
-			if (value::type::Equals([Core.String] method::paramTypes[i]) == 0)
-				throw new CompilerException("Parameter type mismatch", node::location);
-			MoveValueToRegister(value, firstreg + i);
+			values::Add([Core.Object] EnsureSingleSlotValue(value, firstreg + i));
 		}
+
+		Method method = PrepareCall(node, methods, values, firstreg);
 
 		/* Call function */
 		AddCode("call\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::" + method::name + method::type);
@@ -1672,5 +1661,137 @@ class Compiler
 		ret::regid = firstreg;
 		ret::type = [Core.String] method::returnTypes[0];
 		return ret;
+	}
+
+	/* Returns field and corresponding class which the field is defined in */
+	private function ResolveField(Class startClass, Core.String name) -> Field
+	{
+		Class c = startClass;
+		/* HACK: for (;;) */
+		/* HACK: bool */
+		while (2 > 1)
+		{
+			Core.Object field;
+			int32 found;
+			if ((found, field = c::fields::Contains(name)) > 0)
+				return [Field] field;
+			if (c::baseName::Equals("") > 0)
+				return null;
+			c = [Class] classes[c::baseName];
+		}
+	}
+
+	/* Resolves a method by name, append possible candidates to `methods` vector */
+	private function ResolveMethod(Class startClass, Core.String name, Vector methods) -> Vector
+	{
+		if (methods == null)
+			methods = new Vector();
+		Class c = startClass;
+		/* HACK: for (;;) */
+		while (2 > 1)
+		{
+			Vector current = c::methods::FindAll(name);
+			for (int32 i = 0; i < current::.getSize(); i = i + 1)
+				methods::Add(current[i]);
+			if (c::baseName::Equals("") > 0)
+				return methods;
+			c = [Class] classes[c::baseName];
+		}
+	}
+
+	/* Choose best method in `methods`,
+	   Ensures `values` are converted to proper types and placed sequentially from `firstreg`
+	   Returns best method */
+	private function PrepareCall(Node node, Vector methods, Vector values, int32 firstreg) -> Method
+	{
+		Vector candidates = new Vector();
+		/* Check valid candidates */
+		for (int32 i = 0; i < methods::.getSize(); i = i + 1)
+		{
+			Method method = [Method] methods[i];
+			if (method::paramTypes::.getSize() == values::.getSize())
+			{
+				/* HACK: bool */
+				int32 ok = 1;
+				for (int32 j = 0; j < method::paramTypes::.getSize(); j = j + 1)
+					if (IsConvertible([Value] values[j], [Core.String] method::paramTypes[j]) == 0)
+					{
+						ok = 0;
+						break;
+					}
+				if (ok > 0)
+					candidates::Add([Core.Object] method);
+			}
+		}
+		Method method = ChooseBestMethod(node, candidates, values);
+		/* Prepare values */
+		for (int32 i = 0; i < values::.getSize(); i = i + 1)
+			MoveValueToTypedRegister(node, [Value] values[i], firstreg + i, [Core.String] method::paramTypes[i]);
+		return method;
+	}
+
+	/* S = Given type, T1 = Method 1 type, T2 = Method 2 type
+	 * `->` means implicitly convertible
+	 * Rules:
+	 * 1. If T1 = T2, neither is better.
+	 * 2. If S = T1, T1 is better.
+	 *    If S = T2, T2 is better.
+	 * 3. If T1 -> T2 and not T2 -> T1, T1 is beter.
+	 *    If T2 -> T1 and not T1 -> T2, T2 is better.
+	 * 4. Otherwise, neither is better.
+	 */
+	private function ChooseBestMethod(Node node, Vector methods, Vector values) -> Method
+	{
+		if (methods::.getSize() == 0)
+			throw new CompilerException("No method prototype match type of given parameters.", node::location);
+		for (int32 i = 0; i < methods::.getSize(); i = i + 1)
+		{
+			Method current = [Method] methods[i];
+			/* HACK: bool */
+			int32 ok = 1;
+			for (int32 j = 0; j < methods::.getSize(); j = j + 1)
+				if (i != j)
+				{
+					Method another = [Method] methods[j];
+					/* HACK: bool */
+					int32 better = 0;
+					for (int32 k = 0; k < values::.getSize(); k = k + 1)
+					{
+						Core.String S = ([Value] values[k])::type;
+						Core.String T1 = [Core.String] current::paramTypes[k];
+						Core.String T2 = [Core.String] another::paramTypes[k];
+						if (T1::Equals(T2) > 0)
+							continue;
+						if (S::Equals(T1) > 0)
+						{
+							better = 1;
+							continue;
+						}
+						if (S::Equals(T2) > 0)
+						{
+							better = 0;
+							break;
+						}
+						/* HACK: bool */
+						int32 c1 = IsTypeConvertible(T1, T2), c2 = IsTypeConvertible(T2, T1);
+						if (c1 > 0 && c2 == 0)
+							better = 1;
+						else if (c1 == 0 && c2 > 0)
+						{
+							better = 0;
+							break;
+						}
+					}
+					/* Best method must be better than any other method */
+					if (better == 0)
+					{
+						ok = 0;
+						break;
+					}
+				}
+			if (ok > 0)
+				return current;
+		}
+		throw new CompilerException("Ambiguous function call.", node::location);
 	}
 }

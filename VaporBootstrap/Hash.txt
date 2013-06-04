@@ -1,5 +1,6 @@
 class Hash
 {
+	/* Simple multimap implementation */
 	private Vector keys, values;
 
 	public function .ctor()
@@ -20,6 +21,15 @@ class Hash
 			if (([Core.String] keys[i])::Equals(key) > 0)
 				return 1, values[i];
 		return 0, null;
+	}
+
+	public function FindAll(Core.String key) -> Vector
+	{
+		Vector ret = new Vector();
+		for (int32 i = 0; i < keys::size; i = i + 1)
+			if (([Core.String] keys[i])::Equals(key) > 0)
+				ret::Add(values[i]);
+		return ret;
 	}
 
 	public static operator [] (Hash hash, Core.String key) -> Core.Object

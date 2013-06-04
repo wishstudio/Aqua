@@ -103,8 +103,10 @@ class Parser
 				classObject::baseName = lex::ident;
 				lex::Next();
 			}
-			else
+			else if (classObject::name::Equals("Core.Object") > 0)
 				classObject::baseName = "";
+			else
+				classObject::baseName = "Core.Object";
 			lex::Assert(Token::BLeft);
 			lex::Next();
 			while (lex::token != Token::BRight)
@@ -113,6 +115,7 @@ class Parser
 				if (lex::token == Token::Function || lex::token == Token::Operator)
 				{
 					Method method = new Method(GetCurrentLocation());
+					method::classObject = classObject;
 					method::modifier = modifier;
 					if (lex::token == Token::Function)
 					{
@@ -243,6 +246,7 @@ class Parser
 						lex::Assert(Token::Ident);
 
 						Field field = new Field(GetCurrentLocation());
+						field::classObject = classObject;
 						field::modifier = modifier;
 						field::type = type;
 						field::name = lex::ident;
@@ -271,6 +275,7 @@ class Parser
 				body::op = Token::Return;
 
 				Method method = new Method(GetCurrentLocation());
+				method::classObject = classObject;
 				method::name = ".ctor";
 				method::modifier = Modifier::Public;
 				method::type = "()";
