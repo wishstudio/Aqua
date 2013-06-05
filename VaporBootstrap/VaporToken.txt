@@ -2,7 +2,7 @@ class Token
 {
 	/* Binary operations */
 	public static int32 Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, BinArith;
-	public static int32 LT, LE, GT, GE, EQ, NEQ, BinComparison;
+	public static int32 LT, LE, GT, GE, EQ, NEQ, Is, BinComparison;
 	public static int32 And, Or, BinLogic;
 	public static int32 BinOp;
 
@@ -32,19 +32,20 @@ class Token
 		Token::Add, Token::Sub, Token::Mul, Token::Div, Token::Rem = 0, 1, 2, 3, 4;
 		Token::BitAnd, Token::BitOr, Token::BitXor, Token::BinArith = 5, 6, 7, 7;
 
-		Token::LT, Token::LE, Token::GT, Token::GE, Token::EQ, Token::NEQ = 8, 9, 10, 11, 12, 13;
-		Token::BinComparison = 13;
+		Token::LT, Token::LE, Token::GT, Token::GE, Token::EQ, Token::NEQ, Token::Is = 8, 9, 10, 11, 12, 13, 14;
+		Token::BinComparison = 14;
 
-		Token::And, Token::Or, Token::BinLogic = 14, 15, 15;
-		Token::BinOp = 15;
+		Token::And, Token::Or, Token::BinLogic = 15, 16, 16;
+		Token::BinOp = 16;
 
-		int32[] priority = new int32[15];
+		int32[] priority = new int32[17];
 		priority[0], priority[1] = 10, 10; /* Add, Sub */
 		priority[2], priority[3], priority[4] = 11, 11, 11; /* Mul, Div, Rem */
 		priority[5], priority[6], priority[7] = 6, 6, 6; /* BitAnd, BitOr, BitXor */
 		priority[8], priority[9], priority[10], priority[11], priority[12], priority[13] = 5, 5, 5, 5, 5, 5; /* Comparison */
-		priority[14] = 3; /* And */
-		priority[15] = 4; /* Or */
+		priority[14] = 4; /* Is */
+		priority[15] = 2; /* And */
+		priority[16] = 3; /* Or */
 		Token::BinPriority = priority;
 
 		/* Unary operations */

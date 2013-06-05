@@ -168,6 +168,8 @@ class Lexer
 				token = Token::Finally;
 			else if (ident::Equals("throw") > 0)
 				token = Token::Throw;
+			else if (ident::Equals("is") > 0)
+				token = Token::Is;
 		}
 		else if (ch == '-' || (ch >= '0' && ch <= '9'))
 		{

@@ -104,6 +104,9 @@ L2:
 #define BINOPF_JMP(op) pc = (FLOAT32(rA) op FLOAT32(rB))? pc + INT32(_imm32): pc + 1
 #define BINOPFL_JMP(op) pc = (FLOAT64(rA) op FLOAT64(rB))? pc + INT32(_imm32): pc + 1
 
+#define JINST() pc = (instanceOf(POINTER(rA), resolveClass(bytecodeFile, OP_BC)))? pc + INT32(_imm32): pc + 1
+#define JNINST() pc = (!instanceOf(POINTER(rA), resolveClass(bytecodeFile, OP_BC)))? pc + INT32(_imm32): pc + 1
+
 /* Load/store */
 #define LDF(type, regtype) \
 	{ \
@@ -333,6 +336,9 @@ MAIN_DISPATCH:
 		OP(0x60, pc += INT32(_imm32)) // JMP addr
 		OP(0x61, UNARYN_JMP(== 0)) // JN addr
 		OP(0x62, UNARYN_JMP(!= 0)) // JNN addr
+
+		OP(0x64, JINST()) // JINST $a, type, addr
+		OP(0x65, JNINST()) // JNINST $a, type, addr
 
 		OP(0x70, UNARY_JMP(== 0)) // JZI $a, addr
 		OP(0x71, UNARY_JMP(!= 0)) // JNZI $a, addr

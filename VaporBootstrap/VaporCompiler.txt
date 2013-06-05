@@ -1235,6 +1235,16 @@ class Compiler
 						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
 			}
+			else if (bnode::op == Token::Is)
+			{
+				if (right::kind & Value::Type == 0)
+					throw new CompilerException("Not a type.", node::location);
+				if (jtrue > 0) /* jump on true */
+					inst = "jinst";
+				else /* jump on false */
+					inst = "jninst";
+				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + right::type + ", " + GetLabelName(jtarget));
+			}
 			else
 				throw new CompilerException("Unhandled jcc case.", node::location);
 			Value ret = new Value();

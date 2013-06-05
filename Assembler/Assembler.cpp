@@ -684,7 +684,7 @@ int getCallingConvention()
 	return cc;
 }
 
-#define OP(inst, exp) else if (opcode == inst) exp
+#define OP(inst, exp) if (opcode == inst) { exp continue; }
 
 #define NOP(opcode) \
 	{ \
@@ -757,6 +757,23 @@ int getCallingConvention()
 	{ \
 		assert(tt == tkIdent); \
 		PUT(opcode), PUT(0x00), PUT(0x00), PUT(0x00); \
+		label_patch_list.push_back(std::make_pair(code.size() / 4, ti)); \
+		PUT4(0); \
+		getToken(); \
+	}
+
+#define JINST(opcode) \
+	{ \
+		assert(tt == tkRegister); \
+		int a = tn; \
+		getToken(); \
+		assert(tt == tkComma); \
+		getToken(); \
+		int type = getType(); \
+		assert(tt == tkComma); \
+		getToken(); \
+		assert(tt == tkIdent); \
+		PUT(opcode), PUT(a), PUT2(type); \
 		label_patch_list.push_back(std::make_pair(code.size() / 4, ti)); \
 		PUT4(0); \
 		getToken(); \
@@ -1005,6 +1022,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 					/* Update try block end for use with next block */
 					try_end = code.size() / 4;
 				}
+				continue;
 			}
 			OP("addi", BINI(0x00))
 			OP("subi", BINI(0x02))
@@ -1049,6 +1067,9 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 			OP("jmp", JMP(0x60))
 			OP("jn", UNARYADDR(0x61))
 			OP("jnn", UNARYADDR(0x62))
+
+			OP("jinst", JINST(0x64))
+			OP("jninst", JINST(0x65))
 	
 			OP("jzi", UNARYADDR(0x70))
 			OP("jeqzi", UNARYADDR(0x70))
@@ -1104,7 +1125,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 			OP("ldel", LDE(0xB5, 0xBD))
 			//OP("ldev", LDEV(0xB6, 0xBE))
 			OP("ldea", LDE(0xB7, 0xBF))
-			else if (opcode == "ldi")
+			if (opcode == "ldi")
 			{
 				assert(tt == tkRegister);
 				int a = tn;
@@ -1119,8 +1140,9 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 					PUT(0xC4), PUT(a), PUT(0x00), PUT(0x00), PUT4(tn);
 				}
 				getToken();
+				continue;
 			}
-			else if (opcode == "lda")
+			if (opcode == "lda")
 			{
 				assert(tt == tkRegister);
 				int a = tn;
@@ -1130,8 +1152,9 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				assert(tt == tkRegister);
 				PUT(0xC3), PUT(a), PUT(tn), PUT(0);
 				getToken();
+				continue;
 			}
-			else if (opcode == "ldstr")
+			if (opcode == "ldstr")
 			{
 				assert(tt == tkRegister);
 				int a = tn;
@@ -1141,6 +1164,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				assert(tt == tkString);
 				PUT(0xC8), PUT(a), PUT2(new_string(ts));
 				getToken();
+				continue;
 			}
 			OP("ldlen", UNARY(0xC9))
 			OP("ldnull", SINGLE(0xCB))
@@ -1148,7 +1172,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 			OP("las", LDF(0xCD, 0xCD)) /* FIXME */
 			OP("lar", UNARY(0xCE))
 			OP("lae", LDE(0xCF, 0xCF)) /* FIXME */
-			else if (opcode == "ret")
+			if (opcode == "ret")
 			{
 				if (tt == tkRegister)
 				{
@@ -1167,9 +1191,10 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				}
 				else /* ret0 */
 					PUT(0xD8), PUT(0), PUT(0), PUT(0);
+				continue;
 			}
 			OP("new", CALL(0xD0))
-			else if (opcode == "newarr")
+			if (opcode == "newarr")
 			{
 				/* newarr $a, type($b) */
 				assert(tt == tkRegister);
@@ -1187,6 +1212,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				getToken();
 				PUT(0xD1), PUT(a), PUT(b), PUT(0);
 				PUT2(new_type_ref(TYPE_ARRAY, type_ref)), PUT2(0);
+				continue;
 			}
 			OP("call", CALL(0xDB))
 			OP("callv", CALL(0xDC))
@@ -1194,7 +1220,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 			OP("rethrow", NOP(0xE1))
 			OP("leave", JMP(0xE2))
 			OP("endfinally", NOP(0xE3))
-			else if (opcode == "cast")
+			if (opcode == "cast")
 			{
 				/* cast $a, $b, type */
 				assert(tt == tkRegister);
@@ -1210,9 +1236,10 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				int type_ref = getType();
 				PUT(0xE7), PUT(a), PUT(b), PUT(0);
 				PUT2(type_ref), PUT2(0);
+				continue;
 			}
 			/* conversion */
-			else if (opcode == "conv")
+			if (opcode == "conv")
 			{
 				/* conv dsttype $a, srctype $b */
 				int dsttype = getPrimitiveType();
@@ -1226,79 +1253,88 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				int b = tn;
 				getToken();
 				PUT(0xE6), PUT(a), PUT(b), PUT((dsttype << 4) | srctype);
+				continue;
 			}
 			// special opcodes
-			else if (opcode == "printi")
+			if (opcode == "printi")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x00), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "printu")
+			if (opcode == "printu")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x01), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "printl")
+			if (opcode == "printl")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x02), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "printul")
+			if (opcode == "printul")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x03), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "prints")
+			if (opcode == "prints")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x04), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "printc")
+			if (opcode == "printc")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x05), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "readi")
+			if (opcode == "readi")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x08), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "readu")
+			if (opcode == "readu")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x09), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "readl")
+			if (opcode == "readl")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x0A), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "readul")
+			if (opcode == "readul")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x0B), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else if (opcode == "reads")
+			if (opcode == "reads")
 			{
 				assert(tt == tkRegister);
 				PUT(0xFF), PUT(0x0C), PUT(0x00), PUT(tn);
 				getToken();
+				continue;
 			}
-			else
-			{
-				printf("Unknown opcode: %s\n", opcode.c_str());
-				assert(("Unknown opcode.", 0));
-			}
+			printf("Unknown opcode: %s\n", opcode.c_str());
+			assert(("Unknown opcode.", 0));
 		}
 	};
 
