@@ -1624,7 +1624,12 @@ class Compiler
 		Method method = PrepareCall(node, methods, values, firstreg);
 
 		/* Call function */
-		AddCode("call\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::" + method::name + method::type);
+		Core.String inst;
+		if (method::modifier & Modifier::Virtual > 0)
+			inst = "callv";
+		else
+			inst = "call";
+		AddCode(inst + "\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::" + method::name + method::type);
 
 		/* Return value */
 		Vector ret = new Vector();
@@ -1692,7 +1697,26 @@ class Compiler
 		{
 			Vector current = c::methods::FindAll(name);
 			for (int32 i = 0; i < current::.getSize(); i = i + 1)
-				methods::Add(current[i]);
+			{
+				Method method = [Method] current[i];
+				if (method::modifier & Modifier::Override == 0) /* Do not include overridden methods */
+				{
+					/* HACK: bool */
+					int32 ok = 1;
+					/* Make sure this method is not overridden by a subclass method */
+					for (int32 j = 0; j < methods::.getSize(); j = j + 1)
+					{
+						Method another = [Method] methods[j];
+						if (method::type::Equals(another::type) > 0)
+						{
+							ok = 0;
+							break;
+						}
+					}
+					if (ok > 0)
+						methods::Add([Core.Object] method);
+				}
+			}
 			if (c::baseName::Equals("") > 0)
 				return methods;
 			c = [Class] classes[c::baseName];
