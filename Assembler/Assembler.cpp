@@ -1370,7 +1370,7 @@ void compile_class()
 			getToken();
 			_PUT2(data, getType());
 			_PUT2(data, modifier);
-			if (modifier & MODIFIER_INTERNAL || class_modifier == MODIFIER_ABSTRACT || class_modifier == MODIFIER_INTERFACE)
+			if (modifier & MODIFIER_INTERNAL || modifier & MODIFIER_ABSTRACT || class_modifier == MODIFIER_INTERFACE)
 			{
 				/* Internal or abstract method or methods within an interface does not have code */
 				/* Paddings */

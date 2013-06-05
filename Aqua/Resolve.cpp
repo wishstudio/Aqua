@@ -127,7 +127,7 @@ static Class *loadClassObject(Class *classObject)
 				method->exceptionClause[i].catchClass = resolveClass(bytecodeFile, exceptionClauseDef[i].catchClassRef);
 			}
 			method->vtableSlot = 0;
-			if (method->modifier & MODIFIER_VIRTUAL)
+			if (method->modifier & MODIFIER_VIRTUAL || method->modifier & MODIFIER_ABSTRACT)
 				classObject->vtableSlotCount++;
 		}
 
@@ -169,6 +169,8 @@ static Class *loadClassObject(Class *classObject)
 			classObject->vtable->methods[currentSlot] = method;
 			currentSlot++;
 		}
+		else if (method->modifier & MODIFIER_ABSTRACT)
+			classObject->vtable->methods[currentSlot++] = nullptr;
 	}
 
 	/* Update load state */

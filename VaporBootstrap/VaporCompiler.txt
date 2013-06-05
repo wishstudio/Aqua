@@ -554,7 +554,7 @@ class Compiler
 		if (modifier::.getLength() > 0)
 			modifier = modifier + " ";
 		AddCode(".method " + modifier + "function " + method::name + method::type);
-		if (method::modifier & Modifier::Internal > 0)
+		if (method::modifier & Modifier::Internal > 0 || method::modifier & Modifier::Abstract > 0)
 		{
 			/* Do nothing */
 		}

@@ -488,6 +488,11 @@ MAIN_DISPATCH:
 		{
 			uint16 vtableSlot = resolveMethod(bytecodeFile, OP_BC)->vtableSlot;
 			Method *method = VTABLE(POINTER(rA))->methods[vtableSlot];
+			if (method == nullptr)
+			{
+				printf("Calling abstract function.\n");
+				return;
+			}
 			CALL(method, OP_A);
 			OP_END();
 		}

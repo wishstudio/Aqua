@@ -208,7 +208,7 @@ class Parser
 					}
 					method::type = prototype;
 
-					if (modifier & Modifier::Internal > 0)
+					if (modifier & Modifier::Internal > 0 || modifier & Modifier::Abstract > 0)
 					{
 						method::body = null;
 						lex::Assert(Token::Semicolon);
