@@ -565,6 +565,49 @@ class Compiler
 		}
 		else
 		{
+			/* Check for improper override */
+			if (method::modifier & Modifier::Override > 0)
+			{
+				/* Check if it actually overrides a method */
+				/* HACK: bool */
+				int32 ok = 0;
+				Class c = method::classObject;
+				while (c::baseName::Equals("") == 0)
+				{
+					c = [Class] classes[c::baseName];
+					Vector methods = c::methods::FindAll(method::name);
+					/* HACK: bool */
+					int32 done = 0;
+					for (int32 i = 0; i < methods::.getSize(); i = i + 1)
+					{
+						Method another = [Method] methods[i];
+						if (another::type::Equals(method::type) > 0)
+						{
+							if (another::modifier & Modifier::Virtual > 0 || another::modifier & Modifier::Abstract > 0)
+							{
+								done = 1;
+								ok = 1;
+								break;
+							}
+							else
+							{
+								done = 1;
+								break;
+							}
+						}
+					}
+					if (done > 0)
+						break;
+				}
+				if (ok == 0)
+					throw new CompilerException("The method \"" + method::name
+						+ "\" makred with \"override\" does not override any methods.", method::location);
+			}
+			else
+			{
+				/* TODO: Check implicit override and display a warning */
+			}
+
 			AddCode("{");
 			Tab();
 			PushSymbolStack();
