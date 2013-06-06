@@ -1548,6 +1548,8 @@ class Compiler
 				ret::methods = new Vector();
 				/* HACK */
 				ResolveMethod(ret::classObject, fnode::field, ret::methods);
+				if (ret::methods::.getSize() == 0)
+					throw new CompilerException("Unknown field.", node::location);
 			}
 			return ret;
 		}
