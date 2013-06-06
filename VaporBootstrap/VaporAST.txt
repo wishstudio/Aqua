@@ -285,6 +285,7 @@ class Method
 class Class
 {
 	public Core.String name, baseName;
+	public Class baseClass;
 	public Hash methods;
 	public Hash fields;
 	public Location location;
