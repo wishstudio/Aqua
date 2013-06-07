@@ -88,7 +88,7 @@ static Class *loadClassObject(Class *classObject)
 	memset(classObject->staticData, 0, classObject->staticSize);
 	
 	uint16 currentSlot;
-	if (classObject->baseClass == NULL)
+	if (classObject->baseClass == nullptr)
 		currentSlot = classObject->vtableSlotCount = 0;
 	else
 		currentSlot = classObject->vtableSlotCount = classObject->baseClass->vtableSlotCount;
@@ -140,11 +140,12 @@ static Class *loadClassObject(Class *classObject)
 	{
 		/* Copy vtable of base class */
 		memcpy(
-			classObject->vtable + sizeof(VTable),
-			classObject->baseClass->vtable + sizeof(VTable),
+			(pointer) classObject->vtable + sizeof(VTable),
+			(pointer) classObject->baseClass->vtable + sizeof(VTable),
 			sizeof(Method *) * classObject->baseClass->vtableSlotCount
 		);
 	}
+	
 	for (uint16 i = 0; i < classDef->methodCount; i++)
 	{
 		Method *method = &classObject->methods[i];
@@ -170,7 +171,11 @@ static Class *loadClassObject(Class *classObject)
 			currentSlot++;
 		}
 		else if (method->modifier & MODIFIER_ABSTRACT)
-			classObject->vtable->methods[currentSlot++] = nullptr;
+		{
+			method->vtableSlot = currentSlot;
+			classObject->vtable->methods[currentSlot] = nullptr;
+			currentSlot++;
+		}
 	}
 
 	/* Update load state */

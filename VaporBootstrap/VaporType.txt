@@ -1,0 +1,320 @@
+class Type
+{
+	/* HACK: bool */
+	/* HACK: abstract */
+	public virtual function CanImplicitlyConvertTo(Type type) -> int32 {}
+
+	public virtual function ToString() -> Core.String {}
+
+	public virtual function .getSuffix() -> Core.String {}
+
+	public virtual function .getStackType() -> Type {}
+
+	/* HACK: bool */
+	public function Equals(Type type) -> int32
+	{
+		return ToString()::Equals(type::ToString());
+	}
+
+	public static Type Int8, UInt8, Int16, UInt16, Char, Int32, UInt32, Int;
+
+	public static function InitType()
+	{
+		Type::Int8 = new Int8Type();
+		Type::UInt8 = new UInt8Type();
+		Type::Int16 = new Int16Type();
+		Type::UInt16 = new UInt16Type();
+		Type::Char = new CharType();
+		Type::Int32 = new Int32Type();
+		Type::UInt32 = new UInt32Type();
+		Type::Int = new IntType();
+	}
+}
+
+class PrimitiveType: Type
+{
+}
+
+class Int8Type: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is Int8Type || type is Int16Type || type is Int32Type)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "int8";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "b";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return Type::Int32;
+	}
+}
+
+class UInt8Type: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is UInt8Type || type is Int16Type || type is UInt16Type || type is Int32Type || type is UInt32Type)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "uint8";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "ub";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return Type::UInt32;
+	}
+}
+
+class Int16Type: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is Int16Type || type is Int32Type)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "int16";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "w";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return Type::Int32;
+	}
+}
+
+class UInt16Type: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is UInt16Type || type is Int32Type || type is UInt32Type)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "uint16";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "uw";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return Type::UInt32;
+	}
+}
+
+class CharType: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is CharType)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "char";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "uw";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return Type::Int32;
+	}
+}
+
+class Int32Type: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is Int32Type)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "int32";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "i";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return this;
+	}
+}
+
+class UInt32Type: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is UInt32Type)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "uint32";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "u";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return this;
+	}
+}
+
+class IntType: PrimitiveType
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is IntType)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return "int";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "a";
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return this;
+	}
+}
+
+class ArrayType: Type
+{
+	private Type elementType;
+
+	public function .ctor(Type elementType)
+	{
+		this::elementType = elementType;
+	}
+
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is ArrayType && ([ArrayType] type)::.getElementType()::Equals(elementType) > 0)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return elementType::ToString() + "[]";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "a";
+	}
+
+	public function .getElementType() -> Type
+	{
+		return elementType;
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return this;
+	}
+}
+
+class ClassType: Type
+{
+	private Class classObject;
+
+	public function .ctor(Class classObject)
+	{
+		this::classObject = classObject;
+	}
+
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is ClassType)
+		{
+			Class dst = ([ClassType] type)::.getClass();
+			Class c = classObject;
+			while (c != null)
+			{
+				/* HACK: object pointer comparison */
+				if (c::name::Equals(dst::name) > 0)
+					return 1;
+				c = c::baseClass;
+			}
+		}
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return classObject::name;
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "a";
+	}
+
+	public function .getClass() -> Class
+	{
+		return classObject;
+	}
+
+	public override function .getStackType() -> Type
+	{
+		return this;
+	}
+}

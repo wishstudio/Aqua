@@ -419,7 +419,7 @@ class Parser
 				CatchNode cnode = new CatchNode(GetCurrentLocation());
 				lex::CheckNext(Token::PLeft);
 				lex::CheckNext(Token::Ident);
-				cnode::className = lex::ident;
+				cnode::type = lex::ident;
 				lex::CheckNext(Token::Ident);
 				cnode::name = lex::ident;
 				lex::CheckNext(Token::PRight);

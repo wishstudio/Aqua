@@ -528,6 +528,7 @@ MAIN_DISPATCH:
 			Class *classObject = resolveClass(bytecodeFile, _imm16);
 			if (!instanceOf(POINTER(rB), classObject))
 			{
+				printf("In \"%s\" %x:\n", currentFrame->method->name->data, pc);
 				printf("Not instance of %s!", classObject->name->data);
 				return;
 			}

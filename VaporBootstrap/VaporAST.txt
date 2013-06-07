@@ -222,7 +222,7 @@ class TryNode: Node
 
 class CatchNode: Node
 {
-	public Core.String className;
+	public Core.String type;
 	public Core.String name;
 	public Node body;
 

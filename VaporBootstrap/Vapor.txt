@@ -6,6 +6,7 @@ class Vapor
 		Token::InitToken();
 		Modifier::InitModifier();
 		CallingConvention::InitCallingConvention();
+		Type::InitType();
 		Value::InitValue();
 		Context::InitContext();
 	}
