@@ -9,6 +9,18 @@ class Location
 	}
 }
 
+class ParserType
+{
+	public Location location;
+	public Core.String typestring;
+	public Type type;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
+}
+
 class Node
 {
 	public int32 op;
@@ -75,7 +87,7 @@ class CallNode: Node
 
 class NewNode: Node
 {
-	public Core.String type;
+	public ParserType type;
 	public Vector parameters;
 
 	public function .ctor(Location location)
@@ -129,7 +141,7 @@ class ListNode: Node
 
 class DefinitionNode: Node
 {
-	public Core.String type;
+	public ParserType type;
 	public Vector names;
 	public Vector values;
 
@@ -154,7 +166,7 @@ class MultipleNode: Node
 
 class TypeCastNode: Node
 {
-	public Core.String type;
+	public ParserType type;
 	public Node operand;
 
 	public function .ctor(Location location)
@@ -222,7 +234,7 @@ class TryNode: Node
 
 class CatchNode: Node
 {
-	public Core.String type;
+	public ParserType type;
 	public Core.String name;
 	public Node body;
 
@@ -247,7 +259,7 @@ class Field
 	public Class classObject;
 	public int32 modifier;
 	public Core.String name;
-	public Core.String type;
+	public ParserType type;
 	public Location location;
 
 	public function .ctor(Location location)
@@ -261,7 +273,7 @@ class Method
 	public Class classObject;
 	public int32 modifier;
 	public Core.String name;
-	public Core.String type;
+	public Core.String prototype;
 	public Vector paramTypes;
 	public Vector paramNames;
 	public Vector returnTypes;

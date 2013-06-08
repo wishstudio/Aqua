@@ -466,7 +466,7 @@ class Compiler
 		Core.String modifier = Modifier::ToString(field::modifier);
 		if (modifier::.getLength() > 0)
 			modifier = modifier + " ";
-		AddCode(".field " + modifier + ResolveType(field::location, field::type)::ToString() + " " + field::name);
+		AddCode(".field " + modifier + ResolveType(field::type)::ToString() + " " + field::name);
 	}
 
 	private function CompileMethod(Method method)
@@ -474,7 +474,9 @@ class Compiler
 		Core.String modifier = Modifier::ToString(method::modifier);
 		if (modifier::.getLength() > 0)
 			modifier = modifier + " ";
-		AddCode(".method " + modifier + "function " + method::name + method::type);
+
+		AddCode(".method " + modifier + "function " + method::name + ResolvePrototype(method));
+
 		if (method::modifier & Modifier::Internal > 0 || method::modifier & Modifier::Abstract > 0)
 		{
 			/* Do nothing */
@@ -502,7 +504,7 @@ class Compiler
 					for (int32 i = 0; i < methods::.getSize(); i = i + 1)
 					{
 						Method another = [Method] methods[i];
-						if (another::type::Equals(method::type) > 0)
+						if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
 						{
 							if (another::modifier & Modifier::Virtual > 0 || another::modifier & Modifier::Abstract > 0)
 							{
@@ -545,7 +547,7 @@ class Compiler
 				{
 					Variable var = new Variable();
 					var::regid = freereg + i;
-					var::type = ResolveType(method::location, [Core.String] method::paramTypes[i]);
+					var::type = ResolveType([ParserType] method::paramTypes[i]);
 					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
 				}
 			}
@@ -558,7 +560,7 @@ class Compiler
 				{
 					Variable var = new Variable();
 					var::regid = freereg + i;
-					var::type = ResolveType(method::location, [Core.String] method::returnTypes[i]);
+					var::type = ResolveType([ParserType] method::returnTypes[i]);
 					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
 				}
 			}
@@ -608,7 +610,7 @@ class Compiler
 			{
 				Variable variable = new Variable();
 				variable::regid = freereg;
-				variable::type = ResolveType(node::location, dnode::type);
+				variable::type = ResolveType(dnode::type);
 
 				([Hash] symbolTable::Peek())::Add([Core.String] dnode::names[i], [Core.Object] variable);
 				Variable var = FindSymbol([Core.String] dnode::names[i]);
@@ -619,7 +621,7 @@ class Compiler
 					Value value = new Value();
 					value::kind = Value::Register | Value::LValue;
 					value::regid = freereg;
-					value::type = ResolveType(node::location, dnode::type);
+					value::type = ResolveType(dnode::type);
 					MoveValueToLValue(node, CompileExpression(vnode, freereg, freereg, 0, 0), value, freereg);
 				}
 				freereg = freereg + 1;
@@ -872,12 +874,12 @@ class Compiler
 			for (int32 i = 0; i < tnode::catchNodes::.getSize(); i = i + 1)
 			{
 				CatchNode cnode = [CatchNode] tnode::catchNodes[i];
-				AddCode(".catch(" + ResolveType(cnode::location, cnode::type)::ToString()
+				AddCode(".catch(" + ResolveType(cnode::type)::ToString()
 					+ " $" + Core.Int32::ToString(freereg) + ") {");
 				PushSymbolStack();
 				Variable var = new Variable();
 				var::regid = freereg;
-				var::type = ResolveType(node::location, cnode::type);
+				var::type = ResolveType(cnode::type);
 				([Hash] symbolTable::Peek())::Add(cnode::name, [Core.Object] var);
 				Tab();
 				int32 closed = CompileStatement(cnode::body, freereg + 1, context);
@@ -1359,7 +1361,7 @@ class Compiler
 		{
 			NewNode nnode = [NewNode] node;
 			/* TODO: Check if it is a class type */
-			Class classObject = ([ClassType] ResolveType(nnode::location, nnode::type))::.getClass();
+			Class classObject = ([ClassType] ResolveType(nnode::type))::.getClass();
 			Method method = [Method] classObject::methods[".ctor"];
 			if (method::paramTypes::.getSize() != nnode::parameters::.getSize())
 				throw new CompilerException("Invalid number of parameters.", node::location);
@@ -1367,15 +1369,15 @@ class Compiler
 			{
 				Value value = ToScalar(CompileList([Node] nnode::parameters[i], freereg + 2 + i, -1));
 				MoveValueToRegister(value, freereg + 2 + i);
-				if (value::type::Equals(ResolveType(method::location, [Core.String] method::paramTypes[i])) == 0)
+				if (value::type::Equals(ResolveType([ParserType] method::paramTypes[i])) == 0)
 					throw new CompilerException("Parameter type mismatch.", node::location);
 			}
 			AddCode("new\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
-				+ method::name + method::type);
+				+ method::name + ResolvePrototype(method));
 			Value ret = new Value();
 			ret::kind = Value::Register;
 			ret::regid = freereg;
-			ret::type = ResolveType(node::location, nnode::type);
+			ret::type = ResolveType(nnode::type);
 			return ret;
 		}
 		else if (node::op == Token::NewArray)
@@ -1385,7 +1387,7 @@ class Compiler
 				throw new CompilerException("Currently only 1 dim array supported.", node::location);
 
 			Value value = EnsureRegister(ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1)), freereg);
-			Type elementType = ResolveType(nnode::location, nnode::type);
+			Type elementType = ResolveType(nnode::type);
 			AddCode("newarr\t$" + Core.Int32::ToString(targetreg) + ", " + elementType::ToString()
 				+ "($" + Core.Int32::ToString(value::regid) + ")");
 			Value ret = new Value();
@@ -1405,9 +1407,9 @@ class Compiler
 			if (value::type is PrimitiveType)
 			{
 				/* No boxing/unboxing now */
-				if (ResolveType(tnode::location, tnode::type) is PrimitiveType)
+				if (ResolveType(tnode::type) is PrimitiveType)
 				{
-					value::type = ResolveType(tnode::location, tnode::type);
+					value::type = ResolveType(tnode::type);
 					return value;
 				}
 				else
@@ -1415,7 +1417,7 @@ class Compiler
 			}
 			else
 			{
-				Type type = ResolveType(tnode::location, tnode::type);
+				Type type = ResolveType(tnode::type);
 				AddCode("cast\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
 					+ ", " + type::ToString());
 				Value ret = new Value();
@@ -1479,7 +1481,7 @@ class Compiler
 				/* Field */
 				ret::kind = Value::Field | Value::LValue;
 				ret::field = field;
-				ret::type = ResolveType(field::location, field::type);
+				ret::type = ResolveType(field::type);
 			}
 			else
 			{
@@ -1529,7 +1531,7 @@ class Compiler
 						ret::regid = 0;
 						ret::classObject = currentClass;
 						ret::field = [Field] field;
-						ret::type = ResolveType(([Field] field)::location, ([Field] field)::type);
+						ret::type = ResolveType(([Field] field)::type);
 						return ret;
 					}
 					else
@@ -1624,7 +1626,8 @@ class Compiler
 			inst = "callv";
 		else
 			inst = "call";
-		AddCode(inst + "\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::" + method::name + method::type);
+		AddCode(inst + "\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
+			+ method::name + ResolvePrototype(method));
 
 		/* Return value */
 		Vector ret = new Vector();
@@ -1633,7 +1636,7 @@ class Compiler
 			Value value = new Value();
 			value::kind = Value::Register;
 			value::regid = freereg + i;
-			value::type = ResolveType(method::location, [Core.String] method::returnTypes[i]);
+			value::type = ResolveType([ParserType] method::returnTypes[i]);
 			ret::Add([Core.Object] value);
 		}
 		return ret;
@@ -1650,21 +1653,22 @@ class Compiler
 			throw new CompilerException("Unsupported operator.", node::location);
 		Method method = [Method] ([ClassType] left::type)::.getClass()::methods[methodName];
 		if (method::paramTypes::.getSize() != 2 || method::returnTypes::.getSize() != 1
-			|| ResolveType(method::location, [Core.String] method::paramTypes[0])::Equals(left::type) == 0
-			|| ResolveType(method::location, [Core.String] method::paramTypes[1])::Equals(right::type) == 0
+			|| ResolveType([ParserType] method::paramTypes[0])::Equals(left::type) == 0
+			|| ResolveType([ParserType] method::paramTypes[1])::Equals(right::type) == 0
 			|| method::modifier & Modifier::Static == 1)
 			throw new CompilerException("Operator parameter error.", node::location); /* TODO */
 
-		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + left::type::ToString() + "::" + methodName + method::type);
+		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + left::type::ToString() + "::"
+			+ methodName + ResolvePrototype(method));
 		Value ret = new Value();
 		ret::kind = Value::Register;
 		ret::regid = firstreg;
-		ret::type = ResolveType(method::location, [Core.String] method::returnTypes[0]);
+		ret::type = ResolveType([ParserType] method::returnTypes[0]);
 		return ret;
 	}
 
 	/* Resolves a type from standarized type string */
-	private function ResolveType(Location location, Core.String type) -> Type
+	private function ResolveParserType(Location location, Core.String type) -> Type
 	{
 		if (type::Equals("int8") > 0)
 			return Type::Int8;
@@ -1683,7 +1687,7 @@ class Compiler
 		else if (type::Equals("int") > 0)
 			return Type::Int;
 		else if (type::SubString(type::.getLength() - 2, 2)::Equals("[]") > 0)
-			return new ArrayType(ResolveType(location, type::SubString(0, type::.getLength() - 2)));
+			return new ArrayType(ResolveParserType(location, type::SubString(0, type::.getLength() - 2)));
 		else
 		{
 			Core.Object c;
@@ -1693,6 +1697,43 @@ class Compiler
 				throw new CompilerException("Unknown type \"" + type + "\".", location);
 			return new ClassType([Class] c);
 		}
+	}
+
+	private function ResolveType(ParserType type) -> Type
+	{
+		if (type::type == null)
+			type::type = ResolveParserType(type::location, type::typestring);
+		return type::type;
+	}
+
+	private function ResolvePrototype(Method method) -> Core.String
+	{
+		if (method::prototype == null)
+		{
+			/* Concatenate prototype string */
+			Core.String prototype = "(";
+			for (int32 i = 0; i < method::paramTypes::.getSize(); i = i + 1)
+			{
+				if (i == 0)
+					prototype = prototype + ResolveType([ParserType] method::paramTypes[i])::ToString();
+				else
+					prototype = prototype + ", " + ResolveType([ParserType] method::paramTypes[i])::ToString();
+			}
+			prototype = prototype + ")";
+			if (method::returnTypes::.getSize() > 0)
+			{
+				prototype = prototype + " -> ";
+				for (int32 i = 0; i < method::returnTypes::.getSize(); i = i + 1)
+				{
+					if (i == 0)
+						prototype = prototype + ResolveType([ParserType] method::returnTypes[i])::ToString();
+					else
+						prototype = prototype + ", " + ResolveType([ParserType] method::returnTypes[i])::ToString();
+				}
+			}
+			method::prototype = prototype;
+		}
+		return method::prototype;
 	}
 
 	/* Returns field and corresponding class which the field is defined in */
@@ -1730,7 +1771,7 @@ class Compiler
 					for (int32 j = 0; j < methods::.getSize(); j = j + 1)
 					{
 						Method another = [Method] methods[j];
-						if (method::type::Equals(another::type) > 0)
+						if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
 						{
 							ok = 0;
 							break;
@@ -1760,7 +1801,7 @@ class Compiler
 				/* HACK: bool */
 				int32 ok = 1;
 				for (int32 j = 0; j < method::paramTypes::.getSize(); j = j + 1)
-					if (IsConvertible([Value] values[j], ResolveType(method::location, [Core.String] method::paramTypes[j])) == 0)
+					if (IsConvertible([Value] values[j], ResolveType([ParserType] method::paramTypes[j])) == 0)
 					{
 						ok = 0;
 						break;
@@ -1773,7 +1814,7 @@ class Compiler
 		/* Prepare values */
 		for (int32 i = 0; i < values::.getSize(); i = i + 1)
 			MoveValueToTypedRegister(node, [Value] values[i], firstreg + i,
-				ResolveType(method::location, [Core.String] method::paramTypes[i]));
+				ResolveType([ParserType] method::paramTypes[i]));
 		return method;
 	}
 
@@ -1805,8 +1846,8 @@ class Compiler
 					for (int32 k = 0; k < values::.getSize(); k = k + 1)
 					{
 						Type S = ([Value] values[k])::type;
-						Type T1 = ResolveType(current::location, [Core.String] current::paramTypes[k]);
-						Type T2 = ResolveType(another::location, [Core.String] another::paramTypes[k]);
+						Type T1 = ResolveType([ParserType] current::paramTypes[k]);
+						Type T2 = ResolveType([ParserType] another::paramTypes[k]);
 						if (T1::Equals(T2) > 0)
 							continue;
 						if (S::Equals(T1) > 0)

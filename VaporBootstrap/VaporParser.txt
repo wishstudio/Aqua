@@ -64,10 +64,11 @@ class Parser
 			return cc;
 	}
 
-	private function TryParseType() -> Core.String
+	private function TryParseType() -> ParserType
 	{
+		Location location = GetCurrentLocation();
 		if (lex::token != Token::Ident)
-			return "";
+			return null;
 		Core.String type = lex::ident;
 		/* HACK: for (;;) */
 		while (2 > 1)
@@ -76,15 +77,18 @@ class Parser
 			if (lex::token == Token::Array)
 				type = type + "[]";
 			else
-				return type;
+			{
+				ParserType ret = new ParserType(location);
+				ret::typestring = type;
+				return ret;
+			}
 		}
-		return type;
 	}
 
-	private function ParseType() -> Core.String
+	private function ParseType() -> ParserType
 	{
-		Core.String type = TryParseType();
-		if (type::Equals("") > 0)
+		ParserType type = TryParseType();
+		if (type == null)
 			throw new UnexpectedTokenException();
 		return type;
 	}
@@ -184,30 +188,6 @@ class Parser
 						}
 					}
 
-					/* Concatenate prototype string */
-					Core.String prototype = "(";
-					for (int32 i = 0; i < method::paramTypes::.getSize(); i = i + 1)
-					{
-						if (i == 0)
-							prototype = prototype + [Core.String] method::paramTypes[i];
-						else
-							prototype = prototype + ", " + [Core.String] method::paramTypes[i];
-					}
-					prototype = prototype + ")";
-
-					if (method::returnTypes::.getSize() > 0)
-					{
-						prototype = prototype + " -> ";
-						for (int32 i = 0; i < method::returnTypes::.getSize(); i = i + 1)
-						{
-							if (i == 0)
-								prototype = prototype + [Core.String] method::returnTypes[i];
-							else
-								prototype = prototype + ", " + [Core.String] method::returnTypes[i];
-						}
-					}
-					method::type = prototype;
-
 					if (modifier & Modifier::Internal > 0 || modifier & Modifier::Abstract > 0)
 					{
 						method::body = null;
@@ -237,7 +217,7 @@ class Parser
 				else
 				{
 					/* Field */
-					Core.String type = ParseType();
+					ParserType type = ParseType();
 					/* HACK: for (;;) */
 					/* HACK: break */
 					int32 BREAK = 0;
@@ -278,7 +258,6 @@ class Parser
 				method::classObject = classObject;
 				method::name = ".ctor";
 				method::modifier = Modifier::Public;
-				method::type = "()";
 				method::body = [Node] body;
 				classObject::methods::Add(".ctor", [Core.Object] method);
 			}
@@ -418,9 +397,9 @@ class Parser
 			{
 				CatchNode cnode = new CatchNode(GetCurrentLocation());
 				lex::CheckNext(Token::PLeft);
-				lex::CheckNext(Token::Ident);
-				cnode::type = lex::ident;
-				lex::CheckNext(Token::Ident);
+				lex::Next();
+				cnode::type = ParseType();
+				lex::Assert(Token::Ident);
 				cnode::name = lex::ident;
 				lex::CheckNext(Token::PRight);
 				lex::Next();
@@ -459,8 +438,8 @@ class Parser
 	private function ParseSingleStatement() -> Node
 	{
 		lex::Checkpoint();
-		Core.String type = TryParseType();
-		if (type::Equals("") > 0 || lex::token != Token::Ident)
+		ParserType type = TryParseType();
+		if (type == null || lex::token != Token::Ident)
 		{
 			lex::RollbackCheckpoint();
 			return ParseList();
