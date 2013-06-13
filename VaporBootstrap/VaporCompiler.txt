@@ -261,7 +261,7 @@ class Compiler
 								ok = 1;
 								break;
 							}
-							else
+							else if (another::modifier & Modifier::Override == 0)
 							{
 								done = 1;
 								break;
@@ -1329,7 +1329,7 @@ class Compiler
 
 		/* Call function */
 		Core.String inst;
-		if (method::modifier & Modifier::Virtual > 0)
+		if (method::modifier & Modifier::Virtual > 0 || method::modifier & Modifier::Abstract > 0)
 			inst = "callv";
 		else
 			inst = "call";
