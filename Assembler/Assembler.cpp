@@ -1027,16 +1027,17 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 			OP("addi", BINI(0x00))
 			OP("subi", BINI(0x02))
 			OP("muli", BINI(0x04))
-			OP("mulu", BINI(0x06))
 			OP("divi", BINI(0x08))
-			OP("divu", BINI(0x0A))
 			OP("remi", BINI(0x0C))
-			OP("remu", BINI(0x0E))
 	
 			OP("andi", BINI(0x10))
+			OP("andu", BINI(0x10))
 			OP("ori", BINI(0x12))
+			OP("oru", BINI(0x12))
 			OP("xori", BINI(0x14))
+			OP("xoru", BINI(0x14))
 			OP("noti", UNARY(0x16))
+			OP("notu", UNARY(0x16))
 			OP("negi", UNARY(0x17))
 			OP("sli", BINI(0x18))
 			OP("sri", BINI(0x1A))
@@ -1125,7 +1126,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 			OP("ldel", LDE(0xB5, 0xBD))
 			//OP("ldev", LDEV(0xB6, 0xBE))
 			OP("ldea", LDE(0xB7, 0xBF))
-			if (opcode == "ldi")
+			if (opcode == "ldi" || opcode == "ldu")
 			{
 				assert(tt == tkRegister);
 				int a = tn;

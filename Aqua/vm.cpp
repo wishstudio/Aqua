@@ -230,11 +230,13 @@ L2:
 		{ \
 			currentFrame--; \
 			ENTERFRAME(); \
+			/*printf("RETURN TO %s::%s\n", currentFrame->method->classObject->name->data, currentFrame->method->name->data);*/ \
 		} \
 	}
 
 #define CALL(method, basereg) \
 	{ \
+		/*printf("CALL %s::%s\n", method->classObject->name->data, method->name->data);*/ \
 		if (method->modifier & MODIFIER_INTERNAL) \
 			(*method->internalMethod)(&REG(basereg)); \
 		else if (method->modifier & MODIFIER_NATIVE) \

@@ -1,0 +1,440 @@
+class Value
+{
+	/* HACK: bool */
+	/* HACK: abstract */
+	public virtual function CanImplicitlyConvertTo(Type type) -> int32 {}
+
+	public virtual function GetNextFreeRegister(int32 freereg) -> int32 {}
+
+	public virtual function ToRegister(Compiler compiler, int32 regid) -> RegisterValue {}
+
+	public function EnsureRegister(Compiler compiler, int32 freereg) -> RegisterValue
+	{
+		if (this is RegisterValue)
+			return this;
+		return ToRegister(compiler, freereg);
+	}
+
+	/* Ensure a value occupies a single register slot at most */
+	public function EnsureSingleSlot(Compiler compiler, int32 freereg) -> Value
+	{
+		if (this is ImmediateValue)
+			return this;
+		return EnsureRegister(compiler, freereg);
+	}
+
+	/* TODO: super function call */
+	/* Ensure value is of given type, convert it otherwise */
+	public virtual function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue {}
+
+	/* Convert value to a given type and move in to given register */
+	public function ToTypedRegister(Compiler compiler, Location location, int32 regid, Type type) -> RegisterValue
+	{
+		/*return ToTyped(compiler, location, regid, type)::ToRegister(compiler, regid);*/
+		/* HACK: Workaround: current compiler does not handle virtual methods correctly. */
+		Value v = ToTyped(compiler, location, regid, type);
+		RegisterValue v2 = v::ToRegister(compiler, regid);
+		return v2;
+	}
+
+	public function EnsureTypedRegister(Compiler compiler, Location location, int32 regid, Type type) -> RegisterValue
+	{
+		/*return ToTyped(compiler, location, regid, type)::EnsureRegister(compiler, regid);*/
+		/* HACK: Workaround: See above */
+		Value v = ToTyped(compiler, location, regid, type);
+		RegisterValue v2 = v::EnsureRegister(compiler, regid);
+		return v2;
+	}
+
+	public function ToLValue(Compiler compiler, Location location, LValue lvalue, int32 freereg)
+	{
+		if (CanImplicitlyConvertTo(lvalue::type) == 0)
+			throw new CompilerException(
+				"Cannot implicitly convert to \"" + lvalue::type::ToString() + "\"",
+				location
+			);
+		lvalue::AssignValue(compiler, location, this, freereg);
+	}
+}
+
+class PseudoValue: Value
+{
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		throw new Core.InvalidOperationException();
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		throw new Core.InvalidOperationException();
+	}
+
+	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	{
+		throw new Core.InvalidOperationException();
+	}
+
+	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
+	{
+		throw new Core.InvalidOperationException();
+	}
+}
+
+class TypeValue: PseudoValue
+{
+	public Type type;
+
+	public function .ctor(Type type)
+	{
+		this::type = type;
+	}
+}
+
+class MethodValue: PseudoValue
+{
+	public int32 regid;
+	public Vector methods;
+
+	public function .ctor(int32 regid, Vector methods)
+	{
+		this::regid = regid;
+		this::methods = methods;
+	}
+}
+
+class TypedValue: Value
+{
+	Type type;
+
+	public override function CanImplicitlyConvertTo(Type dst) -> int32
+	{
+		return type::CanImplicitlyConvertTo(dst);
+	}
+
+	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type dst) -> TypedValue
+	{
+		Type stackType = type::.getStackType();
+		if (stackType::Equals(dst) > 0  || type::Equals(dst) > 0)
+			return this;
+		else if (type is PrimitiveType && dst is PrimitiveType)
+		{
+			/* TODO: Maybe we could cut off some unnecessary convertions */
+			/* HACK: Workaround: See above */
+			RegisterValue ret = ([Value] this)::ToRegister(compiler, freereg);
+			compiler::AddCode("conv\t" + dst::ToString() + " $" + Core.Int32::ToString(freereg) + ", "
+				+ stackType::ToString() + " $" + Core.Int32::ToString(ret::regid));
+			ret::type = dst;
+			return ret;
+		}
+		/* HACK: not */
+		else
+		{
+			/* HACK: Temporary workaround */
+			/*if (type is PrimitiveType || dst is PrimitiveType)
+				throw new CompilerException(
+					"Cannot convert \"" + type::ToString() + "\" to \"" + dst::ToString() + "\"",
+					location
+				);*/
+
+			/* Object cast */
+			/* TODO */
+			if (type::CanImplicitlyConvertTo(dst) > 0)
+			{
+				/* FIXME: Clone */
+				this::type = type;
+				return this;
+			}
+			else
+			{
+				/* HACK: Workaround: See above */
+				RegisterValue ret = ([Value] this)::ToRegister(compiler, freereg);
+				compiler::AddCode("cast\t$" + Core.Int32::ToString(freereg) + ", $" + Core.Int32::ToString(ret::regid)
+					+ ", " + dst::ToString());
+				ret::type = type;
+				return ret;
+			}
+		}
+	}
+}
+
+class ImmediateValue: TypedValue
+{
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		return freereg;
+	}
+}
+
+class NullValue: ImmediateValue
+{
+	public function .ctor()
+	{
+		this::type = Type::Int;
+	}
+
+	/* FIXME: Temporary workaround
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is IntType || type is ClassType)
+			return 1;
+		return 0;
+	}*/
+
+	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	{
+		/* TODO */
+		compiler::AddCode("ldnull\t$" + Core.Int32::ToString(regid));
+		return new RegisterValue(regid, Type::Int);
+	}
+
+	/* FIXME: Temporary workaround
+	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
+	{
+		if (type is IntType || type is ClassType)
+		{
+			compiler::AddCode("ldnull\t$" + Core.Int32::ToString(freereg));
+			return new RegisterValue(freereg, type);
+		}
+		else
+			throw new CompilerException("Invalid type conversion.", location);
+	}*/
+}
+
+class IntegerValue: ImmediateValue
+{
+	Core.String value;
+
+	public function .ctor(Core.String value)
+	{
+		/* TODO */
+		this::value = value;
+		this::type = Type::Int32;
+	}
+
+	/* FIXME: Temporary workaround
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is Int8Type || type is UInt8Type || type is Int16Type || type is UInt16Type
+			|| type is Int32Type || type is UInt32Type)
+			return 1;
+		return 0;
+	}*/
+
+	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	{
+		/* TODO */
+		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", " + value);
+		return new RegisterValue(regid, Type::Int32);
+	}
+
+	/* FIXME: Temporary workaround
+	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
+	{
+		/* TODO *
+		/* Super call *
+		return this;
+	}*/
+}
+
+class JumpTargetValue: TypedValue
+{
+	public int32 labelId;
+
+	public function .ctor(int32 labelId)
+	{
+		this::labelId = labelId;
+		this::type = Type::Int32;
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		/* TODO: Is this okay? */
+		return freereg;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	{
+		/* TODO */
+		/* Default: jtrue == 0 */
+		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 1");
+		compiler::AddCode("jmp\t" + compiler::GetLabelName(compiler::currentLabelId));
+		compiler::AddLabel(labelId);
+		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 0");
+		compiler::AddLabel(compiler::GetNextLabelId());
+		return new RegisterValue(regid, Type::Int32);
+	}
+}
+
+class RegisterValue: TypedValue
+{
+	public int32 regid;
+
+	public function .ctor(int32 regid, Type type)
+	{
+		this::regid = regid;
+		this::type = type;
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		if (freereg == regid)
+			return freereg + 1;
+		return freereg;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	{
+		if (regid == dst)
+			return this;
+		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + Core.Int32::ToString(dst)
+			+ ", $" + Core.Int32::ToString(regid));
+		return new RegisterValue(dst, type);
+	}
+}
+
+class LValue: TypedValue
+{
+	/* Assign a value to this lvalue, caller ensures type consistent */
+	public virtual function AssignValue(Compiler compiler, Location location, Value value, int32 freereg) {}
+}
+
+class VariableValue: LValue
+{
+	public int32 regid;
+
+	public function .ctor(int32 regid, Type type)
+	{
+		this::regid = regid;
+		this::type = type;
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		if (freereg == regid)
+			return freereg + 1;
+		return freereg;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	{
+		if (regid == dst)
+			return this;
+		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + Core.Int32::ToString(dst)
+			+ ", $" + Core.Int32::ToString(regid));
+		return new RegisterValue(dst, type);
+	}
+
+	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	{
+		value::ToTypedRegister(compiler, location, regid, type);
+	}
+}
+
+class DerefValue: LValue
+{
+	public int32 regid;
+
+	public function .ctor(int32 regid, Type type)
+	{
+		this::regid = regid;
+		this::type = type;
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		if (freereg == regid)
+			return freereg + 1;
+		return freereg;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	{
+		/* TODO */
+		compiler::AddCode("ldiuw\t$" + Core.Int32::ToString(dst) + ", ($" + Core.Int32::ToString(regid) + ")");
+		return new RegisterValue(dst, type);
+	}
+
+	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	{
+		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
+		compiler::AddCode("ldiuw\t($" + Core.Int32::ToString(regid) + "), $" + Core.Int32::ToString(v::regid));
+	}
+}
+
+class FieldValue: LValue
+{
+	public int32 regid;
+	public Field field;
+
+	public function .ctor(int32 regid, Field field, Type type)
+	{
+		this::regid = regid;
+		this::field = field;
+		this::type = type;
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		if (freereg == regid)
+			return freereg + 1;
+		return freereg;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	{
+		if (field::modifier & Modifier::Static > 0)
+			compiler::AddCode("lds" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst) + ", "
+				+ field::classObject::name + "::" + field::name);
+		else
+			compiler::AddCode("ldf" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst) + ", $"
+				+ Core.Int32::ToString(regid) + ", " + field::classObject::name + "::" + field::name);
+		return new RegisterValue(dst, type);
+	}
+
+	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	{
+		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
+		if (field::modifier & Modifier::Static > 0)
+			compiler::AddCode("lds" + type::.getSuffix() + "\t" + field::classObject::name + "::" + field::name
+				+ ", $" + Core.Int32::ToString(v::regid));
+		else
+			compiler::AddCode("ldf" + type::.getSuffix() + "\t$" + Core.Int32::ToString(regid) + ", "
+				+ field::classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(v::regid));
+	}
+}
+
+class ArrayElementValue: LValue
+{
+	public int32 regid, regid2;
+
+	public function .ctor(int32 regid, int32 regid2, Type type)
+	{
+		this::regid = regid;
+		this::regid2 = regid2;
+		this::type = type;
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		if (freereg == regid || freereg == regid2)
+			if (freereg + 1 == regid || freereg + 1 == regid2)
+				return freereg + 2;
+			else
+				return freereg + 1;
+		return freereg;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	{
+		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst) + ", $"
+			+ Core.Int32::ToString(regid) + "($" + Core.Int32::ToString(regid2) + ")");
+		return new RegisterValue(dst, type);
+	}
+
+	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	{
+		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
+		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + Core.Int32::ToString(regid)
+			+ "($" + Core.Int32::ToString(regid2) + "), $" + Core.Int32::ToString(v::regid));
+	}
+}

@@ -21,27 +21,6 @@ class Variable
 	public Type type;
 }
 
-class Value
-{
-	public static int32 Register, IntegerImmediate, Immediate, Field, Method, ArrayElement;
-	public static int32 Deref, LValue, Type, JumpTarget;
-
-	public static function InitValue()
-	{
-		Value::Register, Value::IntegerImmediate, Value::Immediate, Value::Field, Value::Method = 1, 2, 4, 8, 16;
-		Value::ArrayElement, Value::Deref, Value::LValue, Value::Type, Value::JumpTarget = 32, 64, 128, 256, 512;
-	}
-
-	public int32 kind;
-	public int32 regid, regid2;
-	public int32 labelid;
-	public Core.String intvalue;
-	public Class classObject;
-	public Vector methods;
-	public Field field;
-	public Type type;
-}
-
 class Context
 {
 	public static int32 Loop, TryCatch, Finally;
@@ -86,6 +65,12 @@ class Compiler
 	private function GetLabelName(int32 labelId) -> Core.String
 	{
 		return "_L" + Core.Int32::ToString(labelId);
+	}
+
+	private function GetNextLabelId() -> int32
+	{
+		currentLabelId = currentLabelId + 1;
+		return currentLabelId - 1;
 	}
 
 	private function AddCode(Core.String line)
@@ -166,242 +151,6 @@ class Compiler
 			return ".opArrayElement";
 		else
 			return null;
-	}
-
-	/* Get register stack type for given type */
-	private function GetStackType(Core.String type) -> Core.String
-	{
-		if (type::Equals("bool") > 0 || type::Equals("int8") > 0 || type::Equals("int16") > 0 || type::Equals("int32") > 0
-			|| type::Equals("char") > 0)
-			return "int32";
-		else if (type::Equals("uint8") > 0 || type::Equals("uint16") > 0 || type::Equals("uint32") > 0)
-			return "uint32";
-		else if (type::Equals("int") > 0)
-			return "int";
-		else
-			return "int";
-	}
-
-	/* Test if value can be implicitly converted to type */
-	/* HACK: bool */
-	private function IsConvertible(Value value, Type type) -> int32
-	{
-		if (value::kind & Value::IntegerImmediate > 0)
-		{
-			/* TODO */
-			if (type is Int8Type || type is UInt8Type || type is Int16Type || type is UInt16Type
-				|| type is Int32Type || type is UInt32Type)
-				return 1;
-			else
-				return 0;
-		}
-		/* Null */
-		else if (value::type is IntType && value::kind & Value::Immediate > 0 && type is ClassType)
-			return 1;
-		else
-			return value::type::CanImplicitlyConvertTo(type);
-	}
-
-	/* Move register $src to $dst of type 'type' */
-	private function MoveRegisterToRegister(int32 src, int32 dst, Type type)
-	{
-		if (dst != src)
-			AddCode("ld" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst) + ", $" + Core.Int32::ToString(src));
-	}
-
-	/* Move value to register */
-	private function MoveValueToRegister(Value value, int32 regid) -> Value
-	{
-		Value ret = new Value();
-		ret::kind = Value::Register;
-		ret::regid = regid;
-		ret::type = value::type;
-
-		if (value::kind & Value::Register > 0)
-			MoveRegisterToRegister(value::regid, regid, value::type::.getStackType());
-		else if (value::kind & Value::IntegerImmediate > 0)
-		{
-			/* TODO */
-			AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", " + value::intvalue);
-			ret::type = Type::Int32;
-		}
-		else if (value::kind & Value::Immediate > 0 && value::type is IntType) /* HACK: Only null supported now */
-			AddCode("ldnull\t$" + Core.Int32::ToString(regid));
-		else if (value::kind & Value::Deref > 0)
-			AddCode("ldiuw\t$" + Core.Int32::ToString(regid) + ", ($" + Core.Int32::ToString(value::regid) + ")");
-		else if (value::kind & Value::JumpTarget > 0)
-		{
-			/* Default: jtrue == 0 */
-			AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 1");
-			AddCode("jmp\t" + GetLabelName(currentLabelId));
-			AddLabel(value::labelid);
-			AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 0");
-			AddLabel(currentLabelId);
-			currentLabelId = currentLabelId + 1;
-		}
-		else if (value::kind & Value::Field > 0)
-		{
-			Field field = value::field;
-			if (field::modifier & Modifier::Static > 0)
-				AddCode("lds" + value::type::.getSuffix() + "\t$" + Core.Int32::ToString(regid) + ", "
-					+ field::classObject::name + "::" + field::name);
-			else
-				AddCode("ldf" + value::type::.getSuffix() + "\t$" + Core.Int32::ToString(regid) + ", $"
-					+ Core.Int32::ToString(value::regid) + ", " + field::classObject::name + "::" + field::name);
-		}
-		else if (value::kind & Value::ArrayElement > 0)
-			AddCode("lde" + value::type::.getSuffix() + "\t$" + Core.Int32::ToString(regid) + ", $"
-				+ Core.Int32::ToString(value::regid) + "($" + Core.Int32::ToString(value::regid2) + ")");
-		else
-			throw new Core.InvalidOperationException();
-		return ret;
-	}
-
-	private function EnsureRegister(Value value, int32 regid) -> Value
-	{
-		if (value::kind & Value::Register > 0)
-			return value;
-		else
-			return MoveValueToRegister(value, regid);
-	}
-
-	/* Ensure a value occupies a single register slot at most */
-	private function EnsureSingleSlotValue(Value value, int32 regid) -> Value
-	{
-		if (value::kind & Value::Immediate > 0)
-			return value;
-		else
-			return EnsureRegister(value, regid);
-	}
-
-	/* Ensure value is of given type, convert it otherwise
-	   Caller ensures that value is convertible to type */
-	private function EnsureTypedValue(Node node, Value value, int32 freereg, Type type) -> Value
-	{
-		if (value::kind & Value::IntegerImmediate > 0)
-		{
-			/* TODO */
-			return value;
-		}
-
-		Type stacktype = value::type::.getStackType();
-		if (stacktype::Equals(type) > 0 || value::type::Equals(type) > 0)
-			return value;
-		else if (value::type is PrimitiveType && type is PrimitiveType)
-		{
-			/* TODO: Maybe we could cut off some unnecessary convertions */
-			Value ret = EnsureRegister(value, freereg);
-			AddCode("conv\t" + type::ToString() + " $" + Core.Int32::ToString(freereg) + ", "
-				+ stacktype::ToString() + " $" + Core.Int32::ToString(ret::regid));
-			ret::type = type;
-			return ret;
-		}
-		else if (value::kind & Value::Immediate > 0 && value::type is IntType /* null */
-			&& type is ClassType)
-		{
-			AddCode("ldnull\t$" + Core.Int32::ToString(freereg));
-			Value ret = new Value();
-			ret::kind = Value::Register;
-			ret::regid = freereg;
-			ret::type = type;
-			return ret;
-		}
-		/* HACK: not */
-		else
-		{
-			if (value::type is PrimitiveType || type is PrimitiveType)
-				throw new CompilerException(
-					"Cannot convert \"" + value::type::ToString() + "\" to \"" + type::ToString() + "\"",
-					node::location
-				);
-
-			/* Object cast */
-			/* TODO */
-			if (IsConvertible(value, type) > 0)
-			{
-				value::type = type;
-				return value;
-			}
-			else
-			{
-				Value ret = EnsureRegister(value, freereg);
-				AddCode("cast\t$" + Core.Int32::ToString(freereg) + ", $" + Core.Int32::ToString(value::regid) + ", "
-					+ type::ToString());
-				ret::regid = freereg;
-				ret::type = type;
-				return ret;
-			}
-		}
-	}
-
-	/* Convert value to a given type and move in to given register, 
-	 * throws an exception if the conversion cannot be done
-	 */
-	private function MoveValueToTypedRegister(Node node, Value value, int32 regid, Type type) -> Value
-	{
-		return MoveValueToRegister(EnsureTypedValue(node, value, regid, type), regid);
-	}
-
-	private function MoveValueToLValue(Node node, Value value, Value lvalue, int32 freereg)
-	{
-		if (lvalue::kind & Value::Register > 0)
-		{
-			MoveValueToTypedRegister(node, value, lvalue::regid, lvalue::type);
-			return;
-		}
-
-		if (IsConvertible(value, lvalue::type) == 0)
-			throw new CompilerException(
-				"Cannot implicitly convert \"" + value::type::ToString() + "\" to \"" + lvalue::type::ToString() + "\"",
-				node::location
-			);
-
-		/* TODO */
-		value = EnsureRegister(EnsureTypedValue(node, value, freereg, lvalue::type), freereg);
-		
-		if (lvalue::kind & Value::Deref > 0)
-		{
-			/* TODO: pointer types */
-			/* TODO: throw when type mismatch */
-			AddCode("ldiuw\t($" + Core.Int32::ToString(lvalue::regid) + "), $" + Core.Int32::ToString(value::regid));
-		}
-		else if (lvalue::kind & Value::Field > 0)
-		{
-			/* TODO: throw when type mismatch */
-			Field field = lvalue::field;
-			if (field::modifier & Modifier::Static > 0)
-				AddCode("lds" + value::type::.getSuffix() + "\t" + field::classObject::name + "::" + field::name
-					+ ", $" + Core.Int32::ToString(value::regid));
-			else
-				AddCode("ldf" + value::type::.getSuffix() + "\t$" + Core.Int32::ToString(lvalue::regid) + ", "
-					+ field::classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(value::regid));
-		}
-		else if (lvalue::kind & Value::ArrayElement > 0)
-		{
-			/* TODO: throw when type mismatch */
-			AddCode("lde" + lvalue::type::.getSuffix() + "\t$" + Core.Int32::ToString(lvalue::regid)
-				+ "($" + Core.Int32::ToString(lvalue::regid2) + "), $" + Core.Int32::ToString(value::regid));
-		}
-		else /* TODO: Can this happen? */
-			throw new Core.InvalidOperationException();
-	}
-
-	private function GetNextFreeRegister(Value value, int32 freereg) -> int32
-	{
-		if (value::kind & Value::ArrayElement > 0 && (value::regid == freereg || value::regid2 == freereg))
-		{
-			if (value::regid == freereg + 1 || value::regid2 == freereg + 1)
-				return freereg + 2;
-			else
-				return freereg + 1;
-		}
-		else if ((value::kind & Value::Register > 0 || value::kind & Value::Deref > 0) && (value::regid == freereg))
-			return freereg + 1;
-		else if (value::kind & Value::Field > 0 && value::field::modifier & Modifier::Static == 0
-			&& value::regid == freereg)
-			return freereg + 1;
-		else
-			return freereg;
 	}
 	
 	private function ToScalar(Vector values) -> Value
@@ -618,11 +367,8 @@ class Compiler
 				Node vnode = [Node] dnode::values[i];
 				if (vnode::op != Token::None)
 				{
-					Value value = new Value();
-					value::kind = Value::Register | Value::LValue;
-					value::regid = freereg;
-					value::type = ResolveType(dnode::type);
-					MoveValueToLValue(node, CompileExpression(vnode, freereg, freereg, 0, 0), value, freereg);
+					LValue value = new VariableValue(freereg, ResolveType(dnode::type));
+					CompileExpression(vnode, freereg, freereg, 0, 0)::ToLValue(this, vnode::location, value, freereg);
 				}
 				freereg = freereg + 1;
 			}
@@ -634,10 +380,12 @@ class Compiler
 			if (inode::falseBody::op == Token::None)
 			{
 				/* If - Then */
-				int32 falseTarget = currentLabelId;
-				currentLabelId = currentLabelId + 1;
+				int32 falseTarget = GetNextLabelId();
 				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
-				if (value::kind & Value::JumpTarget == 0)
+				/* HACK: not */
+				if (value is JumpTargetValue)
+				{}
+				else
 					throw new CompilerException("Jump target expected.", node::location); /* TODO */
 				CompileStatement(inode::trueBody, freereg, context);
 				AddLabel(falseTarget);
@@ -646,12 +394,13 @@ class Compiler
 			else
 			{
 				/* If - Then - Else */
-				int32 falseTarget = currentLabelId;
-				currentLabelId = currentLabelId + 1;
-				int32 endTarget = currentLabelId;
-				currentLabelId = currentLabelId + 1;
+				int32 falseTarget = GetNextLabelId();
+				int32 endTarget = GetNextLabelId();
 				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
-				if (value::kind & Value::JumpTarget == 0)
+				/* HACK: not */
+				if (value is JumpTargetValue)
+				{}
+				else
 					throw new CompilerException("Jump target expected.", node::location); /* TODO */
 				int32 thenClosed, elseClosed;
 				thenClosed = CompileStatement(inode::trueBody, freereg, context);
@@ -673,10 +422,8 @@ class Compiler
 			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Loop));
 
 			ForNode fnode = [ForNode] node;
-			int32 bodyTarget = currentLabelId;
-			currentLabelId = currentLabelId + 1;
-			int32 conditionTarget = currentLabelId;
-			currentLabelId = currentLabelId + 1;
+			int32 bodyTarget = GetNextLabelId();
+			int32 conditionTarget = GetNextLabelId();
 			int32 closed, _freereg;
 
 			context::continueLabelId = 0;
@@ -690,7 +437,10 @@ class Compiler
 			CompileList(fnode::update, _freereg, -1);
 			AddLabel(conditionTarget);
 			Value value = CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1);
-			if (value::kind & Value::JumpTarget == 0)
+			/* HACK: not */
+			if (value is JumpTargetValue)
+			{}
+			else
 				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 
 			if (context::breakLabelId > 0)
@@ -710,10 +460,8 @@ class Compiler
 			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Loop));
 
 			WhileNode wnode = [WhileNode] node;
-			int32 bodyTarget = currentLabelId;
-			currentLabelId = currentLabelId + 1;
-			int32 conditionTarget = currentLabelId;
-			currentLabelId = currentLabelId + 1;
+			int32 bodyTarget = GetNextLabelId();
+			int32 conditionTarget = GetNextLabelId();
 
 			context::continueLabelId = conditionTarget;
 			context::breakLabelId = 0;
@@ -722,7 +470,9 @@ class Compiler
 			CompileStatement(wnode::body, freereg, context);
 			AddLabel(conditionTarget);
 			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
-			if (value::kind & Value::JumpTarget == 0)
+			if (value is JumpTargetValue)
+			{}
+			else
 				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 
 			if (context::breakLabelId > 0)
@@ -741,8 +491,7 @@ class Compiler
 			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Loop));
 
 			WhileNode wnode = [WhileNode] node;
-			int32 bodyTarget = currentLabelId;
-			currentLabelId = currentLabelId + 1;
+			int32 bodyTarget = GetNextLabelId();
 
 			context::continueLabelId = 0;
 			context::breakLabelId = 0;
@@ -751,7 +500,10 @@ class Compiler
 			if (context::continueLabelId > 0)
 				AddLabel(context::continueLabelId);
 			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
-			if (value::kind & Value::JumpTarget == 0)
+			/* HACK: not */
+			if (value is JumpTargetValue)
+			{}
+			else
 				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 
 			if (context::breakLabelId > 0)
@@ -774,11 +526,12 @@ class Compiler
 				/* We are inside a try finally block */
 				/* First, save supplied return values into return registers */
 				for (int32 i = 0; i < rnode::values::.getSize(); i = i + 1)
+				{
+					Node vnode = [Node] rnode::values[i];
 					/* TODO: Type */
-					MoveValueToRegister(
-						CompileExpression([Node] rnode::values[i], freereg, context::firstReturnRegister + i, 0, 0),
-						context::firstReturnRegister + i
-					);
+					CompileExpression(vnode, freereg, context::firstReturnRegister + i, 0, 0)
+						::ToRegister(this, context::firstReturnRegister + 1);
+				}
 				/* Second, add leave instruction */
 				AddCode("leave\t_Epilogue");
 				/* Last, tell CompileMethod() that we need an epilogue */
@@ -795,7 +548,8 @@ class Compiler
 						AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister));
 					else
 					{
-						Value value = EnsureRegister(CompileExpression([Node] rnode::values[0], freereg, freereg, 0, 0), freereg);
+						RegisterValue value = CompileExpression([Node] rnode::values[0], freereg, freereg, 0, 0)
+							::EnsureRegister(this, freereg);
 						AddCode("ret\t$" + Core.Int32::ToString(value::regid));
 					}
 				}
@@ -807,11 +561,12 @@ class Compiler
 					else
 					{
 						for (int32 i = 0; i < rnode::values::.getSize(); i = i + 1)
+						{
+							Node vnode = [Node] rnode::values[i];
 							/* TODO: Type */
-							MoveValueToRegister(
-								CompileExpression([Node] rnode::values[i], freereg + i, freereg + i, 0, 0),
-								freereg + i
-							);
+							CompileExpression(vnode, freereg + i, freereg + i, 0, 0)
+								::ToRegister(this, freereg + i);
+						}
 						AddCode("ret\t$" + Core.Int32::ToString(freereg) + ", $"
 							+ Core.Int32::ToString(freereg + rnode::values::.getSize() - 1));
 					}
@@ -915,7 +670,7 @@ class Compiler
 		else if (node::op == Token::Throw)
 		{
 			ThrowNode tnode = [ThrowNode] node;
-			Value value = EnsureRegister(ToScalar(CompileList(tnode::exception, freereg, -1)), freereg);
+			RegisterValue value = ToScalar(CompileList(tnode::exception, freereg, -1))::EnsureRegister(this, freereg);
 			AddCode("throw\t$" + Core.Int32::ToString(value::regid));
 			return 1, freereg;
 		}
@@ -946,9 +701,9 @@ class Compiler
 						ret::Add(r[j]);
 				}
 				else if (lastreg != -1 && i + 1 == lnode::values::.getSize()) /* Last scalar */
-					ret::Add([Core.Object] EnsureRegister(CompileExpression(node, reg, lastreg, 0, 0), lastreg));
+					ret::Add([Core.Object] CompileExpression(node, reg, lastreg, 0, 0)::EnsureRegister(this, lastreg));
 				else /* Ensure value is a register at stack position */
-					ret::Add([Core.Object] MoveValueToRegister(CompileExpression(node, reg, reg, 0, 0), reg));
+					ret::Add([Core.Object] CompileExpression(node, reg, reg, 0, 0)::ToRegister(this, reg));
 			}
 			return ret;
 		}
@@ -958,15 +713,20 @@ class Compiler
 			if (bnode::left::op != Token::List)
 			{
 				/* Single operand assign */
-				Value left = CompileExpression(bnode::left, freereg, freereg, 0, 0);
-				freereg = GetNextFreeRegister(left, freereg);
-				if (left::kind & Value::LValue == 0)
-					throw new CompilerException("Lvalue expected.", node::location);
+				Value l = CompileExpression(bnode::left, freereg, freereg, 0, 0);
+				/* HACK: not */
+				if (l is LValue)
+				{}
+				else
+					throw new CompilerException("Lvalue expected.", bnode::left::location);
+				LValue left = [LValue] l;
+
+				freereg = l::GetNextFreeRegister(freereg);
 				int32 targetreg = freereg;
-				if (left::kind & Value::Register > 0)
-					targetreg = left::regid;
+				if (left is VariableValue)
+					targetreg = ([VariableValue] left)::regid;
 				Value right = CompileExpression(bnode::right, freereg, targetreg, 0, 0);
-				MoveValueToLValue(node, right, left, freereg);
+				right::ToLValue(this, node::location, left, freereg);
 				return Scalar(left);
 			}
 			else
@@ -976,16 +736,19 @@ class Compiler
 				for (int32 i = 0; i < lnode::values::.getSize(); i = i + 1)
 				{
 					Value value = CompileExpression([Node] lnode::values[i], freereg, freereg, 0, 0);
-					freereg = GetNextFreeRegister(value, freereg);
-					if (value::kind & Value::LValue == 0)
+					freereg = value::GetNextFreeRegister(freereg);
+					/* HACK: not */
+					if (value is LValue)
+					{}
+					else
 						throw new CompilerException("Lvalue expected.", node::location);
 					left::Add([Core.Object] value);
 				}
 
-				/* Optimize: if last element of 'left' is a register,
+				/* Optimize: if last element of 'left' is a variable,
 				   directly store corresponding result in 'right' to that register */
-				if (([Value] left[left::.getSize() - 1])::kind & Value::Register > 0)
-					lastreg = ([Value] left[left::.getSize() - 1])::regid;
+				if (left[left::.getSize() - 1] is VariableValue)
+					lastreg = ([VariableValue] left[left::.getSize() - 1])::regid;
 				else
 					lastreg = -1;
 				Vector right = CompileList(bnode::right, freereg, lastreg);
@@ -993,7 +756,7 @@ class Compiler
 					throw new CompilerException("List size unmatch.", node::location);
 				/* Move results to left, note the last one must be copied first, due to the optimization above */
 				for (int32 i = left::.getSize() - 1; i >= 0; i = i - 1)
-					MoveValueToLValue(node, [Value] right[i], [Value] left[i], freereg);
+					([Value] right[i])::ToLValue(this, node::location, [LValue] left[i], freereg);
 				return left;
 			}
 		}
@@ -1020,44 +783,42 @@ class Compiler
 	}
 
 	/* Convert types to a unified stack type for doing arithmetic */
-	private function UnifyTypes(Node node, Value left, Value right, int32 leftreg, int32 rightreg) -> Value, Value
+	private function UnifyTypes(Node node, Value left, Value right, int32 leftreg, int32 rightreg) -> TypedValue, TypedValue
 	{
+		/* TODO: Immediate value */
 		Type type;
 
-		if (IsConvertible(left, Type::Int8) > 0 && IsConvertible(right, Type::Int8) > 0)
+		if (left::CanImplicitlyConvertTo(Type::Int8) > 0 && right::CanImplicitlyConvertTo(Type::Int8) > 0)
 			type = Type::Int8;
-		else if (IsConvertible(left, Type::UInt8) > 0 && IsConvertible(right, Type::UInt8) > 0)
+		else if (left::CanImplicitlyConvertTo(Type::UInt8) > 0 && right::CanImplicitlyConvertTo(Type::UInt8) > 0)
 			type = Type::UInt8;
-		else if (IsConvertible(left, Type::Int16) > 0 && IsConvertible(right, Type::Int16) > 0)
+		else if (left::CanImplicitlyConvertTo(Type::Int16) > 0 && right::CanImplicitlyConvertTo(Type::Int16) > 0)
 			type = Type::Int16;
-		else if (IsConvertible(left, Type::UInt16) > 0 && IsConvertible(right, Type::UInt16) > 0)
+		else if (left::CanImplicitlyConvertTo(Type::UInt16) > 0 && right::CanImplicitlyConvertTo(Type::UInt16) > 0)
 			type = Type::UInt16;
-		else if (IsConvertible(left, Type::Int32) > 0 && IsConvertible(right, Type::Int32) > 0)
+		else if (left::CanImplicitlyConvertTo(Type::Int32) > 0 && right::CanImplicitlyConvertTo(Type::Int32) > 0)
 			type = Type::Int32;
-		else if (IsConvertible(left, Type::UInt32) > 0 && IsConvertible(right, Type::UInt32) > 0)
-			type = Type::UInt8;
+		else if (left::CanImplicitlyConvertTo(Type::UInt32) > 0 && right::CanImplicitlyConvertTo(Type::UInt32) > 0)
+			type = Type::UInt32;
 		else
 			throw new CompilerException("Uncompatible types.", node::location);
 
-		/* If stack type of start type is equal to target stack type, we don't need a conversion,
-		   e.g. int8 -> int16, int8 -> int32 */
-		Type stacktype = type::.getStackType();
-		left = EnsureTypedValue(node, left, leftreg, stacktype);
-		right = EnsureTypedValue(node, right, rightreg, stacktype);
+		TypedValue l = left::ToTyped(this, node::location, leftreg, type);
+		TypedValue r = right::ToTyped(this, node::location, rightreg, type);
 
-		return left, right;
+		return l, r;
 	}
 
 	/* Convert to a typed value from its corresponding raw stack value */
-	private function FixRawValue(Value value, int32 targetreg) -> Value
+	private function FixRawValue(RegisterValue value, int32 targetreg) -> RegisterValue
 	{
-		/* TODO: IntegerImmediate value */
-		Type stacktype = value::type::.getStackType();
-		if (value::type::Equals(stacktype) == 0)
+		/* TODO: Immediate value */
+		Type stackType = value::type::.getStackType();
+		if (value::type::Equals(stackType) == 0)
 		{
-			Value ret = EnsureRegister(value, targetreg);
+			RegisterValue ret = value::EnsureRegister(this, targetreg);
 			AddCode("conv\t" + value::type::ToString() + " $" + Core.Int32::ToString(targetreg) + ", "
-				+ stacktype::ToString() + " $" + Core.Int32::ToString(value::regid));
+				+ stackType::ToString() + " $" + Core.Int32::ToString(value::regid));
 			value::regid = targetreg;
 			return value;
 		}
@@ -1071,13 +832,15 @@ class Compiler
 		if (node::op <= Token::BinArith)
 		{
 			BinNode bnode = [BinNode] node;
-			Value left = EnsureRegister(CompileExpression(bnode::left, freereg, freereg, 0, 0), freereg);
+			RegisterValue left = CompileExpression(bnode::left, freereg, freereg, 0, 0)::EnsureRegister(this, freereg);
 			Value right = CompileExpression(bnode::right, freereg + 1, freereg + 1, 0, 0);
 			Core.String inst;
 
-			if (left::type is IntType && right::type is Int32Type)
+			/* TODO */
+			if (left::type is IntType &&
+				(right is IntegerValue || (right is TypedValue && ([TypedValue] right)::type is Int32Type)))
 			{
-				right = EnsureRegister(right, freereg + 1);
+				right = right::EnsureRegister(this, freereg + 1);
 				if (bnode::op == Token::Add)
 					inst = "addni";
 				else if (bnode::op == Token::Sub)
@@ -1086,7 +849,9 @@ class Compiler
 					throw new CompilerException("Unsupported binary operatior.", node::location);
 			}
 			/* HACK: not */
-			else if (left::type is PrimitiveType && right::type is PrimitiveType)
+			/* TODO */
+			else if (left::type is PrimitiveType &&
+				(right is ImmediateValue || (right is TypedValue && ([TypedValue] right)::type is PrimitiveType)))
 			{
 				if (bnode::op == Token::Add)
 					inst = "add";
@@ -1106,27 +871,26 @@ class Compiler
 					inst = "xor";
 				else
 					throw new CompilerException("Unsupported binary operatior.", node::location);
-				left, right = UnifyTypes(node, left, right, freereg, freereg + 1);
+				Value l;
+				l, right = UnifyTypes(node, left, right, freereg, freereg + 1);
+				left = l::EnsureRegister(this, freereg);
 				inst = inst + left::type::.getStackType()::.getSuffix();
 			}
 			else
 				return CompileCustomBinaryOperator(node, bnode::op, left, right, freereg);
 
-			Value ret = new Value();
-			ret::kind = Value::Register;
-			ret::regid = targetreg;
-			ret::type = left::type;
+			RegisterValue ret = new RegisterValue(targetreg, left::type);
 			
 			/* TODO */
-			if (right::kind & Value::IntegerImmediate > 0 && left::type is Int32Type)
+			if (right is IntegerValue && left::type is Int32Type)
 				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
 					+ ", $" + Core.Int32::ToString(left::regid)
-					+ ", " + right::intvalue);
+					+ ", " + ([IntegerValue] right)::value);
 			else
 			{
 				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
 					+ ", $" + Core.Int32::ToString(left::regid)
-					+ ", $" + Core.Int32::ToString(EnsureRegister(right, freereg + 1)::regid));
+					+ ", $" + Core.Int32::ToString(right::EnsureRegister(this, freereg + 1)::regid));
 				ret = FixRawValue(ret, targetreg);
 			}
 			return ret;
@@ -1136,10 +900,12 @@ class Compiler
 			jtarget = FixJumpTarget(jtarget);
 
 			BinNode bnode = [BinNode] node;
-			Value left = EnsureRegister(CompileExpression(bnode::left, freereg, freereg, 0, 0), freereg);
+			RegisterValue left = CompileExpression(bnode::left, freereg, freereg, 0, 0)::EnsureRegister(this, freereg);
 			Value right = CompileExpression(bnode::right, freereg + 1, freereg + 1, 0, 0);
 			Core.String inst;
-			if ((left::type is Int32Type || left::type is CharType) && left::type::Equals(right::type) > 0)
+			/* TODO */
+			if ((left::type is Int32Type || left::type is CharType)
+				&& (right is IntegerValue || (right is TypedValue && left::type::Equals(([TypedValue] right)::type) > 0)))
 			{
 				if (jtrue > 0) /* jump on true */
 				{
@@ -1175,22 +941,20 @@ class Compiler
 					else
 						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				}
-				if (right::kind & Value::IntegerImmediate > 0 && right::intvalue::Equals("0") > 0)
+				if (right is IntegerValue && ([IntegerValue] right)::value::Equals("0") > 0)
 					AddCode("j" + inst + "zi\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
 				else
 				{
-					right = EnsureRegister(right, freereg + 1);
+					RegisterValue r = right::EnsureRegister(this, freereg + 1);
 					AddCode("j" + inst + "i\t$" + Core.Int32::ToString(left::regid) + ", $"
-						+ Core.Int32::ToString(right::regid) + ", " + GetLabelName(jtarget));
+						+ Core.Int32::ToString(r::regid) + ", " + GetLabelName(jtarget));
 				}
 			}
 			/* HACK: not */
 			/* HACK: null */
 			else if ((left::type is IntType || left::type is ArrayType || left::type is ClassType)
-				&& right::kind & Value::Immediate > 0 && right::type is IntType)
+				&& right is NullValue)
 			{
-				if (right::kind & Value::Immediate == 0)
-					throw new CompilerException("Right hand value should be null.", node::location);
 				if (jtrue > 0) /* jump on true */
 					if (bnode::op == Token::EQ)
 						inst = "jn";
@@ -1209,22 +973,21 @@ class Compiler
 			}
 			else if (bnode::op == Token::Is)
 			{
-				if (right::kind & Value::Type == 0)
+				/* HACK: not */
+				if (right is TypeValue)
+				{}
+				else
 					throw new CompilerException("Not a type.", node::location);
 				if (jtrue > 0) /* jump on true */
 					inst = "jinst";
 				else /* jump on false */
 					inst = "jninst";
-				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + right::type::ToString()
+				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + ([TypeValue] right)::type::ToString()
 					+ ", " + GetLabelName(jtarget));
 			}
 			else
 				throw new CompilerException("Unhandled jcc case.", node::location);
-			Value ret = new Value();
-			ret::kind = Value::JumpTarget;
-			ret::labelid = jtarget;
-			ret::type = Type::Int32; /* HACK: bool type */
-			return ret;
+			return new JumpTargetValue(jtarget);
 		}
 		else if (node::op <= Token::BinLogic)
 		{
@@ -1272,16 +1035,15 @@ class Compiler
 				throw new Core.InvalidOperationException();
 			Value left = CompileExpression(bnode::left, freereg, freereg, leftjtarget, leftjtrue);
 			Value right = CompileExpression(bnode::right, freereg, freereg, rightjtarget, rightjtrue);
-			if (left::kind & Value::JumpTarget == 0 || right::kind & Value::JumpTarget == 0)
+			/* HACK: not */
+			if (left is JumpTargetValue && right is JumpTargetValue)
+			{}
+			else
 				throw new CompilerException("Jump target expected.", node::location); /* TODO */
 			if (leftjtarget != jtarget)
 				AddLabel(leftjtarget);
 
-			Value ret = new Value();
-			ret::kind = Value::JumpTarget;
-			ret::labelid = jtarget;
-			ret::type = Type::Int32; /* HACK: bool type */
-			return ret;
+			return new JumpTargetValue(jtarget);
 		}
 		else if (node::op <= Token::UnaryOp)
 		{
@@ -1289,53 +1051,46 @@ class Compiler
 			if (node::op == Token::Deref)
 			{
 				/* Deference */
-				Value value = EnsureRegister(CompileExpression(unode::operand, freereg, freereg, 0, 0), freereg);
-				/* HACK: not */
+				RegisterValue value = CompileExpression(unode::operand, freereg, freereg, 0, 0)::EnsureRegister(this, freereg);
 				if (value::type is IntType)
-				{
-					Value ret = new Value();
-					ret::kind = Value::Deref | Value::LValue;
-					ret::regid = value::regid;
-					ret::type = Type::Char;
-					return ret;
-				}
+					return new DerefValue(value::regid, Type::Char);
 				else
 					throw new CompilerException("Not a pointer.", node::location);
 			}
 			else if (node::op == Token::AddressOf)
 			{
 				Value value = CompileExpression(unode::operand, freereg, freereg, 0, 0);
-				if (value::kind & Value::LValue == 0)
-					throw new CompilerException("LValue expected.", node::location);
-				if (value::kind & Value::Register > 0)
-					AddCode("lar\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid));
-				else if (value::kind & Value::Field > 0)
+				/* TODO */
+				/* HACK: not */
+				if (value is VariableValue)
 				{
-					Class classObject = value::classObject;
-					Field field = value::field;
+					VariableValue v = [VariableValue] value;
+					AddCode("lar\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid));
+				}
+				else if (value is FieldValue)
+				{
+					FieldValue v = [FieldValue] value;
+					Field field = v::field;
 					if (field::modifier & Modifier::Static > 0)
-						AddCode("las\t$" + Core.Int32::ToString(targetreg) + ", " + classObject::name
+						AddCode("las\t$" + Core.Int32::ToString(targetreg) + ", " + field::classObject::name
 							+ "::" + field::name);
 					else
-						AddCode("laf\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
-							+ ", " + classObject::name + "::" + field::name);
+						AddCode("laf\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid)
+							+ ", " + field::classObject::name + "::" + field::name);
 				}
-				else if (value::kind & Value::ArrayElement > 0)
+				else if (value is ArrayElementValue)
 				{
-					AddCode("lae\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
-						+ "($" + Core.Int32::ToString(value::regid2) + ")");
+					ArrayElementValue v = [ArrayElementValue] value;
+					AddCode("lae\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid)
+						+ "($" + Core.Int32::ToString(v::regid2) + ")");
 				}
 				else
-					throw new CompilerException("Unhandled addressof case.", node::location);
-				Value ret = new Value();
-				ret::kind = Value::Register;
-				ret::regid = targetreg;
-				ret::type = Type::Int;
-				return ret;
+					throw new CompilerException("LValue expected.", node::location);
+				return new RegisterValue(targetreg, Type::Int);
 			}
 			else
 			{
-				Value value = EnsureRegister(CompileExpression(unode::operand, freereg, targetreg, 0, 0), targetreg);
+				RegisterValue value = CompileExpression(unode::operand, freereg, targetreg, 0, 0)::EnsureRegister(this, targetreg);
 				/* HACK: not */
 				if (value::type is Int32Type)
 				{
@@ -1347,11 +1102,7 @@ class Compiler
 					else
 						throw new CompilerException("Unsupported unary operatior.", node::location);
 					AddCode(inst + "\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid));
-					Value ret = new Value();
-					ret::kind = Value::Register;
-					ret::regid = targetreg;
-					ret::type = value::type;
-					return ret;
+					return new RegisterValue(targetreg, value::type);
 				}
 				else
 					throw new CompilerException("Int32 expected.", node::location); /* TODO */
@@ -1360,25 +1111,27 @@ class Compiler
 		else if (node::op == Token::New)
 		{
 			NewNode nnode = [NewNode] node;
-			/* TODO: Check if it is a class type */
-			Class classObject = ([ClassType] ResolveType(nnode::type))::.getClass();
+			Type t = ResolveType(nnode::type);
+			/* HACK: not */
+			if (t is ClassType)
+			{}
+			else
+				throw new CompilerException("Not a class type", nnode::location);
+			ClassType type = [ClassType] t;
+			Class classObject = type::.getClass();
 			Method method = [Method] classObject::methods[".ctor"];
 			if (method::paramTypes::.getSize() != nnode::parameters::.getSize())
 				throw new CompilerException("Invalid number of parameters.", node::location);
 			for (int32 i = 0; i < nnode::parameters::.getSize(); i = i + 1)
 			{
 				Value value = ToScalar(CompileList([Node] nnode::parameters[i], freereg + 2 + i, -1));
-				MoveValueToRegister(value, freereg + 2 + i);
-				if (value::type::Equals(ResolveType([ParserType] method::paramTypes[i])) == 0)
+				RegisterValue v = value::ToRegister(this, freereg + 2 + i);
+				if (v::type::Equals(ResolveType([ParserType] method::paramTypes[i])) == 0)
 					throw new CompilerException("Parameter type mismatch.", node::location);
 			}
 			AddCode("new\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
 				+ method::name + ResolvePrototype(method));
-			Value ret = new Value();
-			ret::kind = Value::Register;
-			ret::regid = freereg;
-			ret::type = ResolveType(nnode::type);
-			return ret;
+			return new RegisterValue(freereg, [Type] type); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::NewArray)
 		{
@@ -1386,15 +1139,11 @@ class Compiler
 			if (nnode::parameters::.getSize() != 1)
 				throw new CompilerException("Currently only 1 dim array supported.", node::location);
 
-			Value value = EnsureRegister(ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1)), freereg);
+			RegisterValue value = ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1))::ToRegister(this, freereg);
 			Type elementType = ResolveType(nnode::type);
 			AddCode("newarr\t$" + Core.Int32::ToString(targetreg) + ", " + elementType::ToString()
 				+ "($" + Core.Int32::ToString(value::regid) + ")");
-			Value ret = new Value();
-			ret::kind = Value::Register;
-			ret::regid = targetreg;
-			ret::type = new ArrayType(elementType);
-			return ret;
+			return new RegisterValue(targetreg, [Type] new ArrayType(elementType)); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::Call)
 			return ToScalar(CompileCall(node, freereg));
@@ -1403,7 +1152,7 @@ class Compiler
 		else if (node::op == Token::TypeCast)
 		{
 			TypeCastNode tnode = [TypeCastNode] node;
-			Value value = EnsureRegister(CompileExpression(tnode::operand, freereg, targetreg, 0, 0), targetreg);
+			RegisterValue value = CompileExpression(tnode::operand, freereg, targetreg, 0, 0)::EnsureRegister(this, targetreg);
 			if (value::type is PrimitiveType)
 			{
 				/* No boxing/unboxing now */
@@ -1420,33 +1169,26 @@ class Compiler
 				Type type = ResolveType(tnode::type);
 				AddCode("cast\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
 					+ ", " + type::ToString());
-				Value ret = new Value();
-				ret::kind = Value::Register;
-				ret::regid = targetreg;
-				ret::type = type;
-				return ret;
+				return new RegisterValue(targetreg, type);
 			}
 		}
 		else if (node::op == Token::ArrayElement)
 		{
+			/* HACK: Virtual method workaround */
 			ArrayElementNode anode = [ArrayElementNode] node;
-			Value array = EnsureRegister(ToScalar(CompileList(anode::array, freereg, -1)), freereg);
+			RegisterValue array = ToScalar(CompileList(anode::array, freereg, -1))::EnsureRegister(this, freereg);
 			if (array::type is ArrayType)
 			{
-				freereg = GetNextFreeRegister(array, freereg);
-				Value index = EnsureRegister(ToScalar(CompileList(anode::index, freereg, -1)), freereg);
-				Value ret = new Value();
-				ret::kind = Value::ArrayElement | Value::LValue;
-				ret::regid = array::regid;
-				ret::regid2 = index::regid;
-				ret::type = ([ArrayType] array::type)::.getElementType();
-				return ret;
+				freereg = ([Value] array)::GetNextFreeRegister(freereg);
+				RegisterValue index = ToScalar(CompileList(anode::index, freereg, -1))::EnsureRegister(this, freereg);
+				Value v = new ArrayElementValue(array::regid, index::regid, ([ArrayType] array::type)::.getElementType());
+				return v;
 			}
 			else
 			{
-				Value index = EnsureRegister(CompileExpression(anode::index, freereg + 1, freereg + 1, 0, 0), freereg + 1);
-				Value value = CompileCustomBinaryOperator(node, Token::Array, array, index, freereg);
-				return value;
+				RegisterValue index = CompileExpression(anode::index, freereg + 1, freereg + 1, 0, 0)
+					::EnsureRegister(this, freereg + 1);
+				return CompileCustomBinaryOperator(node, Token::Array, array, index, freereg);
 			}
 		}
 		else if (node::op == Token::Field)
@@ -1454,46 +1196,45 @@ class Compiler
 			FieldNode fnode = [FieldNode] node;
 			Value object = CompileExpression(fnode::object, freereg, freereg, 0, 0);
 			/* TODO */
-			if (object::type is ArrayType)
+			if (object is TypedValue && ([TypedValue] object)::type is ArrayType)
 			{
 				if (fnode::field::Equals("Length") == 0)
 					throw new CompilerException("Unknown field.", node::location);
-				object = EnsureRegister(object, freereg);
-				AddCode("ldlen\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(object::regid));
-				Value ret = new Value();
-				ret::kind = Value::Register;
-				ret::regid = targetreg;
-				ret::type = Type::Int32;
-				return ret;
+				RegisterValue v = object::EnsureRegister(this, freereg);
+				AddCode("ldlen\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid));
+				return new RegisterValue(targetreg, Type::Int32);
 			}
 
-			Value ret = new Value();
-			if (object::kind & Value::Type == 0)
+			int32 regid;
+			Type type = Type::Unit;
+			Class classObject;
+			if (object is TypeValue)
+				type = ([TypeValue] object)::type;
+			else if (object is TypedValue)
 			{
-				object = EnsureRegister(object, freereg);
-				ret::regid = object::regid;
+				RegisterValue v = object::EnsureRegister(this, freereg);
+				type = ([TypedValue] object)::type;
+				regid = v::regid;
 			}
-			ret::classObject = ([ClassType] object::type)::.getClass();
 
-			Field field = ResolveField(ret::classObject, fnode::field);
+			/* HACK: not */
+			if (type is ClassType)
+				classObject = ([ClassType] type)::.getClass();
+			else
+				throw new CompilerException("Not an object or class.", fnode::object::location);
+
+			Field field = ResolveField(classObject, fnode::field);
 			if (field != null)
-			{
-				/* Field */
-				ret::kind = Value::Field | Value::LValue;
-				ret::field = field;
-				ret::type = ResolveType(field::type);
-			}
+				return new FieldValue(regid, field, ResolveType(field::type));
 			else
 			{
-				/* Method */
-				ret::kind = Value::Method;
-				ret::methods = new Vector();
 				/* HACK */
-				ResolveMethod(ret::classObject, fnode::field, ret::methods);
-				if (ret::methods::.getSize() == 0)
+				Vector methods = new Vector();
+				ResolveMethod(classObject, fnode::field, methods);
+				if (methods::.getSize() == 0)
 					throw new CompilerException("Unknown field.", node::location);
+				return new MethodValue(regid, methods);
 			}
-			return ret;
 		}
 		else if (node::op == Token::Ident)
 		{
@@ -1501,50 +1242,27 @@ class Compiler
 			int32 found;
 			Core.Object classObject;
 			if ((found, classObject = classes::Contains(inode::ident)) > 0)
-			{
-				Value ret = new Value();
-				ret::kind = Value::Type;
-				ret::classObject = [Class] classObject;
-				ret::type = new ClassType([Class] classObject);
-				return ret;
-			}
+				return new TypeValue([Type] new ClassType([Class] classObject)); /* HACK: .ctor overload */
 			else
 			{
 				Variable variable;
 				int32 found;
 				variable, found = FindSymbol(inode::ident);
 				if (found > 0)
-				{
-					Value ret = new Value();
-					ret::kind = Value::Register | Value::LValue;
-					ret::regid = variable::regid;
-					ret::type = variable::type;
-					return ret;
-				}
+					return new VariableValue(variable::regid, variable::type);
 				else
 				{
 					Field field = ResolveField(currentClass, inode::ident);
 					if (field != null)
-					{
-						Value ret = new Value();
-						ret::kind = Value::Field | Value::LValue;
-						ret::regid = 0;
-						ret::classObject = currentClass;
-						ret::field = [Field] field;
-						ret::type = ResolveType(([Field] field)::type);
-						return ret;
-					}
+						return new FieldValue(0, field, ResolveType(field::type));
 					else
 					{
-						Value ret = new Value();
-						ret::kind = Value::Method;
-						ret::regid = 0;
-						ret::classObject = currentClass;
-						ret::methods = new Vector();
-						ResolveMethod(currentClass, inode::ident, ret::methods);
-						if (ret::methods::.getSize() == 0)
+						/* HACK */
+						Vector methods = new Vector();
+						ResolveMethod(currentClass, inode::ident, methods);
+						if (methods::.getSize() == 0)
 							throw new CompilerException("Unknown ident.", node::location);
-						return ret;
+						return new MethodValue(0, methods);
 					}
 				}
 			}
@@ -1553,39 +1271,22 @@ class Compiler
 		{
 			if (currentMethod::modifier & Modifier::Static > 0)
 				throw new CompilerException("'this' cannot be used in a static method.", node::location);
-			Value ret = new Value();
-			ret::kind = Value::Register;
-			ret::regid = 0;
-			ret::type = new ClassType(currentClass);
-			return ret;
+			return new RegisterValue(0, [Type] new ClassType(currentClass)); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::Number)
 		{
 			IntegerNode inode = [IntegerNode] node;
-			Value ret = new Value();
-			ret::kind = Value::IntegerImmediate;
-			ret::intvalue = inode::intvalue;
-			ret::type = Type::Int32; /* TODO */
-			return ret;
+			return new IntegerValue(inode::intvalue);
 		}
 		else if (node::op == Token::String)
 		{
+			/* TODO: StringValue */
 			StringNode snode = [StringNode] node;
 			AddCode("ldstr\t$" + Core.Int32::ToString(targetreg) + ", \"" + snode::stringvalue + "\"");
-			Value ret = new Value();
-			ret::kind = Value::Register;
-			ret::regid = targetreg;
-			ret::type = new ClassType([Class] classes["Core.String"]);
-			return ret;
+			return new RegisterValue(targetreg, [Type] new ClassType([Class] classes["Core.String"])); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::Null)
-		{
-			Value ret = new Value();
-			ret::kind = Value::Immediate;
-			ret::type = Type::Int;
-
-			return ret;
-		}
+			return new NullValue();
 		else
 			throw new CompilerException("INTERNAL: Unhandled expression case.", node::location);
 	}
@@ -1594,10 +1295,13 @@ class Compiler
 	{
 		CallNode cnode = [CallNode] node;
 		Value methodValue = ToScalar(CompileList(cnode::method, freereg, -1));
-		if (methodValue::kind & Value::Method == 0)
-			throw new CompilerException("Method expected.", node::location);
-		Class classObject = methodValue::classObject;
-		Vector methods = methodValue::methods;
+		/* HACK: not */
+		if (methodValue is MethodValue)
+		{}
+		else
+			throw new CompilerException("Method expected.", cnode::method::location);
+		Vector methods = ([MethodValue] methodValue)::methods;
+		Class classObject = ([Method] methods[0])::classObject;
 
 		/* Push 'this' if necessary */
 		/* TODO: We do not allow overload mixed static/unstatic methods */
@@ -1606,7 +1310,10 @@ class Compiler
 			firstreg = freereg;
 		else
 		{
-			MoveRegisterToRegister(methodValue::regid, freereg, new ClassType(classObject));
+			/* HACK: .ctor overload */
+			/* HACK: Virtual workaround */
+			Value v = (new RegisterValue(([MethodValue] methodValue)::regid, [Type] new ClassType(classObject)));
+			v::ToRegister(this, freereg);
 			firstreg = firstreg + 1;
 		}
 
@@ -1615,7 +1322,7 @@ class Compiler
 		for (int32 i = 0; i < cnode::parameters::.getSize(); i = i + 1)
 		{
 			Value value = ToScalar(CompileList([Node] cnode::parameters[i], firstreg + i, -1));
-			values::Add([Core.Object] EnsureSingleSlotValue(value, firstreg + i));
+			values::Add([Core.Object] value::EnsureSingleSlot(this, firstreg + i));
 		}
 
 		Method method = PrepareCall(node, methods, values, firstreg);
@@ -1632,39 +1339,29 @@ class Compiler
 		/* Return value */
 		Vector ret = new Vector();
 		for (int32 i = 0; i < method::returnTypes::.getSize(); i = i + 1)
-		{
-			Value value = new Value();
-			value::kind = Value::Register;
-			value::regid = freereg + i;
-			value::type = ResolveType([ParserType] method::returnTypes[i]);
-			ret::Add([Core.Object] value);
-		}
+			ret::Add([Core.Object] new RegisterValue(freereg + i, ResolveType([ParserType] method::returnTypes[i])));
 		return ret;
 	}
 
 	private function CompileCustomBinaryOperator(Node node, int32 op, Value left, Value right, int32 firstreg) -> Value
 	{
-		/* TODO: Currently we only try finding the method in the type */
-		MoveValueToRegister(left, firstreg);
-		MoveValueToRegister(right, firstreg + 1);
+		/* TODO: Currently we only try finding the method in the left type */
+		RegisterValue l = left::ToRegister(this, firstreg);
+		RegisterValue r = right::ToRegister(this, firstreg + 1);
 
 		Core.String methodName = GetOperatorMethodName(op);
 		if (methodName == null)
 			throw new CompilerException("Unsupported operator.", node::location);
-		Method method = [Method] ([ClassType] left::type)::.getClass()::methods[methodName];
+		Method method = [Method] ([ClassType] l::type)::.getClass()::methods[methodName];
 		if (method::paramTypes::.getSize() != 2 || method::returnTypes::.getSize() != 1
-			|| ResolveType([ParserType] method::paramTypes[0])::Equals(left::type) == 0
-			|| ResolveType([ParserType] method::paramTypes[1])::Equals(right::type) == 0
+			|| ResolveType([ParserType] method::paramTypes[0])::Equals(l::type) == 0
+			|| ResolveType([ParserType] method::paramTypes[1])::Equals(r::type) == 0
 			|| method::modifier & Modifier::Static == 1)
 			throw new CompilerException("Operator parameter error.", node::location); /* TODO */
 
-		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + left::type::ToString() + "::"
+		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + l::type::ToString() + "::"
 			+ methodName + ResolvePrototype(method));
-		Value ret = new Value();
-		ret::kind = Value::Register;
-		ret::regid = firstreg;
-		ret::type = ResolveType([ParserType] method::returnTypes[0]);
-		return ret;
+		return new RegisterValue(firstreg, ResolveType([ParserType] method::returnTypes[0]));
 	}
 
 	/* Resolves a type from standarized type string */
@@ -1801,7 +1498,7 @@ class Compiler
 				/* HACK: bool */
 				int32 ok = 1;
 				for (int32 j = 0; j < method::paramTypes::.getSize(); j = j + 1)
-					if (IsConvertible([Value] values[j], ResolveType([ParserType] method::paramTypes[j])) == 0)
+					if (([Value] values[j])::CanImplicitlyConvertTo(ResolveType([ParserType] method::paramTypes[j])) == 0)
 					{
 						ok = 0;
 						break;
@@ -1813,8 +1510,9 @@ class Compiler
 		Method method = ChooseBestMethod(node, candidates, values);
 		/* Prepare values */
 		for (int32 i = 0; i < values::.getSize(); i = i + 1)
-			MoveValueToTypedRegister(node, [Value] values[i], firstreg + i,
-				ResolveType([ParserType] method::paramTypes[i]));
+			([Value] values[i])::ToTypedRegister(
+				this, node::location, firstreg + i, ResolveType([ParserType] method::paramTypes[i])
+			);
 		return method;
 	}
 
@@ -1845,7 +1543,9 @@ class Compiler
 					int32 better = 0;
 					for (int32 k = 0; k < values::.getSize(); k = k + 1)
 					{
-						Type S = ([Value] values[k])::type;
+						Type S = Type::Unit;
+						if (values[k] is TypedValue)
+							S = ([TypedValue] values[k])::type;
 						Type T1 = ResolveType([ParserType] current::paramTypes[k]);
 						Type T2 = ResolveType([ParserType] another::paramTypes[k]);
 						if (T1::Equals(T2) > 0)
