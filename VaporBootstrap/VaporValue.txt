@@ -12,6 +12,11 @@ class Value
 	{
 		if (this is RegisterValue)
 			return this;
+		else if (this is VariableValue)
+		{
+			VariableValue v = [VariableValue] this;
+			return new RegisterValue(v::regid, v::type);
+		}
 		return ToRegister(compiler, freereg);
 	}
 
