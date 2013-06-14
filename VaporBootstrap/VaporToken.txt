@@ -24,7 +24,6 @@ class Token
 
 	/* Pseudo-token for AST ops */
 	public static int32 TypeCast, ArrayElement, List, MultipleNode, Definition, Call, Field;
-	public static int32 None; /* HACK: Temporary used */
 
 	public static function InitToken()
 	{
@@ -69,6 +68,5 @@ class Token
 		/* Pseudo-token for AST ops */
 		Token::TypeCast, Token::ArrayElement, Token::List = 70, 71, 72;
 		Token::MultipleNode, Token::Definition, Token::Call, Token::Field = 73, 74, 75, 76;
-		Token::None = 77;
 	}
 }

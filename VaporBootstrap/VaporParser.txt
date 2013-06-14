@@ -294,12 +294,7 @@ class Parser
 				node::falseBody = ParseStatement();
 			}
 			else
-			{
-				/* HACK: null */
-				Node nnode = new Node(GetCurrentLocation());
-				nnode::op = Token::None;
-				node::falseBody = nnode;
-			}
+				node::falseBody = null;
 			return node;
 		}
 		else if (lex::token == Token::For)
@@ -308,14 +303,29 @@ class Parser
 			node::op = Token::For;
 			lex::CheckNext(Token::PLeft);
 			lex::Next();
-			node::init = ParseSingleStatement();
-			lex::Assert(Token::Semicolon);
+			if (lex::token == Token::Semicolon)
+				node::init = null;
+			else
+			{
+				node::init = ParseSingleStatement();
+				lex::Assert(Token::Semicolon);
+			}
 			lex::Next();
-			node::condition = ParseList();
-			lex::Assert(Token::Semicolon);
+			if (lex::token == Token::Semicolon)
+				node::condition = null;
+			else
+			{
+				node::condition = ParseList();
+				lex::Assert(Token::Semicolon);
+			}
 			lex::Next();
-			node::update = ParseList();
-			lex::Assert(Token::PRight);
+			if (lex::token == Token::PRight)
+				node::update = null;
+			else
+			{
+				node::update = ParseList();
+				lex::Assert(Token::PRight);
+			}
 			lex::Next();
 			node::body = ParseStatement();
 			return node;
@@ -463,12 +473,7 @@ class Parser
 				node::values::Add([Core.Object] ParseExpression(0));
 			}
 			else
-			{
-				/* HACK: null with op */
-				Node n = new Node(GetCurrentLocation());
-				n::op = Token::None;
-				node::values::Add([Core.Object] n);
-			}
+				node::values::Add(null);
 			if (lex::token != Token::Comma)
 				BREAK = 1;
 			else

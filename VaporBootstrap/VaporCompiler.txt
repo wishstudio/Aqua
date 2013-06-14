@@ -364,9 +364,10 @@ class Compiler
 				([Hash] symbolTable::Peek())::Add([Core.String] dnode::names[i], [Core.Object] variable);
 				Variable var = FindSymbol([Core.String] dnode::names[i]);
 
-				Node vnode = [Node] dnode::values[i];
-				if (vnode::op != Token::None)
+				Core.Object vn = dnode::values[i];
+				if (vn != null)
 				{
+					Node vnode = [Node] vn;
 					LValue value = new VariableValue(freereg, ResolveType(dnode::type));
 					CompileExpression(vnode, freereg, freereg, 0, 0)::ToLValue(this, vnode::location, value, freereg);
 				}
@@ -377,7 +378,7 @@ class Compiler
 		else if (node::op == Token::If)
 		{
 			IfNode inode = [IfNode] node;
-			if (inode::falseBody::op == Token::None)
+			if (inode::falseBody == null)
 			{
 				/* If - Then */
 				int32 falseTarget = GetNextLabelId();
@@ -423,25 +424,38 @@ class Compiler
 
 			ForNode fnode = [ForNode] node;
 			int32 bodyTarget = GetNextLabelId();
-			int32 conditionTarget = GetNextLabelId();
-			int32 closed, _freereg;
+			int32 conditionTarget;
+			if (fnode::condition != null)
+				conditionTarget = GetNextLabelId();
+			int32 closed, _freereg = freereg;
 
 			context::continueLabelId = 0;
 			context::breakLabelId = 0;
-			closed, _freereg = CompileStatement(fnode::init, freereg, context);
-			AddCode("jmp\t" + GetLabelName(conditionTarget));
+			if (fnode::condition == null && fnode::update == null)
+				context::continueLabelId = bodyTarget;
+
+			if (fnode::init != null)
+				closed, _freereg = CompileStatement(fnode::init, freereg, context);
+			if (fnode::condition != null)
+				AddCode("jmp\t" + GetLabelName(conditionTarget));
 			AddLabel(bodyTarget);
 			CompileStatement(fnode::body, _freereg, context);
-			if (context::continueLabelId > 0)
+			if ((fnode::condition != null || fnode::update != null) && context::continueLabelId > 0)
 				AddLabel(context::continueLabelId);
-			CompileList(fnode::update, _freereg, -1);
-			AddLabel(conditionTarget);
-			Value value = CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1);
-			/* HACK: not */
-			if (value is JumpTargetValue)
-			{}
+			if (fnode::update != null)
+				CompileList(fnode::update, _freereg, -1);
+			if (fnode::condition == null)
+				AddCode("jmp\t" + GetLabelName(bodyTarget));
 			else
-				throw new CompilerException("Jump target expected.", node::location); /* TODO */
+			{
+				AddLabel(conditionTarget);
+				Value value = CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1);
+				/* HACK: not */
+				if (value is JumpTargetValue)
+				{}
+				else
+					throw new CompilerException("Jump target expected.", node::location); /* TODO */
+			}
 
 			if (context::breakLabelId > 0)
 				AddLabel(context::breakLabelId);
