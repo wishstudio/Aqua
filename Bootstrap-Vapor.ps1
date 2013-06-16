@@ -9,7 +9,7 @@ $list = Get-ChildItem "VaporBootstrap" -Filter "*.txt" -Recurse
 
 foreach ($file in $list)
 {
-    $params.Add($file.FullName)
+	$params.Add($file.FullName)
 }
 
 Write-Host "Building stage2..."
