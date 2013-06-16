@@ -1,12 +1,11 @@
 class Value
 {
 	/* HACK: bool */
-	/* HACK: abstract */
-	public virtual function CanImplicitlyConvertTo(Type type) -> int32 {}
+	public abstract function CanImplicitlyConvertTo(Type type) -> int32;
 
-	public virtual function GetNextFreeRegister(int32 freereg) -> int32 {}
+	public abstract function GetNextFreeRegister(int32 freereg) -> int32;
 
-	public virtual function ToRegister(Compiler compiler, int32 regid) -> RegisterValue {}
+	public abstract function ToRegister(Compiler compiler, int32 regid) -> RegisterValue;
 
 	public function EnsureRegister(Compiler compiler, int32 freereg) -> RegisterValue
 	{
@@ -30,7 +29,7 @@ class Value
 
 	/* TODO: super function call */
 	/* Ensure value is of given type, convert it otherwise */
-	public virtual function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue {}
+	public abstract function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue;
 
 	/* Convert value to a given type and move in to given register */
 	public function ToTypedRegister(Compiler compiler, Location location, int32 regid, Type type) -> RegisterValue

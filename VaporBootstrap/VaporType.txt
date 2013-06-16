@@ -1,12 +1,11 @@
 class Type
 {
 	/* HACK: bool */
-	/* HACK: abstract */
-	public virtual function CanImplicitlyConvertTo(Type type) -> int32 {}
+	public abstract function CanImplicitlyConvertTo(Type type) -> int32;
 
-	public virtual function ToString() -> Core.String {}
+	public abstract function ToString() -> Core.String;
 
-	public virtual function .getSuffix() -> Core.String {}
+	public abstract function .getSuffix() -> Core.String;
 
 	public virtual function .getStackType() -> Type
 	{
