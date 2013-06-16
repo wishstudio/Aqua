@@ -124,12 +124,11 @@ class TypedValue: Value
 		/* HACK: not */
 		else
 		{
-			/* HACK: Temporary workaround */
-			/*if (type is PrimitiveType || dst is PrimitiveType)
+			if (type is PrimitiveType || dst is PrimitiveType)
 				throw new CompilerException(
 					"Cannot convert \"" + type::ToString() + "\" to \"" + dst::ToString() + "\"",
 					location
-				);*/
+				);
 
 			/* Object cast */
 			/* TODO */
@@ -166,13 +165,12 @@ class NullValue: ImmediateValue
 		this::type = Type::Int;
 	}
 
-	/* FIXME: Temporary workaround
 	public override function CanImplicitlyConvertTo(Type type) -> int32
 	{
 		if (type is IntType || type is ClassType)
 			return 1;
 		return 0;
-	}*/
+	}
 
 	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
 	{
@@ -181,7 +179,6 @@ class NullValue: ImmediateValue
 		return new RegisterValue(regid, Type::Int);
 	}
 
-	/* FIXME: Temporary workaround
 	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
 	{
 		if (type is IntType || type is ClassType)
@@ -191,7 +188,7 @@ class NullValue: ImmediateValue
 		}
 		else
 			throw new CompilerException("Invalid type conversion.", location);
-	}*/
+	}
 }
 
 class IntegerValue: ImmediateValue
@@ -205,14 +202,14 @@ class IntegerValue: ImmediateValue
 		this::type = Type::Int32;
 	}
 
-	/* FIXME: Temporary workaround
 	public override function CanImplicitlyConvertTo(Type type) -> int32
 	{
+		/* TODO */
 		if (type is Int8Type || type is UInt8Type || type is Int16Type || type is UInt16Type
 			|| type is Int32Type || type is UInt32Type)
 			return 1;
 		return 0;
-	}*/
+	}
 
 	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
 	{
@@ -221,13 +218,11 @@ class IntegerValue: ImmediateValue
 		return new RegisterValue(regid, Type::Int32);
 	}
 
-	/* FIXME: Temporary workaround
 	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
 	{
-		/* TODO *
-		/* Super call *
+		/* TODO: Super call */
 		return this;
-	}*/
+	}
 }
 
 class JumpTargetValue: TypedValue
