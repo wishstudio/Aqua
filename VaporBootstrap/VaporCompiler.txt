@@ -1188,15 +1188,13 @@ class Compiler
 		}
 		else if (node::op == Token::ArrayElement)
 		{
-			/* HACK: Virtual method workaround */
 			ArrayElementNode anode = [ArrayElementNode] node;
 			RegisterValue array = ToScalar(CompileList(anode::array, freereg, -1))::EnsureRegister(this, freereg);
 			if (array::type is ArrayType)
 			{
-				freereg = ([Value] array)::GetNextFreeRegister(freereg);
+				freereg = array::GetNextFreeRegister(freereg);
 				RegisterValue index = ToScalar(CompileList(anode::index, freereg, -1))::EnsureRegister(this, freereg);
-				Value v = new ArrayElementValue(array::regid, index::regid, ([ArrayType] array::type)::.getElementType());
-				return v;
+				return new ArrayElementValue(array::regid, index::regid, ([ArrayType] array::type)::.getElementType());
 			}
 			else
 			{
@@ -1325,9 +1323,7 @@ class Compiler
 		else
 		{
 			/* HACK: .ctor overload */
-			/* HACK: Virtual workaround */
-			Value v = (new RegisterValue(([MethodValue] methodValue)::regid, [Type] new ClassType(classObject)));
-			v::ToRegister(this, freereg);
+			(new RegisterValue(([MethodValue] methodValue)::regid, [Type] new ClassType(classObject)))::ToRegister(this, freereg);
 			firstreg = firstreg + 1;
 		}
 

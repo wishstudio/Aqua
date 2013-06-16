@@ -34,20 +34,12 @@ class Value
 	/* Convert value to a given type and move in to given register */
 	public function ToTypedRegister(Compiler compiler, Location location, int32 regid, Type type) -> RegisterValue
 	{
-		/*return ToTyped(compiler, location, regid, type)::ToRegister(compiler, regid);*/
-		/* HACK: Workaround: current compiler does not handle virtual methods correctly. */
-		Value v = ToTyped(compiler, location, regid, type);
-		RegisterValue v2 = v::ToRegister(compiler, regid);
-		return v2;
+		return ToTyped(compiler, location, regid, type)::ToRegister(compiler, regid);
 	}
 
 	public function EnsureTypedRegister(Compiler compiler, Location location, int32 regid, Type type) -> RegisterValue
 	{
-		/*return ToTyped(compiler, location, regid, type)::EnsureRegister(compiler, regid);*/
-		/* HACK: Workaround: See above */
-		Value v = ToTyped(compiler, location, regid, type);
-		RegisterValue v2 = v::EnsureRegister(compiler, regid);
-		return v2;
+		return ToTyped(compiler, location, regid, type)::EnsureRegister(compiler, regid);
 	}
 
 	public function ToLValue(Compiler compiler, Location location, LValue lvalue, int32 freereg)
@@ -123,8 +115,7 @@ class TypedValue: Value
 		else if (type is PrimitiveType && dst is PrimitiveType)
 		{
 			/* TODO: Maybe we could cut off some unnecessary convertions */
-			/* HACK: Workaround: See above */
-			RegisterValue ret = ([Value] this)::ToRegister(compiler, freereg);
+			RegisterValue ret = ToRegister(compiler, freereg);
 			compiler::AddCode("conv\t" + dst::ToString() + " $" + Core.Int32::ToString(freereg) + ", "
 				+ stackType::ToString() + " $" + Core.Int32::ToString(ret::regid));
 			ret::type = dst;
@@ -150,8 +141,7 @@ class TypedValue: Value
 			}
 			else
 			{
-				/* HACK: Workaround: See above */
-				RegisterValue ret = ([Value] this)::ToRegister(compiler, freereg);
+				RegisterValue ret = ToRegister(compiler, freereg);
 				compiler::AddCode("cast\t$" + Core.Int32::ToString(freereg) + ", $" + Core.Int32::ToString(ret::regid)
 					+ ", " + dst::ToString());
 				ret::type = type;
