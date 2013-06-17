@@ -138,6 +138,10 @@ class Lexer
 				token = Token::This;
 			else if (ident::Equals("null") > 0)
 				token = Token::Null;
+			else if (ident::Equals("true") > 0)
+				token = Token::True;
+			else if (ident::Equals("false") > 0)
+				token = Token::False;
 			else if (ident::Equals("function") > 0)
 				token = Token::Function;
 			else if (ident::Equals("operator") > 0)

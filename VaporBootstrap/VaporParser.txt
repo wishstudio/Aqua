@@ -682,6 +682,18 @@ class Parser
 			node::op = Token::Null;
 			return node;
 		}
+		else if (lex::token == Token::True || lex::token == Token::False)
+		{
+			BoolNode node = new BoolNode(GetCurrentLocation());
+			node::op = Token::Bool;
+			/* HACK: bool */
+			if (lex::token == Token::True)
+				node::boolvalue = 1;
+			else
+				node::boolvalue = 0;
+			lex::Next();
+			return node;
+		}
 		else if (lex::token == Token::Number)
 		{
 			IntegerNode node = new IntegerNode(GetCurrentLocation());

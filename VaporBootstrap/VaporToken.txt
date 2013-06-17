@@ -17,13 +17,14 @@ class Token
 	public static int32 PLeft, PRight, SLeft, SRight, BLeft, BRight;
 
 	/* Reserved identifiers */
-	public static int32 This, Null, Function, Operator, New, NewArray;
+	public static int32 This, Null, True, False;
+	public static int32 Function, Operator, New, NewArray;
 	public static int32 If, Else, For, While, Do, Return;
 	public static int32 Continue, Break;
 	public static int32 Try, Catch, Finally, Throw;
 
 	/* Pseudo-token for AST ops */
-	public static int32 TypeCast, ArrayElement, List, MultipleNode, Definition, Call, Field;
+	public static int32 TypeCast, ArrayElement, List, MultipleNode, Definition, Call, Field, Bool;
 
 	public static function InitToken()
 	{
@@ -59,14 +60,14 @@ class Token
 		Token::BLeft, Token::BRight = 45, 46;
 
 		/* Reserved identifiers */
-		Token::This, Token::Null, Token::Function, Token::Operator = 50, 51, 52, 53;
-		Token::New, Token::NewArray = 54, 55;
-		Token::If, Token::Else, Token::For, Token::While, Token::Do, Token::Return = 56, 57, 58, 59, 60, 61;
-		Token::Continue, Token::Break = 62, 63;
-		Token::Try, Token::Catch, Token::Finally, Token::Throw = 64, 65, 66, 67;
+		Token::This, Token::Null, Token::True, Token::False = 50, 51, 52, 53;
+		Token::Function, Token::Operator, Token::New, Token::NewArray = 54, 55, 56, 57;
+		Token::If, Token::Else, Token::For, Token::While, Token::Do, Token::Return = 58, 59, 60, 61, 62, 63;
+		Token::Continue, Token::Break = 64, 65;
+		Token::Try, Token::Catch, Token::Finally, Token::Throw = 66, 67, 68, 69;
 
 		/* Pseudo-token for AST ops */
 		Token::TypeCast, Token::ArrayElement, Token::List = 70, 71, 72;
-		Token::MultipleNode, Token::Definition, Token::Call, Token::Field = 73, 74, 75, 76;
+		Token::MultipleNode, Token::Definition, Token::Call, Token::Field, Token::Bool = 73, 74, 75, 76, 77;
 	}
 }

@@ -32,6 +32,17 @@ class Node
 	}
 }
 
+class BoolNode: Node
+{
+	/* HACK: bool */
+	public int32 boolvalue;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
+}
+
 class IntegerNode: Node
 {
 	public Core.String intvalue;

@@ -382,12 +382,8 @@ class Compiler
 			{
 				/* If - Then */
 				int32 falseTarget = GetNextLabelId();
-				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
-				/* HACK: not */
-				if (value is JumpTargetValue)
-				{}
-				else
-					throw new CompilerException("Jump target expected.", node::location); /* TODO */
+				CompileExpression(inode::condition, freereg, freereg, falseTarget, 0)
+					::ToJumpTarget(this, inode::condition::location, freereg, falseTarget, 0);
 				CompileStatement(inode::trueBody, freereg, context);
 				AddLabel(falseTarget);
 				return 0, freereg;
@@ -397,12 +393,8 @@ class Compiler
 				/* If - Then - Else */
 				int32 falseTarget = GetNextLabelId();
 				int32 endTarget = GetNextLabelId();
-				Value value = CompileExpression(inode::condition, freereg, freereg, falseTarget, 0);
-				/* HACK: not */
-				if (value is JumpTargetValue)
-				{}
-				else
-					throw new CompilerException("Jump target expected.", node::location); /* TODO */
+				CompileExpression(inode::condition, freereg, freereg, falseTarget, 0)
+					::ToJumpTarget(this, inode::condition::location, freereg, falseTarget, 0);
 				int32 thenClosed, elseClosed;
 				thenClosed = CompileStatement(inode::trueBody, freereg, context);
 				if (thenClosed == 0)
@@ -449,12 +441,8 @@ class Compiler
 			else
 			{
 				AddLabel(conditionTarget);
-				Value value = CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1);
-				/* HACK: not */
-				if (value is JumpTargetValue)
-				{}
-				else
-					throw new CompilerException("Jump target expected.", node::location); /* TODO */
+				CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1)
+					::ToJumpTarget(this, fnode::condition::location, _freereg, bodyTarget, 1);
 			}
 
 			if (context::breakLabelId > 0)
@@ -483,11 +471,8 @@ class Compiler
 			AddLabel(bodyTarget);
 			CompileStatement(wnode::body, freereg, context);
 			AddLabel(conditionTarget);
-			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
-			if (value is JumpTargetValue)
-			{}
-			else
-				throw new CompilerException("Jump target expected.", node::location); /* TODO */
+			CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1)
+				::ToJumpTarget(this, wnode::condition::location, freereg, bodyTarget, 1);
 
 			if (context::breakLabelId > 0)
 				AddLabel(context::breakLabelId);
@@ -513,12 +498,8 @@ class Compiler
 			CompileStatement(wnode::body, freereg, context);
 			if (context::continueLabelId > 0)
 				AddLabel(context::continueLabelId);
-			Value value = CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1);
-			/* HACK: not */
-			if (value is JumpTargetValue)
-			{}
-			else
-				throw new CompilerException("Jump target expected.", node::location); /* TODO */
+			CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1)
+				::ToJumpTarget(this, wnode::condition::location, freereg, bodyTarget, 1);
 
 			if (context::breakLabelId > 0)
 				AddLabel(context::breakLabelId);
@@ -1047,13 +1028,10 @@ class Compiler
 			}
 			else
 				throw new Core.InvalidOperationException();
-			Value left = CompileExpression(bnode::left, freereg, freereg, leftjtarget, leftjtrue);
-			Value right = CompileExpression(bnode::right, freereg, freereg, rightjtarget, rightjtrue);
-			/* HACK: not */
-			if (left is JumpTargetValue && right is JumpTargetValue)
-			{}
-			else
-				throw new CompilerException("Jump target expected.", node::location); /* TODO */
+			CompileExpression(bnode::left, freereg, freereg, leftjtarget, leftjtrue)
+				::ToJumpTarget(this, bnode::left::location, freereg, leftjtarget, leftjtrue);
+			CompileExpression(bnode::right, freereg, freereg, rightjtarget, rightjtrue)
+				::ToJumpTarget(this, bnode::right::location, freereg, rightjtarget, rightjtrue);
 			if (leftjtarget != jtarget)
 				AddLabel(leftjtarget);
 
@@ -1299,6 +1277,8 @@ class Compiler
 		}
 		else if (node::op == Token::Null)
 			return new NullValue();
+		else if (node::op == Token::Bool)
+			return new BoolValue(([BoolNode] node)::boolvalue);
 		else
 			throw new CompilerException("INTERNAL: Unhandled expression case.", node::location);
 	}
@@ -1377,7 +1357,9 @@ class Compiler
 	/* Resolves a type from standarized type string */
 	private function ResolveParserType(Location location, Core.String type) -> Type
 	{
-		if (type::Equals("int8") > 0)
+		if (type::Equals("bool") > 0)
+			return Type::Bool;
+		else if (type::Equals("int8") > 0)
 			return Type::Int8;
 		else if (type::Equals("uint8") > 0)
 			return Type::UInt8;
