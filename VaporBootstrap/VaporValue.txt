@@ -306,7 +306,7 @@ class JumpTargetValue: TypedValue
 		compiler::AddLabel(labelId);
 		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 0");
 		compiler::AddLabel(compiler::GetNextLabelId());
-		return new RegisterValue(regid, Type::Int32);
+		return new RegisterValue(regid, Type::Bool);
 	}
 
 	public override function ToJumpTarget(Compiler compiler, Location location, int32 freereg, int32 jtarget, int32 jtrue)
