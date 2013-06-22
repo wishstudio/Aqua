@@ -14,7 +14,7 @@ extern PointerHash3<Class, InternalString, Type, Method> methodHash;
 extern Class *objectClass;
 extern Class *stringClass;
 
-uint32 getTypeSize(Type *type);
+uint32 sizeOf(Type *type);
 
 InternalString *resolveInternalString(const char *string);
 InternalString *resolveInternalString(BytecodeFile *bytecodeFile, uint16 id);

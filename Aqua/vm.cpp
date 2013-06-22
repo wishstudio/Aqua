@@ -172,7 +172,7 @@ L2:
 	{ \
 		pointer object = POINTER(rB); \
 		Type *elementType = *(reinterpret_cast<Type **>((VTable **) rB)); \
-		POINTER(rA) = (pointer) (object + sizeof(VTable *) + sizeof(int32) + INT32(rC) * getTypeSize(elementType)); \
+		POINTER(rA) = (pointer) (object + sizeof(VTable *) + sizeof(int32) + INT32(rC) * sizeOf(elementType)); \
 	}
 
 /* Conversion */
@@ -335,6 +335,22 @@ MAIN_DISPATCH:
 		OP(0x32, BINOPN_ABC(-)) // SUBN $a, $b, $c
 		OP(0x33, BINOPNI_ABC(-)) // SUBNI $a, $b, $c
 
+		case 0x40: // ADDP $a, $b, $c, type
+		{
+			Type *type = resolveType(bytecodeFile, _imm16);
+			INT32(rA) = INT32(rB) + INT32(rC) * sizeOf(type);
+			pc = pc + 1;
+			OP_END();
+		}
+
+		case 0x41: // SUBP $a, $b, $c, type
+		{
+			Type *type = resolveType(bytecodeFile, _imm16);
+			INT32(rA) = INT32(rB) - INT32(rC) * sizeOf(type);
+			pc = pc + 1;
+			OP_END();
+		}
+
 		OP(0x60, pc += INT32(_imm32)) // JMP addr
 		OP(0x61, UNARYN_JMP(== 0)) // JN addr
 		OP(0x62, UNARYN_JMP(!= 0)) // JNN addr
@@ -459,7 +475,7 @@ MAIN_DISPATCH:
 		{
 			ArrayType *type = (ArrayType *) resolveType(bytecodeFile, _imm32);
 			/* FIXME: VTable handling, now we just store the underling type on 'vtable' position of object */
-			uint32 size = getTypeSize(type->elementType) * INT32(rB);
+			uint32 size = sizeOf(type->elementType) * INT32(rB);
 			pointer object = (pointer) malloc(sizeof(VTable *) + sizeof(int32) + size);
 			*(reinterpret_cast<Type **>((VTable **) object)) = type->elementType;
 			*((int32 *) (object + sizeof(VTable *))) = INT32(rB);

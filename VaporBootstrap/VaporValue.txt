@@ -117,7 +117,10 @@ class TypedValue: Value
 	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type dst) -> TypedValue
 	{
 		Type stackType = type::.getStackType();
-		if (stackType::Equals(dst) > 0  || type::Equals(dst) > 0)
+		/* HACK: Temporary workaround */
+		if (type is PointerType && dst is IntType)
+			return this;
+		else if (stackType::Equals(dst) > 0  || type::Equals(dst) > 0)
 			return this;
 		else if (type is PrimitiveType && dst is PrimitiveType)
 		{
@@ -223,7 +226,7 @@ class NullValue: ImmediateValue
 
 	public override function CanImplicitlyConvertTo(Type type) -> int32
 	{
-		if (type is IntType || type is ClassType)
+		if (type is IntType || type is ClassType || type is PointerType)
 			return 1;
 		return 0;
 	}
@@ -237,7 +240,7 @@ class NullValue: ImmediateValue
 
 	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
 	{
-		if (type is IntType || type is ClassType)
+		if (type is IntType || type is ClassType || type is PointerType)
 		{
 			compiler::AddCode("ldnull\t$" + Core.Int32::ToString(freereg));
 			return new RegisterValue(freereg, type);
@@ -400,15 +403,16 @@ class DerefValue: LValue
 
 	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
 	{
-		/* TODO */
-		compiler::AddCode("ldiuw\t$" + Core.Int32::ToString(dst) + ", ($" + Core.Int32::ToString(regid) + ")");
+		compiler::AddCode("ldi" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst)
+			+ ", ($" + Core.Int32::ToString(regid) + ")");
 		return new RegisterValue(dst, type);
 	}
 
 	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
 	{
 		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
-		compiler::AddCode("ldiuw\t($" + Core.Int32::ToString(regid) + "), $" + Core.Int32::ToString(v::regid));
+		compiler::AddCode("ldi" + type::.getSuffix() + "\t($" + Core.Int32::ToString(regid)
+			+ "), $" + Core.Int32::ToString(v::regid));
 	}
 }
 

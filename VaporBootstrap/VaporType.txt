@@ -18,11 +18,12 @@ class Type
 		return ToString()::Equals(type::ToString());
 	}
 
-	public static Type Unit, Bool, Int8, UInt8, Int16, UInt16, Char, Int32, UInt32, Int;
+	public static Type Unit, UnitPointer, Bool, Int8, UInt8, Int16, UInt16, Char, Int32, UInt32, Int;
 
 	public static function InitType()
 	{
 		Type::Unit = new UnitType();
+		Type::UnitPointer = new PointerType(Type::Unit);
 		Type::Bool = new BoolType();
 		Type::Int8 = new Int8Type();
 		Type::UInt8 = new UInt8Type();
@@ -270,6 +271,42 @@ class IntType: PrimitiveType
 	public override function .getSuffix() -> Core.String
 	{
 		return "a";
+	}
+}
+
+class PointerType: Type
+{
+	private Type valueType;
+
+	public function .ctor(Type valueType)
+	{
+		this::valueType = valueType;
+	}
+
+	public override function CanImplicitlyConvertTo(Type type) -> int32
+	{
+		if (type is PointerType &&
+			([PointerType] type)::.getValueType()::Equals(valueType) > 0 || ([PointerType] type)::.getValueType() is UnitType)
+			return 1;
+		/* HACK: Temporary workaround */
+		if (type is IntType)
+			return 1;
+		return 0;
+	}
+
+	public override function ToString() -> Core.String
+	{
+		return valueType::ToString() + "*";
+	}
+
+	public override function .getSuffix() -> Core.String
+	{
+		return "a";
+	}
+
+	public function .getValueType() -> Type
+	{
+		return valueType;
 	}
 }
 

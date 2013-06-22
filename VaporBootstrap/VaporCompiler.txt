@@ -832,10 +832,19 @@ class Compiler
 			Core.String inst;
 
 			/* TODO */
-			if (left::type is IntType &&
+			if ((left::type is IntType || left::type is PointerType) &&
 				(right is IntegerValue || (right is TypedValue && ([TypedValue] right)::type is Int32Type)))
 			{
 				right = right::EnsureRegister(this, freereg + 1);
+				if (left::type is PointerType)
+				{
+					Type valueType = ([PointerType] left::type)::.getValueType();
+
+					RegisterValue ret = new RegisterValue(targetreg, left::type);
+					AddCode("addp\t" + Core.Int32::ToString(targetreg) + ", " + Core.Int32::ToString(left::regid) + ","
+						+ Core.Int32::ToString(([RegisterValue] right)::regid) + ", " + valueType::ToString());
+					return ret;
+				}
 				if (bnode::op == Token::Add)
 					inst = "addni";
 				else if (bnode::op == Token::Sub)
@@ -1046,6 +1055,8 @@ class Compiler
 				RegisterValue value = CompileExpression(unode::operand, freereg, freereg, 0, 0)::EnsureRegister(this, freereg);
 				if (value::type is IntType)
 					return new DerefValue(value::regid, Type::Char);
+				else if (value::type is PointerType)
+					return new DerefValue(value::regid, ([PointerType] value::type)::.getValueType());
 				else
 					throw new CompilerException("Not a pointer.", node::location);
 			}
@@ -1053,11 +1064,12 @@ class Compiler
 			{
 				Value value = CompileExpression(unode::operand, freereg, freereg, 0, 0);
 				/* TODO */
-				/* HACK: not */
+				Type type;
 				if (value is VariableValue)
 				{
 					VariableValue v = [VariableValue] value;
 					AddCode("lar\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid));
+					type = v::type;
 				}
 				else if (value is FieldValue)
 				{
@@ -1069,16 +1081,18 @@ class Compiler
 					else
 						AddCode("laf\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid)
 							+ ", " + field::classObject::name + "::" + field::name);
+					type = v::type;
 				}
 				else if (value is ArrayElementValue)
 				{
 					ArrayElementValue v = [ArrayElementValue] value;
 					AddCode("lae\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid)
 						+ "($" + Core.Int32::ToString(v::regid2) + ")");
+					type = v::type;
 				}
 				else
 					throw new CompilerException("LValue expected.", node::location);
-				return new RegisterValue(targetreg, Type::Int);
+				return new RegisterValue(targetreg, [Type] new PointerType(type)); /* HACK: .ctor overload */
 			}
 			else
 			{
@@ -1377,6 +1391,8 @@ class Compiler
 			return Type::Int;
 		else if (type::SubString(type::.getLength() - 2, 2)::Equals("[]") > 0)
 			return new ArrayType(ResolveParserType(location, type::SubString(0, type::.getLength() - 2)));
+		else if (type::SubString(type::.getLength() - 1, 1)::Equals("*") > 0)
+			return new PointerType(ResolveParserType(location, type::SubString(0, type::.getLength() - 1)));
 		else
 		{
 			Core.Object c;

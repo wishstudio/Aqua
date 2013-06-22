@@ -76,6 +76,8 @@ class Parser
 			lex::Next();
 			if (lex::token == Token::Array)
 				type = type + "[]";
+			else if (lex::token == Token::Mul)
+				type = type + "*";
 			else
 			{
 				ParserType ret = new ParserType(location);

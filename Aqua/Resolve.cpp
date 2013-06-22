@@ -19,7 +19,7 @@ PointerHash3<Class, InternalString, Type, Method> methodHash;
 Class *objectClass;
 Class *stringClass;
 
-uint32 getTypeSize(Type *type)
+uint32 sizeOf(Type *type)
 {
 	switch (type->type)
 	{
@@ -39,6 +39,7 @@ uint32 getTypeSize(Type *type)
 	case TYPE_CHAR: return 2;
 	case TYPE_CLASS: return sizeof(pointer);
 	case TYPE_ARRAY: return sizeof(pointer);
+	case TYPE_POINTER: return sizeof(pointer);
 	default: assert(("Unexpected type.", 0)); return 0;
 	}
 }
@@ -72,13 +73,13 @@ static Class *loadClassObject(Class *classObject)
 		{
 			/* Static field */
 			field->offset = classObject->staticSize;
-			classObject->staticSize += getTypeSize(field->type); /* FIXME */
+			classObject->staticSize += sizeOf(field->type);
 		}
 		else
 		{
 			/* Instance field */
 			field->offset = classObject->instanceSize;
-			classObject->instanceSize += getTypeSize(field->type); /* FIXME */
+			classObject->instanceSize += sizeOf(field->type);
 		}
 
 		fieldHash.insert(classObject, field->name, field);

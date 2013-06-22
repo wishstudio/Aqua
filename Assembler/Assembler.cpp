@@ -187,6 +187,7 @@ int new_string(const std::wstring &string)
 #define TYPE_CLASS		16
 #define TYPE_FUNCTION	17
 #define TYPE_ARRAY		18
+#define TYPE_POINTER	19
 int new_type_ref_with_signature(const std::string &type)
 {
 	if (type_hash.count(type))
@@ -225,6 +226,11 @@ int new_class_ref(const std::string &classname)
 int new_array_ref(int element_type)
 {
 	return new_type_ref(TYPE_ARRAY, element_type);
+}
+
+int new_pointer_ref(int element_type)
+{
+	return new_type_ref(TYPE_POINTER, element_type);
 }
 
 int new_proto_ref(int type, const std::vector<int> &param_types, const std::vector<int> &return_types)
@@ -291,6 +297,7 @@ enum TokenType
 	tkSLeft,
 	tkSRight,
 	tkArray,
+	tkStar,
 	tkBLeft,
 	tkBRight
 } tt;
@@ -452,6 +459,11 @@ void getToken()
 		getCh();
 		return;
 
+	case '*':
+		tt = tkStar;
+		getCh();
+		return;
+
 	case '#': // single line comment
 		getCh();
 		while (ch != 10)
@@ -557,10 +569,20 @@ int getType()
 	else
 	{
 		int type_ref = getSimpleType();
-		while (tt == tkArray)
+		for (;;)
 		{
-			getToken();
-			type_ref = new_array_ref(type_ref);
+			if (tt == tkArray)
+			{
+				getToken();
+				type_ref = new_array_ref(type_ref);
+			}
+			else if (tt == tkStar)
+			{
+				getToken();
+				type_ref = new_pointer_ref(type_ref);
+			}
+			else
+				break;
 		}
 		return type_ref;
 	}
@@ -1064,6 +1086,31 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 			OP("addni", BIN(0x31))
 			OP("subn", BIN(0x32))
 			OP("subni", BIN(0x33))
+
+			else if (opcode == "addp" || opcode == "subp")
+			{
+				assert(tt == tkRegister);
+				int a = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				assert(tt == tkRegister);
+				int b = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				assert(tt == tkRegister);
+				int c = tn;
+				getToken();
+				assert(tt == tkComma);
+				getToken();
+				int t = getType();
+				if (opcode == "addp")
+					PUT(0x40), PUT(a), PUT(b), PUT(c), PUT2(t), PUT2(0);
+				else
+					PUT(0x41), PUT(a), PUT(b), PUT(c), PUT2(t), PUT2(0);
+				continue;
+			}
 	
 			OP("jmp", JMP(0x60))
 			OP("jn", UNARYADDR(0x61))
