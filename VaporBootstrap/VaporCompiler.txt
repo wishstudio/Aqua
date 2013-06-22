@@ -841,7 +841,7 @@ class Compiler
 					Type valueType = ([PointerType] left::type)::.getValueType();
 
 					RegisterValue ret = new RegisterValue(targetreg, left::type);
-					AddCode("addp\t" + Core.Int32::ToString(targetreg) + ", " + Core.Int32::ToString(left::regid) + ","
+					AddCode("addp\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(left::regid) + ", $"
 						+ Core.Int32::ToString(([RegisterValue] right)::regid) + ", " + valueType::ToString());
 					return ret;
 				}
@@ -1159,7 +1159,13 @@ class Compiler
 		{
 			TypeCastNode tnode = [TypeCastNode] node;
 			RegisterValue value = CompileExpression(tnode::operand, freereg, targetreg, 0, 0)::EnsureRegister(this, targetreg);
-			if (value::type is PrimitiveType)
+			/* HACK: Workaround */
+			if (value::type is PointerType && ResolveType(tnode::type) is IntType)
+			{
+				value::type = Type::Int;
+				return value;
+			}
+			else if (value::type is PrimitiveType)
 			{
 				/* No boxing/unboxing now */
 				if (ResolveType(tnode::type) is PrimitiveType)
