@@ -1125,16 +1125,15 @@ class Compiler
 				throw new CompilerException("Not a class type", nnode::location);
 			ClassType type = [ClassType] t;
 			Class classObject = type::.getClass();
-			Method method = [Method] classObject::methods[".ctor"];
-			if (method::paramTypes::.getSize() != nnode::parameters::.getSize())
-				throw new CompilerException("Invalid number of parameters.", node::location);
+			/* HACK */
+			Vector methods = ResolveMethodInClass(classObject, ".ctor", null);
+			Vector values = new Vector();
 			for (int32 i = 0; i < nnode::parameters::.getSize(); i = i + 1)
 			{
 				Value value = ToScalar(CompileList([Node] nnode::parameters[i], freereg + 2 + i, -1));
-				RegisterValue v = value::ToRegister(this, freereg + 2 + i);
-				if (v::type::Equals(ResolveType([ParserType] method::paramTypes[i])) == 0)
-					throw new CompilerException("Parameter type mismatch.", node::location);
+				values::Add(value::EnsureSingleSlot(this, freereg + 2 + i));
 			}
+			Method method = PrepareCall(nnode, methods, values, freereg + 2);
 			AddCode("new\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
 				+ method::name + ResolvePrototype(method));
 			return new RegisterValue(freereg, [Type] type); /* HACK: .ctor overload */
@@ -1470,29 +1469,38 @@ class Compiler
 		Class c = startClass;
 		while (c != null)
 		{
-			Vector current = c::methods::FindAll(name);
-			for (int32 i = 0; i < current::.getSize(); i = i + 1)
-			{
-				Method method = [Method] current[i];
-				if (method::modifier & Modifier::Override == 0) /* Do not include overridden methods */
-				{
-					/* HACK: bool */
-					int32 ok = 1;
-					/* Make sure this method is not overridden by a subclass method */
-					for (int32 j = 0; j < methods::.getSize(); j = j + 1)
-					{
-						Method another = [Method] methods[j];
-						if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
-						{
-							ok = 0;
-							break;
-						}
-					}
-					if (ok > 0)
-						methods::Add([Core.Object] method);
-				}
-			}
+			ResolveMethodInClass(c, name, methods);
 			c = c::baseClass;
+		}
+		return methods;
+	}
+
+	/* Resolves a method in a single class */
+	private function ResolveMethodInClass(Class classObject, Core.String name, Vector methods) -> Vector
+	{
+		if (methods == null)
+			methods = new Vector();
+		Vector current = classObject::methods::FindAll(name);
+		for (int32 i = 0; i < current::.getSize(); i = i + 1)
+		{
+			Method method = [Method] current[i];
+			if (method::modifier & Modifier::Override == 0) /* Do not include overridden methods */
+			{
+				/* HACK: bool */
+				int32 ok = 1;
+				/* Make sure this method is not overridden by a subclass method */
+				for (int32 j = 0; j < methods::.getSize(); j = j + 1)
+				{
+					Method another = [Method] methods[j];
+					if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
+					{
+						ok = 0;
+						break;
+					}
+				}
+				if (ok > 0)
+					methods::Add([Core.Object] method);
+			}
 		}
 		return methods;
 	}
