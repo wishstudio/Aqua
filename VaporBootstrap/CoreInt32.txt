@@ -2,6 +2,8 @@ class Core.Int32
 {
 	public static function ToString(int32 number) -> Core.String
 	{
+		if (number == -2147483648)
+			return "-2147483648";
 		/* -2147483647: length is 11 */
 		int buffer = Core.Native.Memory::AllocateMemory(22);
 		int32 n = Core.Math::Abs(number), i = 22;

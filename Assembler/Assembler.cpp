@@ -4,12 +4,18 @@
 #include <string>
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <cctype>
 #include <iostream>
 #include <malloc.h>
 #define NOMINMAX
 #include <Windows.h>
+
+inline int to_int32_num(std::string str)
+{
+	return atoi(str.c_str());
+}
 
 inline void _PUT(std::string &code, unsigned int v)
 {
@@ -324,12 +330,13 @@ void getToken()
 	}
 	if (isdigit(ch) || ch == '-' || ch == '+')
 	{
-		tt = tkNum;
-		tn = 0;
+		ti = "";
 		char prefix = ch;
-		bool neg = prefix == '-';
 		if (prefix == '+' || prefix == '-')
+		{
+			ti += ch;
 			getCh();
+		}
 		if (prefix == '-' && ch == '>')
 		{
 			tt = tkArrow;
@@ -338,11 +345,10 @@ void getToken()
 		}
 		while (isdigit(ch))
 		{
-			tn = tn * 10 + ch - '0';
+			ti += ch;
 			getCh();
 		}
-		if (neg)
-			tn = -tn;
+		tt = tkNum;
 		return;
 	}
 	else if (isalpha(ch) || ch == '.' || ch == '_')
@@ -737,7 +743,7 @@ int getCallingConvention()
 		else \
 		{ \
 			assert(tt == tkNum); \
-			PUT(opcode + 1), PUT(a), PUT(b), PUT(0), PUT4(tn); \
+			PUT(opcode + 1), PUT(a), PUT(b), PUT(0), PUT4(to_int32_num(ti)); \
 		} \
 		getToken(); \
 	}
@@ -1185,7 +1191,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				else // immediate
 				{
 					assert(tt == tkNum);
-					PUT(0xC4), PUT(a), PUT(0x00), PUT(0x00), PUT4(tn);
+					PUT(0xC4), PUT(a), PUT(0x00), PUT(0x00), PUT4(to_int32_num(ti));
 				}
 				getToken();
 				continue;
