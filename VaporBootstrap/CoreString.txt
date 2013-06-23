@@ -62,6 +62,16 @@ class Core.String
 		return ret;
 	}
 
+	public static operator + (Core.String left, int32 right) -> Core.String
+	{
+		return left + Core.Int32::ToString(right);
+	}
+
+	public static operator + (int32 left, Core.String right) -> Core.String
+	{
+		return Core.Int32::ToString(left) + right;
+	}
+
 	public static operator [] (Core.String string, int32 index) -> char
 	{
 		return *([int] &string::firstChar + index * 2);

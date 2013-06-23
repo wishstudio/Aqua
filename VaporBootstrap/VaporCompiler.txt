@@ -64,7 +64,7 @@ class Compiler
 
 	private function GetLabelName(int32 labelId) -> Core.String
 	{
-		return "_L" + Core.Int32::ToString(labelId);
+		return "_L" + labelId;
 	}
 
 	private function GetNextLabelId() -> int32
@@ -326,10 +326,10 @@ class Compiler
 				if (method::returnNames::.getSize() == 0)
 					AddCode("ret");
 				else if (method::returnNames::.getSize() == 1)
-					AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister));
+					AddCode("ret\t$" + context::firstReturnRegister);
 				else
-					AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister) + ", $"
-						+ Core.Int32::ToString(context::firstReturnRegister + method::returnTypes::.getSize()));
+					AddCode("ret\t$" + context::firstReturnRegister + ", $"
+						+ (context::firstReturnRegister + method::returnTypes::.getSize()));
 			}
 
 			PopSymbolStack();
@@ -540,19 +540,19 @@ class Compiler
 				else if (currentMethod::returnTypes::.getSize() == 1)
 				{
 					if (rnode::values::.getSize() == 0)
-						AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister));
+						AddCode("ret\t$" + context::firstReturnRegister);
 					else
 					{
 						RegisterValue value = CompileExpression([Node] rnode::values[0], freereg, freereg, 0, 0)
 							::EnsureRegister(this, freereg);
-						AddCode("ret\t$" + Core.Int32::ToString(value::regid));
+						AddCode("ret\t$" + value::regid);
 					}
 				}
 				else
 				{
 					if (rnode::values::.getSize() == 0)
-						AddCode("ret\t$" + Core.Int32::ToString(context::firstReturnRegister) + ", $"
-							+ Core.Int32::ToString(context::firstReturnRegister + currentMethod::returnTypes::.getSize() - 1));
+						AddCode("ret\t$" + context::firstReturnRegister + ", $"
+							+ (context::firstReturnRegister + currentMethod::returnTypes::.getSize() - 1));
 					else
 					{
 						for (int32 i = 0; i < rnode::values::.getSize(); i = i + 1)
@@ -562,8 +562,7 @@ class Compiler
 							CompileExpression(vnode, freereg + i, freereg + i, 0, 0)
 								::ToRegister(this, freereg + i);
 						}
-						AddCode("ret\t$" + Core.Int32::ToString(freereg) + ", $"
-							+ Core.Int32::ToString(freereg + rnode::values::.getSize() - 1));
+						AddCode("ret\t$" + freereg + ", $" + (freereg + rnode::values::.getSize() - 1));
 					}
 				}
 			}
@@ -624,8 +623,7 @@ class Compiler
 			for (int32 i = 0; i < tnode::catchNodes::.getSize(); i = i + 1)
 			{
 				CatchNode cnode = [CatchNode] tnode::catchNodes[i];
-				AddCode(".catch(" + ResolveType(cnode::type)::ToString()
-					+ " $" + Core.Int32::ToString(freereg) + ") {");
+				AddCode(".catch(" + ResolveType(cnode::type)::ToString() + " $" + freereg + ") {");
 				PushSymbolStack();
 				Variable var = new Variable();
 				var::regid = freereg;
@@ -666,7 +664,7 @@ class Compiler
 		{
 			ThrowNode tnode = [ThrowNode] node;
 			RegisterValue value = ToScalar(CompileList(tnode::exception, freereg, -1))::EnsureRegister(this, freereg);
-			AddCode("throw\t$" + Core.Int32::ToString(value::regid));
+			AddCode("throw\t$" + value::regid);
 			return 1, freereg;
 		}
 		else
@@ -812,8 +810,8 @@ class Compiler
 		if (value::type::Equals(stackType) == 0)
 		{
 			RegisterValue ret = value::EnsureRegister(this, targetreg);
-			AddCode("conv\t" + value::type::ToString() + " $" + Core.Int32::ToString(targetreg) + ", "
-				+ stackType::ToString() + " $" + Core.Int32::ToString(value::regid));
+			AddCode("conv\t" + value::type::ToString() + " $" + targetreg + ", "
+				+ stackType::ToString() + " $" + value::regid);
 			value::regid = targetreg;
 			return value;
 		}
@@ -841,8 +839,8 @@ class Compiler
 					Type valueType = ([PointerType] left::type)::.getValueType();
 
 					RegisterValue ret = new RegisterValue(targetreg, left::type);
-					AddCode("addp\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(left::regid) + ", $"
-						+ Core.Int32::ToString(([RegisterValue] right)::regid) + ", " + valueType::ToString());
+					AddCode("addp\t$" + targetreg + ", $" + left::regid + ", $" + ([RegisterValue] right)::regid
+						+ ", " + valueType::ToString());
 					return ret;
 				}
 				if (bnode::op == Token::Add)
@@ -887,14 +885,10 @@ class Compiler
 			
 			/* TODO */
 			if (right is IntegerValue && left::type is Int32Type)
-				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
-					+ ", $" + Core.Int32::ToString(left::regid)
-					+ ", " + ([IntegerValue] right)::value);
+				AddCode(inst + "\t$" + targetreg + ", $" + left::regid + ", " + ([IntegerValue] right)::value);
 			else
 			{
-				AddCode(inst + "\t$" + Core.Int32::ToString(targetreg)
-					+ ", $" + Core.Int32::ToString(left::regid)
-					+ ", $" + Core.Int32::ToString(right::EnsureRegister(this, freereg + 1)::regid));
+				AddCode(inst + "\t$" + targetreg + ", $" + left::regid + ", $" + right::EnsureRegister(this, freereg + 1)::regid);
 				ret = FixRawValue(ret, targetreg);
 			}
 			return ret;
@@ -946,12 +940,11 @@ class Compiler
 						throw new CompilerException("Unsupported comparison operatior.", node::location);
 				}
 				if (right is IntegerValue && ([IntegerValue] right)::value::Equals("0") > 0)
-					AddCode("j" + inst + "zi\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
+					AddCode("j" + inst + "zi\t$" + left::regid + ", " + GetLabelName(jtarget));
 				else
 				{
 					RegisterValue r = right::EnsureRegister(this, freereg + 1);
-					AddCode("j" + inst + "i\t$" + Core.Int32::ToString(left::regid) + ", $"
-						+ Core.Int32::ToString(r::regid) + ", " + GetLabelName(jtarget));
+					AddCode("j" + inst + "i\t$" + left::regid + ", $" + r::regid + ", " + GetLabelName(jtarget));
 				}
 			}
 			/* HACK: not */
@@ -973,7 +966,7 @@ class Compiler
 						inst = "jn";
 					else
 						throw new CompilerException("Unsupported comparison operatior.", node::location);
-				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + GetLabelName(jtarget));
+				AddCode(inst + "\t$" + left::regid + ", " + GetLabelName(jtarget));
 			}
 			else if (bnode::op == Token::Is)
 			{
@@ -986,7 +979,7 @@ class Compiler
 					inst = "jinst";
 				else /* jump on false */
 					inst = "jninst";
-				AddCode(inst + "\t$" + Core.Int32::ToString(left::regid) + ", " + ([TypeValue] right)::type::ToString()
+				AddCode(inst + "\t$" + left::regid + ", " + ([TypeValue] right)::type::ToString()
 					+ ", " + GetLabelName(jtarget));
 			}
 			else
@@ -1068,7 +1061,7 @@ class Compiler
 				if (value is VariableValue)
 				{
 					VariableValue v = [VariableValue] value;
-					AddCode("lar\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid));
+					AddCode("lar\t$" + targetreg + ", $" + v::regid);
 					type = v::type;
 				}
 				else if (value is FieldValue)
@@ -1076,18 +1069,15 @@ class Compiler
 					FieldValue v = [FieldValue] value;
 					Field field = v::field;
 					if (field::modifier & Modifier::Static > 0)
-						AddCode("las\t$" + Core.Int32::ToString(targetreg) + ", " + field::classObject::name
-							+ "::" + field::name);
+						AddCode("las\t$" + targetreg + ", " + field::classObject::name + "::" + field::name);
 					else
-						AddCode("laf\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid)
-							+ ", " + field::classObject::name + "::" + field::name);
+						AddCode("laf\t$" + targetreg + ", $" + v::regid + ", " + field::classObject::name + "::" + field::name);
 					type = v::type;
 				}
 				else if (value is ArrayElementValue)
 				{
 					ArrayElementValue v = [ArrayElementValue] value;
-					AddCode("lae\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid)
-						+ "($" + Core.Int32::ToString(v::regid2) + ")");
+					AddCode("lae\t$" + targetreg + ", $" + v::regid + "($" + v::regid2 + ")");
 					type = v::type;
 				}
 				else
@@ -1107,7 +1097,7 @@ class Compiler
 						inst = "noti";
 					else
 						throw new CompilerException("Unsupported unary operatior.", node::location);
-					AddCode(inst + "\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid));
+					AddCode(inst + "\t$" + targetreg + ", $" + value::regid);
 					return new RegisterValue(targetreg, value::type);
 				}
 				else
@@ -1134,8 +1124,7 @@ class Compiler
 				values::Add(value::EnsureSingleSlot(this, freereg + 2 + i));
 			}
 			Method method = PrepareCall(nnode, methods, values, freereg + 2);
-			AddCode("new\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
-				+ method::name + ResolvePrototype(method));
+			AddCode("new\t$" + freereg + ", " + classObject::name + "::" + method::name + ResolvePrototype(method));
 			return new RegisterValue(freereg, [Type] type); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::NewArray)
@@ -1146,8 +1135,7 @@ class Compiler
 
 			RegisterValue value = ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1))::ToRegister(this, freereg);
 			Type elementType = ResolveType(nnode::type);
-			AddCode("newarr\t$" + Core.Int32::ToString(targetreg) + ", " + elementType::ToString()
-				+ "($" + Core.Int32::ToString(value::regid) + ")");
+			AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
 			return new RegisterValue(targetreg, [Type] new ArrayType(elementType)); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::Call)
@@ -1178,8 +1166,7 @@ class Compiler
 			else
 			{
 				Type type = ResolveType(tnode::type);
-				AddCode("cast\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(value::regid)
-					+ ", " + type::ToString());
+				AddCode("cast\t$" + targetreg + ", $" + value::regid + ", " + type::ToString());
 				return new RegisterValue(targetreg, type);
 			}
 		}
@@ -1210,7 +1197,7 @@ class Compiler
 				if (fnode::field::Equals("Length") == 0)
 					throw new CompilerException("Unknown field.", node::location);
 				RegisterValue v = object::EnsureRegister(this, freereg);
-				AddCode("ldlen\t$" + Core.Int32::ToString(targetreg) + ", $" + Core.Int32::ToString(v::regid));
+				AddCode("ldlen\t$" + targetreg + ", $" + v::regid);
 				return new RegisterValue(targetreg, Type::Int32);
 			}
 
@@ -1291,7 +1278,7 @@ class Compiler
 		{
 			/* TODO: StringValue */
 			StringNode snode = [StringNode] node;
-			AddCode("ldstr\t$" + Core.Int32::ToString(targetreg) + ", \"" + snode::stringvalue + "\"");
+			AddCode("ldstr\t$" + targetreg + ", \"" + snode::stringvalue + "\"");
 			return new RegisterValue(targetreg, [Type] new ClassType([Class] classes["Core.String"])); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::Null)
@@ -1342,8 +1329,7 @@ class Compiler
 			inst = "callv";
 		else
 			inst = "call";
-		AddCode(inst + "\t$" + Core.Int32::ToString(freereg) + ", " + classObject::name + "::"
-			+ method::name + ResolvePrototype(method));
+		AddCode(inst + "\t$" + freereg + ", " + classObject::name + "::" + method::name + ResolvePrototype(method));
 
 		/* Return value */
 		Vector ret = new Vector();
@@ -1372,8 +1358,7 @@ class Compiler
 		values::Add(r);
 
 		Method method = PrepareCall(node, methods, values, firstreg);
-		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + method::classObject::name + "::"
-			+ methodName + ResolvePrototype(method));
+		AddCode("call\t$" + firstreg + ", " + method::classObject::name + "::" + methodName + ResolvePrototype(method));
 		return new RegisterValue(firstreg, ResolveType([ParserType] method::returnTypes[0]));
 	}
 

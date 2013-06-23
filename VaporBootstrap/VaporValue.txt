@@ -129,8 +129,8 @@ class TypedValue: Value
 				throw new CompilerException("Invalid type conversion", location);
 			/* TODO: Maybe we could cut off some unnecessary convertions */
 			RegisterValue ret = ToRegister(compiler, freereg);
-			compiler::AddCode("conv\t" + dst::ToString() + " $" + Core.Int32::ToString(freereg) + ", "
-				+ stackType::ToString() + " $" + Core.Int32::ToString(ret::regid));
+			compiler::AddCode("conv\t" + dst::ToString() + " $" + freereg + ", "
+				+ stackType::ToString() + " $" + ret::regid);
 			ret::type = dst;
 			return ret;
 		}
@@ -154,8 +154,7 @@ class TypedValue: Value
 			else
 			{
 				RegisterValue ret = ToRegister(compiler, freereg);
-				compiler::AddCode("cast\t$" + Core.Int32::ToString(freereg) + ", $" + Core.Int32::ToString(ret::regid)
-					+ ", " + dst::ToString());
+				compiler::AddCode("cast\t$" + freereg + ", $" + ret::regid + ", " + dst::ToString());
 				ret::type = type;
 				return ret;
 			}
@@ -171,7 +170,7 @@ class TypedValue: Value
 			inst = "jnzi";
 		else /* jump on false */
 			inst = "jzi";
-		compiler::AddCode(inst + "\t$" + Core.Int32::ToString(value::regid) + ", " + compiler::GetLabelName(jtarget));
+		compiler::AddCode(inst + "\t$" + value::regid + ", " + compiler::GetLabelName(jtarget));
 		return new JumpTargetValue(jtarget);
 	}
 }
@@ -204,7 +203,7 @@ class BoolValue: ImmediateValue
 
 	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
 	{
-		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", " + Core.Int32::ToString(value));
+		compiler::AddCode("ldi\t$" + regid + ", " + value);
 		return new RegisterValue(regid, Type::Bool);
 	}
 
@@ -234,7 +233,7 @@ class NullValue: ImmediateValue
 	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
 	{
 		/* TODO */
-		compiler::AddCode("ldnull\t$" + Core.Int32::ToString(regid));
+		compiler::AddCode("ldnull\t$" + regid);
 		return new RegisterValue(regid, Type::Int);
 	}
 
@@ -242,7 +241,7 @@ class NullValue: ImmediateValue
 	{
 		if (type is IntType || type is ClassType || type is PointerType)
 		{
-			compiler::AddCode("ldnull\t$" + Core.Int32::ToString(freereg));
+			compiler::AddCode("ldnull\t$" + freereg);
 			return new RegisterValue(freereg, type);
 		}
 		else
@@ -273,7 +272,7 @@ class IntegerValue: ImmediateValue
 	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
 	{
 		/* TODO */
-		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", " + value);
+		compiler::AddCode("ldi\t$" + regid + ", " + value);
 		return new RegisterValue(regid, Type::Int32);
 	}
 
@@ -304,10 +303,10 @@ class JumpTargetValue: TypedValue
 	{
 		/* TODO */
 		/* Default: jtrue == 0 */
-		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 1");
+		compiler::AddCode("ldi\t$" + regid + ", 1");
 		compiler::AddCode("jmp\t" + compiler::GetLabelName(compiler::currentLabelId));
 		compiler::AddLabel(labelId);
-		compiler::AddCode("ldi\t$" + Core.Int32::ToString(regid) + ", 0");
+		compiler::AddCode("ldi\t$" + regid + ", 0");
 		compiler::AddLabel(compiler::GetNextLabelId());
 		return new RegisterValue(regid, Type::Bool);
 	}
@@ -340,8 +339,7 @@ class RegisterValue: TypedValue
 	{
 		if (regid == dst)
 			return this;
-		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + Core.Int32::ToString(dst)
-			+ ", $" + Core.Int32::ToString(regid));
+		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + dst + ", $" + regid);
 		return new RegisterValue(dst, type);
 	}
 }
@@ -373,8 +371,7 @@ class VariableValue: LValue
 	{
 		if (regid == dst)
 			return this;
-		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + Core.Int32::ToString(dst)
-			+ ", $" + Core.Int32::ToString(regid));
+		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + dst + ", $" + regid);
 		return new RegisterValue(dst, type);
 	}
 
@@ -403,16 +400,14 @@ class DerefValue: LValue
 
 	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
 	{
-		compiler::AddCode("ldi" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst)
-			+ ", ($" + Core.Int32::ToString(regid) + ")");
+		compiler::AddCode("ldi" + type::.getSuffix() + "\t$" + dst + ", ($" + regid + ")");
 		return new RegisterValue(dst, type);
 	}
 
 	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
 	{
 		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
-		compiler::AddCode("ldi" + type::.getSuffix() + "\t($" + Core.Int32::ToString(regid)
-			+ "), $" + Core.Int32::ToString(v::regid));
+		compiler::AddCode("ldi" + type::.getSuffix() + "\t($" + regid + "), $" + v::regid);
 	}
 }
 
@@ -438,11 +433,11 @@ class FieldValue: LValue
 	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
 	{
 		if (field::modifier & Modifier::Static > 0)
-			compiler::AddCode("lds" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst) + ", "
+			compiler::AddCode("lds" + type::.getSuffix() + "\t$" + dst + ", "
 				+ field::classObject::name + "::" + field::name);
 		else
-			compiler::AddCode("ldf" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst) + ", $"
-				+ Core.Int32::ToString(regid) + ", " + field::classObject::name + "::" + field::name);
+			compiler::AddCode("ldf" + type::.getSuffix() + "\t$" + dst + ", $"
+				+ regid + ", " + field::classObject::name + "::" + field::name);
 		return new RegisterValue(dst, type);
 	}
 
@@ -451,10 +446,10 @@ class FieldValue: LValue
 		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
 		if (field::modifier & Modifier::Static > 0)
 			compiler::AddCode("lds" + type::.getSuffix() + "\t" + field::classObject::name + "::" + field::name
-				+ ", $" + Core.Int32::ToString(v::regid));
+				+ ", $" + v::regid);
 		else
-			compiler::AddCode("ldf" + type::.getSuffix() + "\t$" + Core.Int32::ToString(regid) + ", "
-				+ field::classObject::name + "::" + field::name + ", $" + Core.Int32::ToString(v::regid));
+			compiler::AddCode("ldf" + type::.getSuffix() + "\t$" + regid + ", "
+				+ field::classObject::name + "::" + field::name + ", $" + v::regid);
 	}
 }
 
@@ -481,15 +476,13 @@ class ArrayElementValue: LValue
 
 	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
 	{
-		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + Core.Int32::ToString(dst) + ", $"
-			+ Core.Int32::ToString(regid) + "($" + Core.Int32::ToString(regid2) + ")");
+		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + dst + ", $" + regid + "($" + regid2 + ")");
 		return new RegisterValue(dst, type);
 	}
 
 	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
 	{
 		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
-		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + Core.Int32::ToString(regid)
-			+ "($" + Core.Int32::ToString(regid2) + "), $" + Core.Int32::ToString(v::regid));
+		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + regid + "($" + regid2 + "), $" + v::regid);
 	}
 }

@@ -5,7 +5,7 @@ class Location
 
 	public function ToString() -> Core.String
 	{
-		return fileName + ":" + Core.Int32::ToString(lineNumber);
+		return fileName + ":" + lineNumber;
 	}
 }
 
