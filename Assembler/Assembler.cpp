@@ -130,6 +130,7 @@ std::vector<std::string> method_ref_table;
 std::vector<std::string> class_def_table;
 std::vector<std::string> field_def_table;
 std::vector<std::string> method_def_table;
+std::vector<std::string> property_def_table;
 
 std::string internal_string_heap;
 std::string string_heap;
@@ -1406,12 +1407,17 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 	return code + handler_table;
 }
 
+#define PROPERTY_GETTER	1
+#define PROPERTY_SETTER	2
+
 void compile_class()
 {
 	int field_def_table_start_index = field_def_table.size();
 	int method_def_table_start_index = method_def_table.size();
+	int property_def_table_start_index = property_def_table.size();
 	int field_count = 0;
 	int method_count = 0;
+	int property_count = 0;
 
 	int class_modifier = getModifier();
 	assert(tt == tkIdent);
@@ -1505,6 +1511,48 @@ void compile_class()
 			method_def_table.push_back(data);
 			method_count++;
 		}
+		else if (ti == ".property")
+		{
+			getToken();
+			std::string data;
+			int modifier = getModifier();
+			int type = getType();
+			assert(tt == tkIdent);
+			int name = new_internal_string(ti);
+			getToken();
+			int flags = 0;
+			int getter = 0;
+			int setter = 0;
+			for (;;)
+			{
+				if (tt == tkIdent && ti == ".get")
+				{
+					assert(flags & PROPERTY_GETTER == 0);
+					getToken();
+					getter = getMethodRef();
+					flags |= PROPERTY_GETTER;
+				}
+				else if (tt == tkIdent && ti == ".set")
+				{
+					assert(flags & PROPERTY_SETTER == 0);
+					getToken();
+					setter = getMethodRef();
+					flags |= PROPERTY_SETTER;
+				}
+				else
+					break;
+			}
+			assert(("No getter nor setter.", flags > 0));
+			_PUT2(data, name);
+			_PUT2(data, type);
+			_PUT2(data, modifier);
+			_PUT2(data, flags);
+			_PUT2(data, getter);
+			_PUT2(data, setter);
+			property_def_table.push_back(data);
+			property_count++;
+			getToken();
+		}
 	}
 	getToken(); /* Skip '}' */
 	std::string data;
@@ -1514,6 +1562,8 @@ void compile_class()
 	_PUT2(data, field_def_table_start_index);
 	_PUT2(data, method_count);
 	_PUT2(data, method_def_table_start_index);
+	_PUT2(data, property_count);
+	_PUT2(data, property_def_table_start_index);
 	class_def_table.push_back(data);
 }
 
@@ -1550,6 +1600,8 @@ void output()
 	FPUT2(class_def_table.size());
 	FPUT2(field_def_table.size());
 	FPUT2(method_def_table.size());
+	FPUT2(property_def_table.size());
+	FPUT2(0);
 	
 	// Heap sizes
 	FPUT4(internal_string_heap.size());
@@ -1568,6 +1620,7 @@ void output()
 	FPUTT(class_def_table);
 	FPUTT(field_def_table);
 	FPUTT(method_def_table);
+	FPUTT(property_def_table);
 
 	// Heaps
 	FPUTS(internal_string_heap);

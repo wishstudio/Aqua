@@ -43,6 +43,9 @@
 #define EXCEPTION_CLAUSE_CATCH		0
 #define EXCEPTION_CLAUSE_FINALLY	1
 
+#define PROPERTY_GETTER		1
+#define PROPERTY_SETTER		2
+
 struct BytecodeHeader
 {
 	/* signature */
@@ -58,6 +61,8 @@ struct BytecodeHeader
 	uint16 classDefCount;
 	uint16 fieldDefCount;
 	uint16 methodDefCount;
+	uint16 propertyDefCount;
+	uint16 _padding;
 
 	/* heap sizes */
 	uint32 internalStringHeapSize;
@@ -103,6 +108,8 @@ struct ClassDef
 	uint16 fieldStartIndex;
 	uint16 methodCount;
 	uint16 methodStartIndex;
+	uint16 propertyCount;
+	uint16 propertyStartIndex;
 };
 
 struct FieldDef
@@ -150,6 +157,16 @@ struct MethodDef
 	};
 };
 #pragma pack(pop)
+
+struct PropertyDef
+{
+	uint16 name;
+	uint16 type;
+	uint16 modifier;
+	uint16 flags;
+	uint16 getter;
+	uint16 setter;
+};
 
 struct TypeRef
 {

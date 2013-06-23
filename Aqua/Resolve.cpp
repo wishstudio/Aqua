@@ -449,6 +449,7 @@ void resolveBytecodeFile(const wchar_t *fileName)
 	bytecodeFile->classDefTable = RAW_STEP_TABLE(ClassDef, header->classDefCount);
 	bytecodeFile->fieldDefTable = RAW_STEP_TABLE(FieldDef, header->fieldDefCount);
 	bytecodeFile->methodDefTable = RAW_STEP_TABLE(MethodDef, header->methodDefCount);
+	RAW_STEP_TABLE(PropertyDef, header->propertyDefCount);
 
 	/* Heaps */
 	bytecodeFile->internalStringHeap = RAW_STEP(char, header->internalStringHeapSize);
