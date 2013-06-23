@@ -1152,6 +1152,11 @@ class Compiler
 				value::type = Type::Int;
 				return value;
 			}
+			else if (value::type is PointerType && ResolveType(tnode::type) is PointerType)
+			{
+				value::type = ResolveType(tnode::type);
+				return value;
+			}
 			else if (value::type is PrimitiveType)
 			{
 				/* No boxing/unboxing now */
