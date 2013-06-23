@@ -20,7 +20,7 @@ class Value
 	}
 
 	/* Ensure a value occupies a single register slot at most */
-	public function EnsureSingleSlot(Compiler compiler, int32 freereg) -> Value
+	public function EnsureSingleSlot(Compiler compiler, int32 freereg) -> TypedValue
 	{
 		if (this is ImmediateValue)
 			return this;

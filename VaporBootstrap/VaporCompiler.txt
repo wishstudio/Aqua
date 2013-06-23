@@ -881,7 +881,7 @@ class Compiler
 				inst = inst + left::type::.getStackType()::.getSuffix();
 			}
 			else
-				return CompileCustomBinaryOperator(node, bnode::op, left, right, freereg);
+				return CompileCustomBinaryOperator(node, bnode::op, left, [TypedValue] right, freereg);
 
 			RegisterValue ret = new RegisterValue(targetreg, left::type);
 			
@@ -1352,23 +1352,27 @@ class Compiler
 		return ret;
 	}
 
-	private function CompileCustomBinaryOperator(Node node, int32 op, Value left, Value right, int32 firstreg) -> Value
+	private function CompileCustomBinaryOperator(Node node, int32 op, TypedValue left, TypedValue right, int32 firstreg) -> Value
 	{
-		/* TODO: Currently we only try finding the method in the left type */
-		RegisterValue l = left::ToRegister(this, firstreg);
-		RegisterValue r = right::ToRegister(this, firstreg + 1);
+		TypedValue l = left::EnsureSingleSlot(this, firstreg);
+		TypedValue r = right::EnsureSingleSlot(this, firstreg + 1);
 
 		Core.String methodName = GetOperatorMethodName(op);
 		if (methodName == null)
 			throw new CompilerException("Unsupported operator.", node::location);
-		Method method = [Method] ([ClassType] l::type)::.getClass()::methods[methodName];
-		if (method::paramTypes::.getSize() != 2 || method::returnTypes::.getSize() != 1
-			|| ResolveType([ParserType] method::paramTypes[0])::Equals(l::type) == 0
-			|| ResolveType([ParserType] method::paramTypes[1])::Equals(r::type) == 0
-			|| method::modifier & Modifier::Static == 1)
-			throw new CompilerException("Operator parameter error.", node::location); /* TODO */
 
-		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + l::type::ToString() + "::"
+		Vector methods = new Vector();
+		if (l::type is ClassType)
+			ResolveMethod(([ClassType] l::type)::.getClass(), methodName, methods);
+		if (r::type is ClassType)
+			ResolveMethod(([ClassType] r::type)::.getClass(), methodName, methods);
+
+		Vector values = new Vector();
+		values::Add(l);
+		values::Add(r);
+
+		Method method = PrepareCall(node, methods, values, firstreg);
+		AddCode("call\t$" + Core.Int32::ToString(firstreg) + ", " + method::classObject::name + "::"
 			+ methodName + ResolvePrototype(method));
 		return new RegisterValue(firstreg, ResolveType([ParserType] method::returnTypes[0]));
 	}
