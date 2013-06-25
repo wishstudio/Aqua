@@ -218,32 +218,70 @@ class Parser
 				}
 				else
 				{
-					/* Field */
 					ParserType type = ParseType();
-					/* HACK: for (;;) */
-					/* HACK: break */
-					int32 BREAK = 0;
-					while (BREAK == 0)
+					for (bool first = true;; first = false)
 					{
 						lex::Assert(Token::Ident);
-
-						Field field = new Field(GetCurrentLocation());
-						field::classObject = classObject;
-						field::modifier = modifier;
-						field::type = type;
-						field::name = lex::ident;
-						classObject::fields::Add(field::name, [Core.Object] field);
-
+						Core.String name = lex::ident;
 						lex::Next();
-						if (lex::token == Token::Semicolon)
+						if (first && lex::token == Token::BLeft)
 						{
+							/* Property */
 							lex::Next();
-							BREAK = 1;
+							Property property = new Property(GetCurrentLocation());
+							property::classObject = classObject;
+							property::modifier = modifier;
+							property::type = type;
+							property::name = name;
+							for (;;)
+							{
+								if (lex::token == Token::Ident &&
+									(lex::ident::Equals("get") > 0 || lex::ident::Equals("set") > 0))
+								{
+									Method method = new Method(GetCurrentLocation());
+									method::classObject = classObject;
+									method::modifier = modifier;
+									if (lex::ident::Equals("get") > 0)
+									{
+										method::name = ".get" + name;
+										method::returnTypes::Add(type);
+										method::returnNames::Add("");
+									}
+									else
+									{
+										method::name = ".set" + name;
+										method::paramTypes::Add(type);
+										method::paramNames::Add("value");
+									}
+									lex::Next();
+									method::body = ParseStatement();
+									classObject::methods::Add(method::name, method);
+								}
+								else
+									break;
+							}
+							classObject::properties::Add(property::name, property);
 						}
 						else
 						{
-							lex::Assert(Token::Comma);
-							lex::Next();
+							/* Field */
+							Field field = new Field(GetCurrentLocation());
+							field::classObject = classObject;
+							field::modifier = modifier;
+							field::type = type;
+							field::name = name;
+							classObject::fields::Add(field::name, [Core.Object] field);
+
+							if (lex::token == Token::Semicolon)
+							{
+								lex::Next();
+								break;
+							}
+							else
+							{
+								lex::Assert(Token::Comma);
+								lex::Next();
+							}
 						}
 					}
 				}

@@ -305,12 +305,29 @@ class Method
 	}
 }
 
+class Property
+{
+	public Class classObject;
+	public int32 modifier;
+	public Core.String name;
+	public ParserType type;
+	public Method getter;
+	public Method setter;
+	public Location location;
+
+	public function .ctor(Location location)
+	{
+		this::location = location;
+	}
+}
+
 class Class
 {
 	public Core.String name, baseName;
 	public Class baseClass;
 	public Hash methods;
 	public Hash fields;
+	public Hash properties;
 	public Location location;
 
 	public function .ctor(Location location)
@@ -319,6 +336,7 @@ class Class
 
 		methods = new Hash();
 		fields = new Hash();
+		properties = new Hash();
 	}
 }
 

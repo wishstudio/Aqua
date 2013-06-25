@@ -1,5 +1,7 @@
 class Value
 {
+	public Location location;
+
 	/* HACK: bool */
 	public abstract function CanImplicitlyConvertTo(Type type) -> int32;
 
@@ -14,7 +16,7 @@ class Value
 		else if (this is VariableValue)
 		{
 			VariableValue v = [VariableValue] this;
-			return new RegisterValue(v::regid, v::type);
+			return new RegisterValue(location, v::regid, v::type);
 		}
 		return ToRegister(compiler, freereg);
 	}
@@ -29,31 +31,31 @@ class Value
 
 	/* TODO: super function call */
 	/* Ensure value is of given type, convert it otherwise */
-	public abstract function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue;
+	public abstract function ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue;
 
 	/* Convert value to a given type and move in to given register */
-	public function ToTypedRegister(Compiler compiler, Location location, int32 regid, Type type) -> RegisterValue
+	public function ToTypedRegister(Compiler compiler, int32 regid, Type type) -> RegisterValue
 	{
-		return ToTyped(compiler, location, regid, type)::ToRegister(compiler, regid);
+		return ToTyped(compiler, regid, type)::ToRegister(compiler, regid);
 	}
 
-	public function EnsureTypedRegister(Compiler compiler, Location location, int32 regid, Type type) -> RegisterValue
+	public function EnsureTypedRegister(Compiler compiler, int32 regid, Type type) -> RegisterValue
 	{
-		return ToTyped(compiler, location, regid, type)::EnsureRegister(compiler, regid);
+		return ToTyped(compiler, regid, type)::EnsureRegister(compiler, regid);
 	}
 
-	public function ToLValue(Compiler compiler, Location location, LValue lvalue, int32 freereg)
+	public function ToLValue(Compiler compiler, LValue lvalue, int32 freereg)
 	{
 		if (CanImplicitlyConvertTo(lvalue::type) == 0)
 			throw new CompilerException(
 				"Cannot implicitly convert to \"" + lvalue::type::ToString() + "\"",
 				location
 			);
-		lvalue::AssignValue(compiler, location, this, freereg);
+		lvalue::AssignValue(compiler, this, freereg);
 	}
 
 	/* HACK: bool */
-	public virtual function ToJumpTarget(Compiler compiler, Location location, int32 freereg, int32 jtarget, int32 jtrue)
+	public virtual function ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
 		-> JumpTargetValue
 	{
 		throw new CompilerException("Logical value expected.", location);
@@ -77,7 +79,7 @@ class PseudoValue: Value
 		throw new Core.InvalidOperationException();
 	}
 
-	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
+	public override function ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
 	{
 		throw new Core.InvalidOperationException();
 	}
@@ -87,8 +89,9 @@ class TypeValue: PseudoValue
 {
 	public Type type;
 
-	public function .ctor(Type type)
+	public function .ctor(Location location, Type type)
 	{
+		this::location = location;
 		this::type = type;
 	}
 }
@@ -98,8 +101,9 @@ class MethodValue: PseudoValue
 	public int32 regid;
 	public Vector methods;
 
-	public function .ctor(int32 regid, Vector methods)
+	public function .ctor(Location location, int32 regid, Vector methods)
 	{
+		this::location = location;
 		this::regid = regid;
 		this::methods = methods;
 	}
@@ -114,7 +118,7 @@ class TypedValue: Value
 		return type::CanImplicitlyConvertTo(dst);
 	}
 
-	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type dst) -> TypedValue
+	public override function ToTyped(Compiler compiler, int32 freereg, Type dst) -> TypedValue
 	{
 		Type stackType = type::.getStackType();
 		/* HACK: Temporary workaround */
@@ -161,17 +165,17 @@ class TypedValue: Value
 		}
 	}
 
-	public override function ToJumpTarget(Compiler compiler, Location location, int32 freereg, int32 jtarget, int32 jtrue)
+	public override function ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
 		-> JumpTargetValue
 	{
-		RegisterValue value = EnsureTypedRegister(compiler, location, freereg, Type::Bool);
+		RegisterValue value = EnsureTypedRegister(compiler, freereg, Type::Bool);
 		Core.String inst;
 		if (jtrue > 0) /* jump on true */
 			inst = "jnzi";
 		else /* jump on false */
 			inst = "jzi";
 		compiler::AddCode(inst + "\t$" + value::regid + ", " + compiler::GetLabelName(jtarget));
-		return new JumpTargetValue(jtarget);
+		return new JumpTargetValue(location, jtarget);
 	}
 }
 
@@ -188,8 +192,9 @@ class BoolValue: ImmediateValue
 {
 	public int32 value;
 
-	public function .ctor(int32 value)
+	public function .ctor(Location location, int32 value)
 	{
+		this::location = location;
 		this::value = value;
 		this::type = Type::Bool;
 	}
@@ -204,10 +209,10 @@ class BoolValue: ImmediateValue
 	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
 	{
 		compiler::AddCode("ldi\t$" + regid + ", " + value);
-		return new RegisterValue(regid, Type::Bool);
+		return new RegisterValue(location, regid, Type::Bool);
 	}
 
-	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
+	public override function ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
 	{
 		if (type is BoolType)
 			return ToRegister(compiler, freereg);
@@ -218,8 +223,9 @@ class BoolValue: ImmediateValue
 
 class NullValue: ImmediateValue
 {
-	public function .ctor()
+	public function .ctor(Location location)
 	{
+		this::location = location;
 		this::type = Type::Int;
 	}
 
@@ -234,15 +240,15 @@ class NullValue: ImmediateValue
 	{
 		/* TODO */
 		compiler::AddCode("ldnull\t$" + regid);
-		return new RegisterValue(regid, Type::Int);
+		return new RegisterValue(location, regid, Type::Int);
 	}
 
-	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
+	public override function ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
 	{
 		if (type is IntType || type is ClassType || type is PointerType)
 		{
 			compiler::AddCode("ldnull\t$" + freereg);
-			return new RegisterValue(freereg, type);
+			return new RegisterValue(location, freereg, type);
 		}
 		else
 			throw new CompilerException("Invalid type conversion.", location);
@@ -253,8 +259,9 @@ class IntegerValue: ImmediateValue
 {
 	Core.String value;
 
-	public function .ctor(Core.String value)
+	public function .ctor(Location location, Core.String value)
 	{
+		this::location = location;
 		/* TODO */
 		this::value = value;
 		this::type = Type::Int32;
@@ -273,10 +280,10 @@ class IntegerValue: ImmediateValue
 	{
 		/* TODO */
 		compiler::AddCode("ldi\t$" + regid + ", " + value);
-		return new RegisterValue(regid, Type::Int32);
+		return new RegisterValue(location, regid, Type::Int32);
 	}
 
-	public override function ToTyped(Compiler compiler, Location location, int32 freereg, Type type) -> TypedValue
+	public override function ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
 	{
 		/* TODO: Super call */
 		return this;
@@ -287,8 +294,9 @@ class JumpTargetValue: TypedValue
 {
 	public int32 labelId;
 
-	public function .ctor(int32 labelId)
+	public function .ctor(Location location, int32 labelId)
 	{
+		this::location = location;
 		this::labelId = labelId;
 		this::type = Type::Bool;
 	}
@@ -308,10 +316,10 @@ class JumpTargetValue: TypedValue
 		compiler::AddLabel(labelId);
 		compiler::AddCode("ldi\t$" + regid + ", 0");
 		compiler::AddLabel(compiler::GetNextLabelId());
-		return new RegisterValue(regid, Type::Bool);
+		return new RegisterValue(location, regid, Type::Bool);
 	}
 
-	public override function ToJumpTarget(Compiler compiler, Location location, int32 freereg, int32 jtarget, int32 jtrue)
+	public override function ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
 		-> JumpTargetValue
 	{
 		return this;
@@ -322,8 +330,9 @@ class RegisterValue: TypedValue
 {
 	public int32 regid;
 
-	public function .ctor(int32 regid, Type type)
+	public function .ctor(Location location, int32 regid, Type type)
 	{
+		this::location = location;
 		this::regid = regid;
 		this::type = type;
 	}
@@ -340,22 +349,23 @@ class RegisterValue: TypedValue
 		if (regid == dst)
 			return this;
 		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + dst + ", $" + regid);
-		return new RegisterValue(dst, type);
+		return new RegisterValue(location, dst, type);
 	}
 }
 
 class LValue: TypedValue
 {
 	/* Assign a value to this lvalue, caller ensures type consistent */
-	public virtual function AssignValue(Compiler compiler, Location location, Value value, int32 freereg) {}
+	public virtual function AssignValue(Compiler compiler, Value value, int32 freereg) {}
 }
 
 class VariableValue: LValue
 {
 	public int32 regid;
 
-	public function .ctor(int32 regid, Type type)
+	public function .ctor(Location location, int32 regid, Type type)
 	{
+		this::location = location;
 		this::regid = regid;
 		this::type = type;
 	}
@@ -372,12 +382,12 @@ class VariableValue: LValue
 		if (regid == dst)
 			return this;
 		compiler::AddCode("ld" + type::.getStackType()::.getSuffix() + "\t$" + dst + ", $" + regid);
-		return new RegisterValue(dst, type);
+		return new RegisterValue(location, dst, type);
 	}
 
-	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	public override function AssignValue(Compiler compiler, Value value, int32 freereg)
 	{
-		value::ToTypedRegister(compiler, location, regid, type);
+		value::ToTypedRegister(compiler, regid, type);
 	}
 }
 
@@ -385,8 +395,9 @@ class DerefValue: LValue
 {
 	public int32 regid;
 
-	public function .ctor(int32 regid, Type type)
+	public function .ctor(Location location, int32 regid, Type type)
 	{
+		this::location = location;
 		this::regid = regid;
 		this::type = type;
 	}
@@ -401,12 +412,12 @@ class DerefValue: LValue
 	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
 	{
 		compiler::AddCode("ldi" + type::.getSuffix() + "\t$" + dst + ", ($" + regid + ")");
-		return new RegisterValue(dst, type);
+		return new RegisterValue(location, dst, type);
 	}
 
-	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	public override function AssignValue(Compiler compiler, Value value, int32 freereg)
 	{
-		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
+		RegisterValue v = value::EnsureTypedRegister(compiler, freereg, type);
 		compiler::AddCode("ldi" + type::.getSuffix() + "\t($" + regid + "), $" + v::regid);
 	}
 }
@@ -416,8 +427,9 @@ class FieldValue: LValue
 	public int32 regid;
 	public Field field;
 
-	public function .ctor(int32 regid, Field field, Type type)
+	public function .ctor(Location location, int32 regid, Field field, Type type)
 	{
+		this::location = location;
 		this::regid = regid;
 		this::field = field;
 		this::type = type;
@@ -438,12 +450,12 @@ class FieldValue: LValue
 		else
 			compiler::AddCode("ldf" + type::.getSuffix() + "\t$" + dst + ", $"
 				+ regid + ", " + field::classObject::name + "::" + field::name);
-		return new RegisterValue(dst, type);
+		return new RegisterValue(location, dst, type);
 	}
 
-	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	public override function AssignValue(Compiler compiler, Value value, int32 freereg)
 	{
-		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
+		RegisterValue v = value::EnsureTypedRegister(compiler, freereg, type);
 		if (field::modifier & Modifier::Static > 0)
 			compiler::AddCode("lds" + type::.getSuffix() + "\t" + field::classObject::name + "::" + field::name
 				+ ", $" + v::regid);
@@ -453,12 +465,38 @@ class FieldValue: LValue
 	}
 }
 
+class PropertyValue: LValue
+{
+	public int32 regid;
+	public Property property;
+
+	public function .ctor(Location location, int32 regid, Property property, Type type)
+	{
+		this::location = location;
+		this::regid = regid;
+		this::property = property;
+		this::type = type;
+	}
+
+	public override function GetNextFreeRegister(int32 freereg) -> int32
+	{
+		if (freereg == regid)
+			return freereg + 1;
+		return freereg;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	{
+	}
+}
+
 class ArrayElementValue: LValue
 {
 	public int32 regid, regid2;
 
-	public function .ctor(int32 regid, int32 regid2, Type type)
+	public function .ctor(Location location, int32 regid, int32 regid2, Type type)
 	{
+		this::location = location;
 		this::regid = regid;
 		this::regid2 = regid2;
 		this::type = type;
@@ -477,12 +515,12 @@ class ArrayElementValue: LValue
 	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
 	{
 		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + dst + ", $" + regid + "($" + regid2 + ")");
-		return new RegisterValue(dst, type);
+		return new RegisterValue(location, dst, type);
 	}
 
-	public override function AssignValue(Compiler compiler, Location location, Value value, int32 freereg)
+	public override function AssignValue(Compiler compiler, Value value, int32 freereg)
 	{
-		RegisterValue v = value::EnsureTypedRegister(compiler, location, freereg, type);
+		RegisterValue v = value::EnsureTypedRegister(compiler, freereg, type);
 		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + regid + "($" + regid2 + "), $" + v::regid);
 	}
 }
