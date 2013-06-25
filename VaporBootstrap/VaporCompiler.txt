@@ -152,6 +152,11 @@ class Compiler
 		else
 			return null;
 	}
+
+	public function GetMethodSignature(Method method) -> Core.String
+	{
+		return method::classObject::name + "::" + method::name + ResolvePrototype(method);
+	}
 	
 	private function ToScalar(Vector values) -> Value
 	{
@@ -229,15 +234,9 @@ class Compiler
 			modifier = modifier + " ";
 		AddCode(".property " + modifier + ResolveType(property::type)::ToString() + " " + property::name);
 		if (property::getter != null)
-		{
-			Method getter = property::getter;
-			AddCode("\t.get" + getter::classObject::name + "::" + getter::name + ResolvePrototype(getter));
-		}
+			AddCode("\t.get " + GetMethodSignature(property::getter));
 		if (property::setter != null)
-		{
-			Method setter = property::setter;
-			AddCode("\t.set" + setter::classObject::name + "::" + setter::name + ResolvePrototype(setter));
-		}
+			AddCode("\t.set " + GetMethodSignature(property::setter));
 	}
 
 	private function CompileMethod(Method method)
@@ -1146,7 +1145,7 @@ class Compiler
 				values::Add(value::EnsureSingleSlot(this, freereg + 2 + i));
 			}
 			Method method = PrepareCall(nnode, methods, values, freereg + 2);
-			AddCode("new\t$" + freereg + ", " + classObject::name + "::" + method::name + ResolvePrototype(method));
+			AddCode("new\t$" + freereg + ", " + GetMethodSignature(method));
 			return new RegisterValue(nnode::location, freereg, [Type] type); /* HACK: .ctor overload */
 		}
 		else if (node::op == Token::NewArray)
@@ -1359,7 +1358,7 @@ class Compiler
 			inst = "callv";
 		else
 			inst = "call";
-		AddCode(inst + "\t$" + freereg + ", " + classObject::name + "::" + method::name + ResolvePrototype(method));
+		AddCode(inst + "\t$" + freereg + ", " + GetMethodSignature(method));
 
 		/* Return value */
 		Vector ret = new Vector();
@@ -1389,7 +1388,7 @@ class Compiler
 		values::Add(r);
 
 		Method method = PrepareCall(node, methods, values, firstreg);
-		AddCode("call\t$" + firstreg + ", " + method::classObject::name + "::" + methodName + ResolvePrototype(method));
+		AddCode("call\t$" + firstreg + ", " + GetMethodSignature(method));
 		return new RegisterValue(node::location, firstreg, ResolveType([ParserType] method::returnTypes[0]));
 	}
 
