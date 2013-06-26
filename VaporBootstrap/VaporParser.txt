@@ -118,21 +118,25 @@ class Parser
 			while (lex::token != Token::BRight)
 			{
 				int32 modifier = ParseModifier();
+				/* HACK: Temporary workaround */
 				if (lex::token == Token::Function || lex::token == Token::Operator)
+					lex::Next();
+				lex::Checkpoint();
+
+				ParserType type = TryParseType();
+				if (type == null || lex::token == Token::PLeft)
 				{
+					lex::RollbackCheckpoint();
+
 					Method method = new Method(GetCurrentLocation());
 					method::classObject = classObject;
 					method::modifier = modifier;
-					if (lex::token == Token::Function)
-					{
-						lex::CheckNext(Token::Ident);
+					if (lex::token == Token::Ident)
 						method::name = lex::ident;
-					}
 					else
 					{
 						if (method::modifier & Modifier::Static == 0)
 							throw new Core.Exception(); /* TODO */
-						lex::Next();
 						method::name = Compiler::GetOperatorMethodName(lex::token);
 					}
 
@@ -218,7 +222,7 @@ class Parser
 				}
 				else
 				{
-					ParserType type = ParseType();
+					lex::FinishCheckpoint();
 					for (bool first = true;; first = false)
 					{
 						lex::Assert(Token::Ident);
