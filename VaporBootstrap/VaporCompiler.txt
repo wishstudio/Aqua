@@ -546,7 +546,7 @@ class Compiler
 					Node vnode = [Node] rnode::values[i];
 					/* TODO: Type */
 					CompileExpression(vnode, freereg, context::firstReturnRegister + i, 0, 0)
-						::ToRegister(this, context::firstReturnRegister + 1);
+						::ToFreeRegister(this, context::firstReturnRegister + 1);
 				}
 				/* Second, add leave instruction */
 				AddCode("leave\t_Epilogue");
@@ -581,7 +581,7 @@ class Compiler
 							Node vnode = [Node] rnode::values[i];
 							/* TODO: Type */
 							CompileExpression(vnode, freereg + i, freereg + i, 0, 0)
-								::ToRegister(this, freereg + i);
+								::ToFreeRegister(this, freereg + i);
 						}
 						AddCode("ret\t$" + freereg + ", $" + (freereg + rnode::values::.getSize() - 1));
 					}
@@ -717,7 +717,7 @@ class Compiler
 				else if (lastreg != -1 && i + 1 == lnode::values::.getSize()) /* Last scalar */
 					ret::Add([Core.Object] CompileExpression(node, reg, lastreg, 0, 0)::EnsureRegister(this, lastreg));
 				else /* Ensure value is a register at stack position */
-					ret::Add([Core.Object] CompileExpression(node, reg, reg, 0, 0)::ToRegister(this, reg));
+					ret::Add([Core.Object] CompileExpression(node, reg, reg, 0, 0)::ToFreeRegister(this, reg));
 			}
 			return ret;
 		}
@@ -1154,7 +1154,7 @@ class Compiler
 			if (nnode::parameters::.getSize() != 1)
 				throw new CompilerException("Currently only 1 dim array supported.", node::location);
 
-			RegisterValue value = ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1))::ToRegister(this, freereg);
+			RegisterValue value = ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1))::ToFreeRegister(this, freereg);
 			Type elementType = ResolveType(nnode::type);
 			AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
 			return new RegisterValue(nnode::location, targetreg, [Type] new ArrayType(elementType)); /* HACK: .ctor overload */
@@ -1249,46 +1249,47 @@ class Compiler
 			Field field = ResolveField(classObject, fnode::field);
 			if (field != null)
 				return new FieldValue(fnode::location, regid, field, ResolveType(field::type));
-			else
-			{
-				/* HACK */
-				Vector methods = new Vector();
-				ResolveMethod(classObject, fnode::field, methods);
-				if (methods::.getSize() == 0)
-					throw new CompilerException("Unknown field.", node::location);
-				return new MethodValue(fnode::location, regid, methods);
-			}
+
+			Property property = ResolveProperty(classObject, fnode::field);
+			if (property != null)
+				return new PropertyValue(fnode::location, regid, property, ResolveType(property::type));
+
+			/* HACK */
+			Vector methods = new Vector();
+			ResolveMethod(classObject, fnode::field, methods);
+			if (methods::.getSize() == 0)
+				throw new CompilerException("Unknown field.", node::location);
+			return new MethodValue(fnode::location, regid, methods);
 		}
 		else if (node::op == Token::Ident)
 		{
 			IdentNode inode = [IdentNode] node;
+			
+			Variable variable;
 			int32 found;
+			variable, found = FindSymbol(inode::ident);
+			if (found > 0)
+				return new VariableValue(inode::location, variable::regid, variable::type);
+
+			Field field = ResolveField(currentClass, inode::ident);
+			if (field != null)
+				return new FieldValue(inode::location, 0, field, ResolveType(field::type));
+
+			Property property = ResolveProperty(currentClass, inode::ident);
+			if (property != null)
+				return new PropertyValue(inode::location, 0, property, ResolveType(property::type));
+				
+			/* HACK */
+			Vector methods = new Vector();
+			ResolveMethod(currentClass, inode::ident, methods);
+			if (methods::.getSize() > 0)
+				return new MethodValue(inode::location, 0, methods);
+
 			Core.Object classObject;
 			if ((found, classObject = classes::Contains(inode::ident)) > 0)
 				return new TypeValue(inode::location, [Type] new ClassType([Class] classObject)); /* HACK: .ctor overload */
-			else
-			{
-				Variable variable;
-				int32 found;
-				variable, found = FindSymbol(inode::ident);
-				if (found > 0)
-					return new VariableValue(inode::location, variable::regid, variable::type);
-				else
-				{
-					Field field = ResolveField(currentClass, inode::ident);
-					if (field != null)
-						return new FieldValue(inode::location, 0, field, ResolveType(field::type));
-					else
-					{
-						/* HACK */
-						Vector methods = new Vector();
-						ResolveMethod(currentClass, inode::ident, methods);
-						if (methods::.getSize() == 0)
-							throw new CompilerException("Unknown ident.", node::location);
-						return new MethodValue(inode::location, 0, methods);
-					}
-				}
-			}
+
+			throw new CompilerException("Unknown ident.", node::location);
 		}
 		else if (node::op == Token::This)
 		{
@@ -1338,7 +1339,7 @@ class Compiler
 		{
 			/* HACK: .ctor overload */
 			(new RegisterValue(methodValue::location, ([MethodValue] methodValue)::regid, [Type] new ClassType(classObject)))
-				::ToRegister(this, freereg);
+				::ToFreeRegister(this, freereg);
 			firstreg = firstreg + 1;
 		}
 
@@ -1465,7 +1466,7 @@ class Compiler
 		return method::prototype;
 	}
 
-	/* Returns field and corresponding class which the field is defined in */
+	/* Resolves a field, returns null if not found */
 	private function ResolveField(Class startClass, Core.String name) -> Field
 	{
 		Class c = startClass;
@@ -1475,6 +1476,22 @@ class Compiler
 			int32 found;
 			if ((found, field = c::fields::Contains(name)) > 0)
 				return [Field] field;
+			c = c::baseClass;
+		}
+		return null;
+	}
+
+	/* Resolves a property, returns null if not found */
+	private function ResolveProperty(Class startClass, Core.String name) -> Property
+	{
+		Class c = startClass;
+		while (c != null)
+		{
+			Core.Object property;
+			int32 found;
+			if ((found, property = c::properties::Contains(name)) > 0
+				&& ([Property] property)::modifier & Modifier::Override == 0)
+					return [Property] property;
 			c = c::baseClass;
 		}
 		return null;
@@ -1552,7 +1569,7 @@ class Compiler
 		/* Prepare values */
 		for (int32 i = 0; i < values::.getSize(); i = i + 1)
 			([Value] values[i])::ToTypedRegister(
-				this, firstreg + i, ResolveType([ParserType] method::paramTypes[i])
+				this, firstreg + i, firstreg + i, ResolveType([ParserType] method::paramTypes[i])
 			);
 		return method;
 	}

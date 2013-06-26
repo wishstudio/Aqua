@@ -1551,7 +1551,6 @@ void compile_class()
 			_PUT2(data, setter);
 			property_def_table.push_back(data);
 			property_count++;
-			getToken();
 		}
 	}
 	getToken(); /* Skip '}' */

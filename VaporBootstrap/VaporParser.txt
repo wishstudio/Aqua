@@ -243,24 +243,39 @@ class Parser
 									method::modifier = modifier;
 									if (lex::ident::Equals("get") > 0)
 									{
+										if (property::getter != null)
+											throw new ParserException();
+										property::getter = method;
 										method::name = ".get" + name;
 										method::returnTypes::Add(type);
 										method::returnNames::Add("");
 									}
 									else
 									{
+										if (property::setter != null)
+											throw new ParserException();
+										property::setter = method;
 										method::name = ".set" + name;
 										method::paramTypes::Add(type);
 										method::paramNames::Add("value");
 									}
 									lex::Next();
-									method::body = ParseStatement();
+									if (method::modifier & Modifier::Abstract > 0)
+									{
+										lex::Assert(Token::Semicolon);
+										lex::Next();
+									}
+									else
+										method::body = ParseStatement();
 									classObject::methods::Add(method::name, method);
 								}
 								else
 									break;
 							}
+							lex::Assert(Token::BRight);
+							lex::Next();
 							classObject::properties::Add(property::name, property);
+							break;
 						}
 						else
 						{

@@ -7,18 +7,16 @@ class Value
 
 	public abstract function GetNextFreeRegister(int32 freereg) -> int32;
 
-	public abstract function ToRegister(Compiler compiler, int32 regid) -> RegisterValue;
+	public abstract function ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue;
 
-	public function EnsureRegister(Compiler compiler, int32 freereg) -> RegisterValue
+	public function ToFreeRegister(Compiler compiler, int32 freereg) -> RegisterValue
 	{
-		if (this is RegisterValue)
-			return this;
-		else if (this is VariableValue)
-		{
-			VariableValue v = [VariableValue] this;
-			return new RegisterValue(location, v::regid, v::type);
-		}
-		return ToRegister(compiler, freereg);
+		return ToRegister(compiler, freereg, freereg);
+	}
+
+	public virtual function EnsureRegister(Compiler compiler, int32 freereg) -> RegisterValue
+	{
+		return ToRegister(compiler, freereg, freereg);
 	}
 
 	/* Ensure a value occupies a single register slot at most */
@@ -34,14 +32,14 @@ class Value
 	public abstract function ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue;
 
 	/* Convert value to a given type and move in to given register */
-	public function ToTypedRegister(Compiler compiler, int32 regid, Type type) -> RegisterValue
+	public function ToTypedRegister(Compiler compiler, int32 regid, int32 freereg, Type type) -> RegisterValue
 	{
-		return ToTyped(compiler, regid, type)::ToRegister(compiler, regid);
+		return ToTyped(compiler, freereg, type)::ToRegister(compiler, regid, freereg);
 	}
 
-	public function EnsureTypedRegister(Compiler compiler, int32 regid, Type type) -> RegisterValue
+	public function EnsureTypedRegister(Compiler compiler, int32 freereg, Type type) -> RegisterValue
 	{
-		return ToTyped(compiler, regid, type)::EnsureRegister(compiler, regid);
+		return ToTyped(compiler, freereg, type)::EnsureRegister(compiler, freereg);
 	}
 
 	public function ToLValue(Compiler compiler, LValue lvalue, int32 freereg)
@@ -74,7 +72,7 @@ class PseudoValue: Value
 		throw new Core.InvalidOperationException();
 	}
 
-	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
 		throw new Core.InvalidOperationException();
 	}
@@ -132,7 +130,7 @@ class TypedValue: Value
 			if (type is BoolValue || dst is BoolType)
 				throw new CompilerException("Invalid type conversion", location);
 			/* TODO: Maybe we could cut off some unnecessary convertions */
-			RegisterValue ret = ToRegister(compiler, freereg);
+			RegisterValue ret = ToFreeRegister(compiler, freereg);
 			compiler::AddCode("conv\t" + dst::ToString() + " $" + freereg + ", "
 				+ stackType::ToString() + " $" + ret::regid);
 			ret::type = dst;
@@ -157,7 +155,7 @@ class TypedValue: Value
 			}
 			else
 			{
-				RegisterValue ret = ToRegister(compiler, freereg);
+				RegisterValue ret = ToFreeRegister(compiler, freereg);
 				compiler::AddCode("cast\t$" + freereg + ", $" + ret::regid + ", " + dst::ToString());
 				ret::type = type;
 				return ret;
@@ -206,7 +204,7 @@ class BoolValue: ImmediateValue
 		return 0;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
 		compiler::AddCode("ldi\t$" + regid + ", " + value);
 		return new RegisterValue(location, regid, Type::Bool);
@@ -215,7 +213,7 @@ class BoolValue: ImmediateValue
 	public override function ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
 	{
 		if (type is BoolType)
-			return ToRegister(compiler, freereg);
+			return ToFreeRegister(compiler, freereg);
 		else
 			throw new CompilerException("Invalid type conversion.", location);
 	}
@@ -236,7 +234,7 @@ class NullValue: ImmediateValue
 		return 0;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
 		/* TODO */
 		compiler::AddCode("ldnull\t$" + regid);
@@ -276,7 +274,7 @@ class IntegerValue: ImmediateValue
 		return 0;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
 		/* TODO */
 		compiler::AddCode("ldi\t$" + regid + ", " + value);
@@ -307,7 +305,7 @@ class JumpTargetValue: TypedValue
 		return freereg;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 regid) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
 		/* TODO */
 		/* Default: jtrue == 0 */
@@ -344,7 +342,12 @@ class RegisterValue: TypedValue
 		return freereg;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	public override function EnsureRegister(Compiler compiler, int32 freereg) -> RegisterValue
+	{
+		return this;
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst, int32 freereg) -> RegisterValue
 	{
 		if (regid == dst)
 			return this;
@@ -377,7 +380,12 @@ class VariableValue: LValue
 		return freereg;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	public override function EnsureRegister(Compiler compiler, int32 freereg) -> RegisterValue
+	{
+		return new RegisterValue(location, regid, type);
+	}
+
+	public override function ToRegister(Compiler compiler, int32 dst, int32 freereg) -> RegisterValue
 	{
 		if (regid == dst)
 			return this;
@@ -387,7 +395,7 @@ class VariableValue: LValue
 
 	public override function AssignValue(Compiler compiler, Value value, int32 freereg)
 	{
-		value::ToTypedRegister(compiler, regid, type);
+		value::ToTypedRegister(compiler, regid, freereg, type);
 	}
 }
 
@@ -409,7 +417,7 @@ class DerefValue: LValue
 		return freereg;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 dst, int32 freereg) -> RegisterValue
 	{
 		compiler::AddCode("ldi" + type::.getSuffix() + "\t$" + dst + ", ($" + regid + ")");
 		return new RegisterValue(location, dst, type);
@@ -442,7 +450,7 @@ class FieldValue: LValue
 		return freereg;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 dst, int32 freereg) -> RegisterValue
 	{
 		if (field::modifier & Modifier::Static > 0)
 			compiler::AddCode("lds" + type::.getSuffix() + "\t$" + dst + ", "
@@ -472,6 +480,8 @@ class PropertyValue: LValue
 
 	public function .ctor(Location location, int32 regid, Property property, Type type)
 	{
+		if (property::modifier & Modifier::Override > 0)
+			throw new Core.InvalidOperationException();
 		this::location = location;
 		this::regid = regid;
 		this::property = property;
@@ -485,8 +495,53 @@ class PropertyValue: LValue
 		return freereg;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 dst, int32 freereg) -> RegisterValue
 	{
+		return EnsureRegister(compiler, freereg)::ToRegister(compiler, dst, freereg);
+	}
+
+	public override function EnsureRegister(Compiler compiler, int32 freereg) -> RegisterValue
+	{
+		if (property::getter == null)
+			throw new CompilerException("Property cannot be read.", location);
+
+		int32 firstreg;
+		if (property::modifier & Modifier::Static > 0)
+			firstreg = freereg + 1;
+		else
+		{
+			compiler::AddCode("lda\t$" + freereg + ", $" + regid);
+			firstreg = freereg + 1;
+		}
+		Core.String inst;
+		if (property::getter::modifier & Modifier::Virtual > 0 || property::getter::modifier & Modifier::Abstract > 0)
+			inst = "callv";
+		else
+			inst = "call";
+		compiler::AddCode(inst + "\t$" + freereg + ", " + compiler::GetMethodSignature(property::getter));
+		return new RegisterValue(location, freereg, type);
+	}
+
+	public override function AssignValue(Compiler compiler, Value value, int32 freereg)
+	{
+		if (property::setter == null)
+			throw new CompilerException("Property cannot be written.", location);
+
+		int32 firstreg;
+		if (property::modifier & Modifier::Static > 0)
+			firstreg = freereg;
+		else
+		{
+			compiler::AddCode("lda\t$" + freereg + ", $" + regid);
+			firstreg = freereg + 1;
+		}
+		RegisterValue v = value::ToTypedRegister(compiler, firstreg, firstreg, type);
+		Core.String inst;
+		if (property::setter::modifier & Modifier::Virtual > 0 || property::setter::modifier & Modifier::Abstract > 0)
+			inst = "callv";
+		else
+			inst = "call";
+		compiler::AddCode(inst + "\t$" + freereg + ", " + compiler::GetMethodSignature(property::setter));
 	}
 }
 
@@ -512,7 +567,7 @@ class ArrayElementValue: LValue
 		return freereg;
 	}
 
-	public override function ToRegister(Compiler compiler, int32 dst) -> RegisterValue
+	public override function ToRegister(Compiler compiler, int32 dst, int32 freereg) -> RegisterValue
 	{
 		compiler::AddCode("lde" + type::.getSuffix() + "\t$" + dst + ", $" + regid + "($" + regid2 + ")");
 		return new RegisterValue(location, dst, type);
