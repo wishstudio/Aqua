@@ -3,7 +3,7 @@ class CompilerException
 	public Core.String message;
 	public Location location;
 
-	public .ctor(Core.String message, Location location)
+	public (Core.String message, Location location)
 	{
 		this::message = message;
 		this::location = location;
@@ -33,7 +33,7 @@ class Context
 	/* HACK: bool */
 	public int32 generateEpilogue;
 
-	public .ctor()
+	public ()
 	{
 		contextType = new Stack();
 	}
@@ -55,7 +55,7 @@ class Compiler
 	private Method currentMethod;
 	private int32 currentLabelId;
 
-	public .ctor(Hash classes)
+	public (Hash classes)
 	{
 		this::classes = classes;
 		code = new Vector();

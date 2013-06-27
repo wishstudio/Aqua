@@ -3,7 +3,7 @@ class Hash
 	/* Simple multimap implementation */
 	private Vector keys, values;
 
-	public .ctor()
+	public ()
 	{
 		keys = new Vector();
 		values = new Vector();

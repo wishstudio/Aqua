@@ -6,7 +6,7 @@ class Core.StreamWriter
 	private char[] charBuffer;
 	private uint8[] byteBuffer;
 
-	public .ctor(Core.FileStream stream, Core.Encoding encoding)
+	public (Core.FileStream stream, Core.Encoding encoding)
 	{
 		this::stream = stream;
 		this::encoding = encoding;

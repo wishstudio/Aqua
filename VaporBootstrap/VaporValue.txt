@@ -87,7 +87,7 @@ class TypeValue: PseudoValue
 {
 	public Type type;
 
-	public .ctor(Location location, Type type)
+	public (Location location, Type type)
 	{
 		this::location = location;
 		this::type = type;
@@ -99,7 +99,7 @@ class MethodValue: PseudoValue
 	public int32 regid;
 	public Vector methods;
 
-	public .ctor(Location location, int32 regid, Vector methods)
+	public (Location location, int32 regid, Vector methods)
 	{
 		this::location = location;
 		this::regid = regid;
@@ -190,7 +190,7 @@ class BoolValue: ImmediateValue
 {
 	public int32 value;
 
-	public .ctor(Location location, int32 value)
+	public (Location location, int32 value)
 	{
 		this::location = location;
 		this::value = value;
@@ -221,7 +221,7 @@ class BoolValue: ImmediateValue
 
 class NullValue: ImmediateValue
 {
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		this::type = Type::Int;
@@ -257,7 +257,7 @@ class IntegerValue: ImmediateValue
 {
 	Core.String value;
 
-	public .ctor(Location location, Core.String value)
+	public (Location location, Core.String value)
 	{
 		this::location = location;
 		/* TODO */
@@ -292,7 +292,7 @@ class JumpTargetValue: TypedValue
 {
 	public int32 labelId;
 
-	public .ctor(Location location, int32 labelId)
+	public (Location location, int32 labelId)
 	{
 		this::location = location;
 		this::labelId = labelId;
@@ -328,7 +328,7 @@ class RegisterValue: TypedValue
 {
 	public int32 regid;
 
-	public .ctor(Location location, int32 regid, Type type)
+	public (Location location, int32 regid, Type type)
 	{
 		this::location = location;
 		this::regid = regid;
@@ -366,7 +366,7 @@ class VariableValue: LValue
 {
 	public int32 regid;
 
-	public .ctor(Location location, int32 regid, Type type)
+	public (Location location, int32 regid, Type type)
 	{
 		this::location = location;
 		this::regid = regid;
@@ -403,7 +403,7 @@ class DerefValue: LValue
 {
 	public int32 regid;
 
-	public .ctor(Location location, int32 regid, Type type)
+	public (Location location, int32 regid, Type type)
 	{
 		this::location = location;
 		this::regid = regid;
@@ -435,7 +435,7 @@ class FieldValue: LValue
 	public int32 regid;
 	public Field field;
 
-	public .ctor(Location location, int32 regid, Field field, Type type)
+	public (Location location, int32 regid, Field field, Type type)
 	{
 		this::location = location;
 		this::regid = regid;
@@ -478,7 +478,7 @@ class PropertyValue: LValue
 	public int32 regid;
 	public Property property;
 
-	public .ctor(Location location, int32 regid, Property property, Type type)
+	public (Location location, int32 regid, Property property, Type type)
 	{
 		if (property::modifier & Modifier::Override > 0)
 			throw new Core.InvalidOperationException();
@@ -549,7 +549,7 @@ class ArrayElementValue: LValue
 {
 	public int32 regid, regid2;
 
-	public .ctor(Location location, int32 regid, int32 regid2, Type type)
+	public (Location location, int32 regid, int32 regid2, Type type)
 	{
 		this::location = location;
 		this::regid = regid;

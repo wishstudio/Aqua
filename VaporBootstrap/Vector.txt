@@ -3,7 +3,7 @@ class Vector
 	private int32 capacity, size;
 	private Core.Object[] elements;
 
-	public .ctor()
+	public ()
 	{
 		capacity = 4;
 		size = 0;

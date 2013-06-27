@@ -25,7 +25,7 @@ class Lexer
 	int32 recording;
 	int32 currentPosition, recordPosition;
 
-	public .ctor(Core.String fileName)
+	public (Core.String fileName)
 	{
 		file = new Core.FileStream(fileName, 0);
 		lineNumber = 1;

@@ -278,7 +278,7 @@ class PointerType: Type
 {
 	private Type valueType;
 
-	public .ctor(Type valueType)
+	public (Type valueType)
 	{
 		this::valueType = valueType;
 	}
@@ -314,7 +314,7 @@ class ArrayType: Type
 {
 	private Type elementType;
 
-	public .ctor(Type elementType)
+	public (Type elementType)
 	{
 		this::elementType = elementType;
 	}
@@ -346,7 +346,7 @@ class ClassType: Type
 {
 	private Class classObject;
 
-	public .ctor(Class classObject)
+	public (Class classObject)
 	{
 		this::classObject = classObject;
 	}

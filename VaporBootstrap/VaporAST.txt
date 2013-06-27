@@ -15,7 +15,7 @@ class ParserType
 	public Core.String typestring;
 	public Type type;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -26,7 +26,7 @@ class Node
 	public int32 op;
 	Location location;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -37,7 +37,7 @@ class BoolNode: Node
 	/* HACK: bool */
 	public int32 boolvalue;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -47,7 +47,7 @@ class IntegerNode: Node
 {
 	public Core.String intvalue;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -57,7 +57,7 @@ class StringNode: Node
 {
 	public Core.String stringvalue;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -67,7 +67,7 @@ class IdentNode: Node
 {
 	public Core.String ident;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -78,7 +78,7 @@ class FieldNode: Node
 	public Node object;
 	public Core.String field;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -89,7 +89,7 @@ class CallNode: Node
 	public Node method;
 	public Vector parameters;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		parameters = new Vector();
@@ -101,7 +101,7 @@ class NewNode: Node
 	public ParserType type;
 	public Vector parameters;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		parameters = new Vector();
@@ -113,7 +113,7 @@ class ArrayElementNode: Node
 	public Node array;
 	public Node index;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -123,7 +123,7 @@ class UnaryNode: Node
 {
 	public Node operand;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -133,7 +133,7 @@ class BinNode: Node
 {
 	public Node left, right;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -143,7 +143,7 @@ class ListNode: Node
 {
 	public Vector values;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		values = new Vector();
@@ -156,7 +156,7 @@ class DefinitionNode: Node
 	public Vector names;
 	public Vector values;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		names = new Vector();
@@ -168,7 +168,7 @@ class MultipleNode: Node
 {
 	public Vector nodes;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		nodes = new Vector();
@@ -180,7 +180,7 @@ class TypeCastNode: Node
 	public ParserType type;
 	public Node operand;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -191,7 +191,7 @@ class IfNode: Node
 	public Node condition;
 	public Node trueBody, falseBody;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -202,7 +202,7 @@ class WhileNode: Node
 	public Node condition;
 	public Node body;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -213,7 +213,7 @@ class ForNode: Node
 	public Node init, condition, update;
 	public Node body;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -223,7 +223,7 @@ class ReturnNode: Node
 {
 	public Vector values;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		values = new Vector();
@@ -236,7 +236,7 @@ class TryNode: Node
 	public Vector catchNodes;
 	public Node finallyNode;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 		catchNodes = new Vector();
@@ -249,7 +249,7 @@ class CatchNode: Node
 	public Core.String name;
 	public Node body;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -259,7 +259,7 @@ class ThrowNode: Node
 {
 	public Node exception;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -273,7 +273,7 @@ class Field
 	public ParserType type;
 	public Location location;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -294,7 +294,7 @@ class Method
 	public Node body;
 	public Location location;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 
@@ -315,7 +315,7 @@ class Property
 	public Method setter;
 	public Location location;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 	}
@@ -330,7 +330,7 @@ class Class
 	public Hash properties;
 	public Location location;
 
-	public .ctor(Location location)
+	public (Location location)
 	{
 		this::location = location;
 

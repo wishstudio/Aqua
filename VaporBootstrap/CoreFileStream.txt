@@ -5,7 +5,7 @@ class Core.FileStream
 	private uint8[] buffer;
 	private int32 mode; /* 0: Read, 1: Write */
 
-	public .ctor(Core.String filename, int32 mode)
+	public (Core.String filename, int32 mode)
 	{
 		int32 GENERIC_READ = -2147483647 - 1; /* 0x80000000 */
 		int32 GENERIC_WRITE = 1073741824; /* 0x40000000 */

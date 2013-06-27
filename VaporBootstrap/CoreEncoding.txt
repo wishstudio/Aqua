@@ -14,7 +14,7 @@ class Core.Encoding
 
 	int32 codePage;
 
-	public .ctor(int32 codePage)
+	public (int32 codePage)
 	{
 		this::codePage = codePage;
 	}

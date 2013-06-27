@@ -3,7 +3,7 @@ class Stack
 	private Vector data;
 	private int32 size;
 
-	public .ctor()
+	public ()
 	{
 		data = new Vector();
 		size = 0;
