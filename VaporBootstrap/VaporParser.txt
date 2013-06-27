@@ -118,9 +118,6 @@ class Parser
 			while (lex::token != Token::BRight)
 			{
 				int32 modifier = ParseModifier();
-				/* HACK: Temporary workaround */
-				if (lex::token == Token::Function || lex::token == Token::Operator)
-					lex::Next();
 				lex::Checkpoint();
 
 				ParserType type = TryParseType();

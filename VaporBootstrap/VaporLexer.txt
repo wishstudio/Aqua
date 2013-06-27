@@ -142,10 +142,6 @@ class Lexer
 				token = Token::True;
 			else if (ident::Equals("false") > 0)
 				token = Token::False;
-			else if (ident::Equals("function") > 0)
-				token = Token::Function;
-			else if (ident::Equals("operator") > 0)
-				token = Token::Operator;
 			else if (ident::Equals("new") > 0)
 				token = Token::New;
 			else if (ident::Equals("if") > 0)

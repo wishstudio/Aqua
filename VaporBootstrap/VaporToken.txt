@@ -18,7 +18,7 @@ class Token
 
 	/* Reserved identifiers */
 	public static int32 This, Null, True, False;
-	public static int32 Function, Operator, New, NewArray;
+	public static int32 New, NewArray;
 	public static int32 If, Else, For, While, Do, Return;
 	public static int32 Continue, Break;
 	public static int32 Try, Catch, Finally, Throw;
@@ -61,7 +61,7 @@ class Token
 
 		/* Reserved identifiers */
 		Token::This, Token::Null, Token::True, Token::False = 50, 51, 52, 53;
-		Token::Function, Token::Operator, Token::New, Token::NewArray = 54, 55, 56, 57;
+		Token::New, Token::NewArray = 54, 55;
 		Token::If, Token::Else, Token::For, Token::While, Token::Do, Token::Return = 58, 59, 60, 61, 62, 63;
 		Token::Continue, Token::Break = 64, 65;
 		Token::Try, Token::Catch, Token::Finally, Token::Throw = 66, 67, 68, 69;
