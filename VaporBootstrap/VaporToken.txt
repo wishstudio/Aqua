@@ -9,9 +9,10 @@ class Token
 	public static int32[] BinPriority;
 
 	/* Unary operations */
-	public static int32 Not, Neg, BitNot, AddressOf, Deref, UnaryOp;
+	public static int32 Not, Neg, BitNot, UnaryOp;
+	public static int32 Star, AddressOf;
 
-	/* Other symbols */
+	/* Symbols */
 	public static int32 EOF, Number, Ident, String, Comma;
 	public static int32 Assign, Arrow, Colon, DoubleColon, Semicolon, Array;
 	public static int32 PLeft, PRight, SLeft, SRight, BLeft, BRight;
@@ -49,10 +50,10 @@ class Token
 		Token::BinPriority = priority;
 
 		/* Unary operations */
-		Token::Not, Token::Neg, Token::BitNot, Token::AddressOf, Token::Deref = 20, 21, 22, 23, 24;
-		Token::UnaryOp = 24;
+		Token::Not, Token::Neg, Token::BitNot, Token::UnaryOp = 20, 21, 22, 22;
+		Token::Star, Token::AddressOf = 23, 24;
 
-		/* Other symbols */
+		/* Symbols */
 		Token::EOF, Token::Number, Token::Ident, Token::String, Token::Comma = 30, 31, 32, 33, 34;
 		Token::Assign, Token::Arrow, Token::Colon, Token::DoubleColon, Token::Semicolon = 35, 36, 37, 38, 39;
 		Token::Array = 40;

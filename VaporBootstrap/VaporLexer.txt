@@ -427,7 +427,7 @@ class Lexer
 	public FixUnary()
 	{
 		if (token == Token::Mul)
-			token = Token::Deref;
+			token = Token::Star;
 		else if (token == Token::Sub)
 			token = Token::Neg;
 		else if (token == Token::BitAnd)

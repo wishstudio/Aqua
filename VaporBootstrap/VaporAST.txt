@@ -30,6 +30,24 @@ class Node
 	{
 		this::location = location;
 	}
+
+	public virtual CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		throw new CompilerException("INTERNAL EXCEPTION.", location);
+	}
+}
+
+class NullNode: Node
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		return new NullValue(location);
+	}
 }
 
 class BoolNode: Node
@@ -41,6 +59,11 @@ class BoolNode: Node
 	{
 		this::location = location;
 	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		return new BoolValue(location, boolvalue);
+	}
 }
 
 class IntegerNode: Node
@@ -50,6 +73,11 @@ class IntegerNode: Node
 	public (Location location)
 	{
 		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		return new IntegerValue(location, intvalue);
 	}
 }
 
@@ -61,6 +89,28 @@ class StringNode: Node
 	{
 		this::location = location;
 	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		/* TODO: StringValue */
+		compiler::AddCode("ldstr\t$" + targetreg + ", \"" + stringvalue + "\"");
+		return new RegisterValue(location, targetreg, new ClassType([Class] compiler::Classes["Core.String"]));
+	}
+}
+
+class ThisNode: Node
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		if (compiler::CurrentMethod::modifier & Modifier::Static > 0)
+			throw new CompilerException("'this' cannot be used in a static method.", location);
+		return new RegisterValue(location, 0, new ClassType(compiler::CurrentClass));
+	}
 }
 
 class IdentNode: Node
@@ -70,6 +120,35 @@ class IdentNode: Node
 	public (Location location)
 	{
 		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		Variable variable;
+		int32 found;
+		variable, found = compiler::FindSymbol(ident);
+		if (found > 0)
+			return new VariableValue(location, variable::regid, variable::type);
+
+		Field field = compiler::ResolveField(compiler::CurrentClass, ident);
+		if (field != null)
+			return new FieldValue(location, 0, field, compiler::ResolveType(field::type));
+
+		Property property = compiler::ResolveProperty(compiler::CurrentClass, ident);
+		if (property != null)
+			return new PropertyValue(location, 0, property, compiler::ResolveType(property::type));
+
+		/* HACK */
+		Vector methods = new Vector();
+		compiler::ResolveMethod(compiler::CurrentClass, ident, methods);
+		if (methods::Size > 0)
+			return new MethodValue(location, 0, methods);
+
+		Core.Object classObject;
+		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
+			return new TypeValue(location, new ClassType([Class] classObject));
+
+		throw new CompilerException("Unknown ident.", location);
 	}
 }
 
@@ -81,6 +160,470 @@ class FieldNode: Node
 	public (Location location)
 	{
 		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		Value object = compiler::CompileExpression(this::object, freereg, freereg, 0, 0);
+		/* TODO */
+		if (object is TypedValue && ([TypedValue] object)::type is ArrayType)
+		{
+			if (field::Equals("Length") == 0)
+				throw new CompilerException("Unknown field.", location);
+			RegisterValue v = object::EnsureRegister(compiler, freereg);
+			compiler::AddCode("ldlen\t$" + targetreg + ", $" + v::regid);
+			return new RegisterValue(location, targetreg, Type::Int32);
+		}
+
+		int32 regid;
+		Type type = Type::Unit;
+		Class classObject;
+		if (object is TypeValue)
+			type = ([TypeValue] object)::type;
+		else if (object is TypedValue)
+		{
+			RegisterValue v = object::EnsureRegister(compiler, freereg);
+			type = ([TypedValue] object)::type;
+			regid = v::regid;
+		}
+
+		/* HACK: not */
+		if (type is ClassType)
+			classObject = ([ClassType] type)::Class;
+		else
+			throw new CompilerException("Not an object or class.", this::object::location);
+
+		Field field = compiler::ResolveField(classObject, this::field);
+		if (field != null)
+			return new FieldValue(location, regid, field, compiler::ResolveType(field::type));
+
+		Property property = compiler::ResolveProperty(classObject, this::field);
+		if (property != null)
+			return new PropertyValue(location, regid, property, compiler::ResolveType(property::type));
+
+		/* HACK */
+		Vector methods = new Vector();
+		compiler::ResolveMethod(classObject, this::field, methods);
+		if (methods::Size == 0)
+			throw new CompilerException("Unknown field.", location);
+		return new MethodValue(location, regid, methods);
+	}
+}
+
+class ArrayElementNode: Node
+{
+	public Node array;
+	public Node index;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		RegisterValue array = compiler::ToScalar(compiler::CompileList(this::array, freereg, -1))::EnsureRegister(compiler, freereg);
+		if (array::type is ArrayType)
+		{
+			freereg = array::GetNextFreeRegister(freereg);
+			RegisterValue index = compiler::ToScalar(compiler::CompileList(this::index, freereg, -1))
+			::EnsureRegister(compiler, freereg);
+			return new ArrayElementValue(location, array::regid, index::regid, ([ArrayType] array::type)::ElementType);
+		}
+		else
+		{
+			RegisterValue index = compiler::CompileExpression(this::index, freereg + 1, freereg + 1, 0, 0)
+				::EnsureRegister(compiler, freereg + 1);
+			return compiler::CompileCustomBinaryOperator(this, Token::Array, array, index, freereg);
+		}
+	}
+}
+
+class TypeCastNode: Node
+{
+	public ParserType type;
+	public Node operand;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		RegisterValue value = compiler::CompileExpression(operand, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
+		Type type = compiler::ResolveType(this::type);
+		/* HACK: Workaround */
+		if (value::type is PointerType && type is IntType)
+		{
+			value::type = Type::Int;
+			return value;
+		}
+		else if (value::type is PointerType && type is PointerType)
+		{
+			value::type = type;
+			return value;
+		}
+		else if (value::type is PrimitiveType)
+		{
+			/* No boxing/unboxing now */
+			if (type is PrimitiveType)
+			{
+				value::type = type;
+				return value;
+			}
+			else
+				throw new CompilerException("No boxing/unboxing now.", location);
+		}
+		else
+		{
+			compiler::AddCode("cast\t$" + targetreg + ", $" + value::regid + ", " + type::ToString());
+			return new RegisterValue(location, targetreg, type);
+		}
+	}
+}
+
+class DereferenceNode: Node
+{
+	public Node operand;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		RegisterValue value = compiler::CompileExpression(operand, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		/* HACK: Temporary workaround */
+		if (value::type is IntType)
+			return new DerefValue(location, value::regid, Type::Char);
+		else if (value::type is PointerType)
+			return new DerefValue(location, value::regid, ([PointerType] value::type)::ValueType);
+		else
+			throw new CompilerException("Not a pointer.", location);
+	}
+}
+
+class AddressOfNode: Node
+{
+	public Node operand;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		Value value = compiler::CompileExpression(operand, freereg, freereg, 0, 0);
+		/* TODO */
+		Type type;
+		if (value is VariableValue)
+		{
+			VariableValue v = [VariableValue] value;
+			compiler::AddCode("lar\t$" + targetreg + ", $" + v::regid);
+			type = v::type;
+		}
+		else if (value is FieldValue)
+		{
+			FieldValue v = [FieldValue] value;
+			Field field = v::field;
+			if (field::modifier & Modifier::Static > 0)
+				compiler::AddCode("las\t$" + targetreg + ", " + field::classObject::name + "::" + field::name);
+			else
+				compiler::AddCode("laf\t$" + targetreg + ", $" + v::regid + ", " + field::classObject::name + "::" + field::name);
+			type = v::type;
+		}
+		else if (value is ArrayElementValue)
+		{
+			ArrayElementValue v = [ArrayElementValue] value;
+			compiler::AddCode("lae\t$" + targetreg + ", $" + v::regid + "($" + v::regid2 + ")");
+			type = v::type;
+		}
+		else
+			throw new CompilerException("LValue expected.", location);
+		return new RegisterValue(location, targetreg, new PointerType(type));
+	}
+}
+
+class UnaryNode: Node
+{
+	public Node operand;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		RegisterValue value = compiler::CompileExpression(operand, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
+		/* HACK: not */
+		if (value::type is Int32Type)
+		{
+			Core.String inst;
+			if (op == Token::Neg)
+				inst = "negi";
+			else if (op == Token::BitNot)
+				inst = "noti";
+			else
+				throw new CompilerException("Unsupported unary operatior.", location);
+			compiler::AddCode(inst + "\t$" + targetreg + ", $" + value::regid);
+			return new RegisterValue(location, targetreg, value::type);
+		}
+		else
+			throw new CompilerException("Int32 expected.", location); /* TODO */
+	}
+}
+
+class BinNode: Node
+{
+	public Node left, right;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+}
+
+class BinArithNode: BinNode
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		RegisterValue left = compiler::CompileExpression(this::left, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		Value right = compiler::CompileExpression(this::right, freereg + 1, freereg + 1, 0, 0);
+		Core.String inst;
+
+		/* TODO */
+		if ((left::type is IntType || left::type is PointerType) &&
+			(right is IntegerValue || (right is TypedValue && ([TypedValue] right)::type is Int32Type)))
+		{
+			right = right::EnsureRegister(compiler, freereg + 1);
+			if (left::type is PointerType)
+			{
+				Type valueType = ([PointerType] left::type)::ValueType;
+
+				RegisterValue ret = new RegisterValue(location, targetreg, left::type);
+				compiler::AddCode("addp\t$" + targetreg + ", $" + left::regid + ", $" + ([RegisterValue] right)::regid
+					+ ", " + valueType::ToString());
+				return ret;
+			}
+			if (op == Token::Add)
+				inst = "addni";
+			else if (op == Token::Sub)
+				inst = "subni";
+			else
+				throw new CompilerException("Unsupported binary operatior.", location);
+		}
+		/* HACK: not */
+		/* TODO */
+		else if (left::type is PrimitiveType &&
+			(right is ImmediateValue || (right is TypedValue && ([TypedValue] right)::type is PrimitiveType)))
+		{
+			if (op == Token::Add)
+				inst = "add";
+			else if (op == Token::Sub)
+				inst = "sub";
+			else if (op == Token::Mul)
+				inst = "mul";
+			else if (op == Token::Div)
+				inst = "div";
+			else if (op == Token::Rem)
+				inst = "rem";
+			else if (op == Token::BitAnd)
+				inst = "and";
+			else if (op == Token::BitOr)
+				inst = "or";
+			else if (op == Token::BitXor)
+				inst = "xor";
+			else
+				throw new CompilerException("Unsupported binary operatior.", location);
+			Value l;
+			l, right = compiler::UnifyTypes(this, left, right, freereg, freereg + 1);
+			left = l::EnsureRegister(compiler, freereg);
+			inst = inst + left::type::StackType::Suffix;
+		}
+		else
+			return compiler::CompileCustomBinaryOperator(this, op, left, [TypedValue] right, freereg);
+
+		RegisterValue ret = new RegisterValue(location, targetreg, left::type);
+	
+		/* TODO */
+		if (right is IntegerValue && left::type is Int32Type)
+			compiler::AddCode(inst + "\t$" + targetreg + ", $" + left::regid + ", " + ([IntegerValue] right)::value);
+		else
+		{
+			compiler::AddCode(inst + "\t$" + targetreg + ", $" + left::regid + ", $"
+				+ right::EnsureRegister(compiler, freereg + 1)::regid);
+			ret = compiler::FixRawValue(ret, targetreg);
+		}
+		return ret;
+	}
+}
+
+class BinComparisonNode: BinNode
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		jtarget = compiler::FixJumpTarget(jtarget);
+
+		RegisterValue left = compiler::CompileExpression(this::left, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		Value right = compiler::CompileExpression(this::right, freereg + 1, freereg + 1, 0, 0);
+		Core.String inst;
+		/* TODO */
+		if ((left::type is Int32Type || left::type is CharType)
+			&& (right is IntegerValue || (right is TypedValue && left::type::Equals(([TypedValue] right)::type) > 0)))
+		{
+			if (jtrue > 0) /* jump on true */
+			{
+				if (op == Token::LT)
+					inst = "lt";
+				else if (op == Token::LE)
+					inst = "le";
+				else if (op == Token::GT)
+					inst = "gt";
+				else if (op == Token::GE)
+					inst = "ge";
+				else if (op == Token::EQ)
+					inst = "eq";
+				else if (op == Token::NEQ)
+					inst = "neq";
+				else
+					throw new CompilerException("Unsupported comparison operatior.", location);
+			}
+			else /* jump on false */
+			{
+				if (op == Token::LT)
+					inst = "ge";
+				else if (op == Token::LE)
+					inst = "gt";
+				else if (op == Token::GT)
+					inst = "le";
+				else if (op == Token::GE)
+					inst = "lt";
+				else if (op == Token::EQ)
+					inst = "neq";
+				else if (op == Token::NEQ)
+					inst = "eq";
+				else
+					throw new CompilerException("Unsupported comparison operatior.", location);
+			}
+			if (right is IntegerValue && ([IntegerValue] right)::value::Equals("0") > 0)
+				compiler::AddCode("j" + inst + "zi\t$" + left::regid + ", " + compiler::GetLabelName(jtarget));
+			else
+			{
+				RegisterValue r = right::EnsureRegister(compiler, freereg + 1);
+				compiler::AddCode("j" + inst + "i\t$" + left::regid + ", $" + r::regid + ", " + compiler::GetLabelName(jtarget));
+			}
+		}
+		/* HACK: not */
+		/* HACK: null */
+		else if ((left::type is IntType || left::type is ArrayType || left::type is ClassType)
+			&& right is NullValue)
+		{
+			if (jtrue > 0) /* jump on true */
+				if (op == Token::EQ)
+					inst = "jn";
+				else if (op == Token::NEQ)
+					inst = "jnn";
+				else
+					throw new CompilerException("Unsupported comparison operatior.", location);
+			else /* jump on false */
+				if (op == Token::EQ)
+					inst = "jnn";
+				else if (op == Token::NEQ)
+					inst = "jn";
+				else
+					throw new CompilerException("Unsupported comparison operatior.", location);
+			compiler::AddCode(inst + "\t$" + left::regid + ", " + compiler::GetLabelName(jtarget));
+		}
+		else if (op == Token::Is)
+		{
+			/* HACK: not */
+			if (right is TypeValue)
+			{}
+			else
+				throw new CompilerException("Not a type.", location);
+			if (jtrue > 0) /* jump on true */
+				inst = "jinst";
+			else /* jump on false */
+				inst = "jninst";
+			compiler::AddCode(inst + "\t$" + left::regid + ", " + ([TypeValue] right)::type::ToString()
+				+ ", " + compiler::GetLabelName(jtarget));
+		}
+		else
+			throw new CompilerException("Unhandled jcc case.", location);
+		return new JumpTargetValue(location, jtarget);
+	}
+}
+
+class BinLogicNode: BinNode
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		jtarget = compiler::FixJumpTarget(jtarget);
+
+		int32 leftjtrue, rightjtrue;
+		int32 leftjtarget, rightjtarget;
+		/* Calculate jump target of left/right */
+		if (op == Token::And)
+		{
+			if (jtrue > 0)
+			{
+				leftjtrue = 0;
+				leftjtarget = compiler::GetNextLabelId();
+				rightjtrue = 1;
+				rightjtarget = jtarget;
+			}
+			else
+			{
+				leftjtrue = 0;
+				rightjtrue = 0;
+				leftjtarget = rightjtarget = jtarget;
+			}
+		}
+		else if (op == Token::Or)
+		{
+			if (jtrue > 0)
+			{
+				leftjtrue = 1;
+				rightjtrue = 1;
+				leftjtarget = rightjtarget = jtarget;
+			}
+			else
+			{
+				leftjtrue = 1;
+				leftjtarget = compiler::GetNextLabelId();
+				rightjtrue = 0;
+				rightjtarget = jtarget;
+			}
+		}
+		else
+			throw new Core.InvalidOperationException();
+		compiler::CompileExpression(left, freereg, freereg, leftjtarget, leftjtrue)
+			::ToJumpTarget(compiler, freereg, leftjtarget, leftjtrue);
+		compiler::CompileExpression(right, freereg, freereg, rightjtarget, rightjtrue)
+			::ToJumpTarget(compiler, freereg, rightjtarget, rightjtrue);
+		if (leftjtarget != jtarget)
+			compiler::AddLabel(leftjtarget);
+
+		return new JumpTargetValue(location, jtarget);
 	}
 }
 
@@ -106,36 +649,47 @@ class NewNode: Node
 		this::location = location;
 		parameters = new Vector();
 	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		Type t = compiler::ResolveType(type);
+		/* HACK: not */
+		if (t is ClassType)
+		{}
+		else
+			throw new CompilerException("Not a class type", location);
+		ClassType type = [ClassType] t;
+		Class classObject = type::Class;
+		/* HACK */
+		Vector methods = compiler::ResolveMethodInClass(classObject, ".ctor", null);
+		Vector values = new Vector();
+		for (int32 i = 0; i < parameters::Size; i = i + 1)
+		{
+			Value value = compiler::ToScalar(compiler::CompileList([Node] parameters[i], freereg + 2 + i, -1));
+			values::Add(value::EnsureSingleSlot(compiler, freereg + 2 + i));
+		}
+		Method method = compiler::PrepareCall(this, methods, values, freereg + 2);
+		compiler::AddCode("new\t$" + freereg + ", " + compiler::GetMethodSignature(method));
+		return new RegisterValue(location, freereg, type);
+	}
 }
 
-class ArrayElementNode: Node
+class NewArrayNode: Node
 {
-	public Node array;
-	public Node index;
+	public ParserType type;
+	public Node parameter;
 
 	public (Location location)
 	{
 		this::location = location;
 	}
-}
 
-class UnaryNode: Node
-{
-	public Node operand;
-
-	public (Location location)
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		this::location = location;
-	}
-}
-
-class BinNode: Node
-{
-	public Node left, right;
-
-	public (Location location)
-	{
-		this::location = location;
+		RegisterValue value = compiler::ToScalar(compiler::CompileList(parameter, freereg, -1))::ToFreeRegister(compiler, freereg);
+		Type elementType = compiler::ResolveType(type);
+		compiler::AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
+		return new RegisterValue(location, targetreg, new ArrayType(elementType));
 	}
 }
 
@@ -172,17 +726,6 @@ class MultipleNode: Node
 	{
 		this::location = location;
 		nodes = new Vector();
-	}
-}
-
-class TypeCastNode: Node
-{
-	public ParserType type;
-	public Node operand;
-
-	public (Location location)
-	{
-		this::location = location;
 	}
 }
 

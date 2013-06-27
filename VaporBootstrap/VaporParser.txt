@@ -579,14 +579,22 @@ class Parser
 		Node left = ParseObjectAccess();
 		while (lex::token <= Token::BinOp && Token::BinPriority[lex::token] > priority)
 		{
-			BinNode node = new BinNode(GetCurrentLocation());
+			BinNode node;
+			if (lex::token <= Token::BinArith)
+				node = new BinArithNode(GetCurrentLocation());
+			else if (lex::token <= Token::BinComparison)
+				node = new BinComparisonNode(GetCurrentLocation());
+			else if (lex::token <= Token::BinLogic)
+				node = new BinLogicNode(GetCurrentLocation());
+			else
+				node = new BinNode(GetCurrentLocation());
 			node::op = lex::token;
 			node::left = left;
 			lex::Next();
 			/* Parse binary operations with higher priority */
 			node::right = ParseExpression(Token::BinPriority[node::op]);
 
-			left = [Node] node;
+			left = node;
 		}
 		return left;
 	}
@@ -672,6 +680,22 @@ class Parser
 			node::operand = ParseObjectAccess();
 			return node;
 		}
+		else if (lex::token == Token::Star)
+		{
+			DereferenceNode node = new DereferenceNode(GetCurrentLocation());
+			node::op = Token::Star;
+			lex::Next();
+			node::operand = ParseObjectAccess();
+			return node;
+		}
+		else if (lex::token == Token::AddressOf)
+		{
+			AddressOfNode node = new AddressOfNode(GetCurrentLocation());
+			node::op = Token::AddressOf;
+			lex::Next();
+			node::operand = ParseObjectAccess();
+			return node;
+		}
 		else if (lex::token == Token::PLeft)
 		{
 			lex::Next();
@@ -694,18 +718,22 @@ class Parser
 		else if (lex::token == Token::New)
 		{
 			lex::Next();
-			NewNode node = new NewNode(GetCurrentLocation());
-			node::type = ParseType();
+			ParserType type = ParseType();
 			if (lex::token == Token::SLeft)
 			{
-				lex::Next();
+				NewArrayNode node = new NewArrayNode(GetCurrentLocation());
+				node::type = type;
 				node::op = Token::NewArray;
-				node::parameters::Add([Core.Object] ParseList());
+				lex::Next();
+				node::parameter = ParseList();
 				lex::Assert(Token::SRight);
 				lex::Next();
+				return node;
 			}
 			else
 			{
+				NewNode node = new NewNode(GetCurrentLocation());
+				node::type = type;
 				lex::Assert(Token::PLeft);
 				lex::Next();
 				node::op = Token::New;
@@ -726,20 +754,20 @@ class Parser
 					}
 				}
 				lex::Next();
+				return node;
 			}
-			return node;
 		}
 		else if (lex::token == Token::This)
 		{
 			lex::Next();
-			Node node = new Node(GetCurrentLocation());
+			Node node = new ThisNode(GetCurrentLocation());
 			node::op = Token::This;
 			return node;
 		}
 		else if (lex::token == Token::Null)
 		{
 			lex::Next();
-			Node node = new Node(GetCurrentLocation());
+			Node node = new NullNode(GetCurrentLocation());
 			node::op = Token::Null;
 			return node;
 		}
