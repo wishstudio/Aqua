@@ -30,13 +30,13 @@ class Core.Int32
 		int32 ret = 0;
 		if ([int32] string[0] == '-')
 		{
-			for (int32 i = 1; i < string::.getLength(); i = i + 1)
+			for (int32 i = 1; i < string::Length; i = i + 1)
 				ret = ret * 10 - ([int32] string[i] - '0');
 			return ret;
 		}
 		else
 		{
-			for (int32 i = 0; i < string::.getLength(); i = i + 1)
+			for (int32 i = 0; i < string::Length; i = i + 1)
 				ret = ret * 10 + [int32] string[i] - '0';
 			return ret;
 		}

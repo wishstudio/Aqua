@@ -38,7 +38,7 @@ class Vapor
 			outFS,
 			new Core.Encoding(65001)
 		);
-		for (int32 i = 0; i < compiler::code::.getSize(); i = i + 1)
+		for (int32 i = 0; i < compiler::code::Size; i = i + 1)
 		{
 			out::Write([Core.String] compiler::code[i]);
 			out::Write("\r\n");

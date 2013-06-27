@@ -485,7 +485,7 @@ class Parser
 				lex::Next();
 				node::finallyNode = ParseStatement();
 			}
-			if (node::catchNodes::.getSize() == 0 && node::finallyNode == null)
+			if (node::catchNodes::Size == 0 && node::finallyNode == null)
 				throw new Core.Exception(); /* TODO */
 			return node;
 		}

@@ -7,7 +7,7 @@ class Core.String
 
 	private static function CopyStringData(Core.String dest, int32 destPos, Core.String source, int32 sourcePos, int32 length)
 	{
-		Core.Native.Memory::CopyMemory(dest::.getRawData() + destPos * 2, source::.getRawData() + sourcePos * 2, length * 2);
+		Core.Native.Memory::CopyMemory(dest::RawData + destPos * 2, source::RawData + sourcePos * 2, length * 2);
 	}
 
 	public static function FromCharBuffer(int buffer, int32 length) -> Core.String
@@ -56,9 +56,9 @@ class Core.String
 
 	public static operator + (Core.String left, Core.String right) -> Core.String
 	{
-		Core.String ret = Core.String::AllocateString(left::.getLength() + right::.getLength());
-		Core.String::CopyStringData(ret, 0, left, 0, left::.getLength());
-		Core.String::CopyStringData(ret, left::.getLength(), right, 0, right::.getLength());
+		Core.String ret = Core.String::AllocateString(left::Length + right::Length);
+		Core.String::CopyStringData(ret, 0, left, 0, left::Length);
+		Core.String::CopyStringData(ret, left::Length, right, 0, right::Length);
 		return ret;
 	}
 
@@ -77,13 +77,13 @@ class Core.String
 		return *([int] &string::firstChar + index * 2);
 	}
 
-	public function .getLength() -> int32
+	public int32 Length
 	{
-		return length;
+		get { return length; }
 	}
 
-	public function .getRawData() -> int
+	public int RawData
 	{
-		return &firstChar;
+		get { return &firstChar; }
 	}
 }

@@ -80,7 +80,7 @@ class Lexer
 	/* Record current token */
 	public function RecordToken()
 	{
-		if (recordPosition < rollbackToken::.getSize())
+		if (recordPosition < rollbackToken::Size)
 		{
 			rollbackToken::Set(recordPosition, [Core.Object] Core.Int32::ToString(token));
 			rollbackIdent::Set(recordPosition, [Core.Object] ident);

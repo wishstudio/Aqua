@@ -9,24 +9,27 @@ class Core.Console
 
 	public static function Write(Core.String text)
 	{
-		.getOutputStream()::Write(text);
-		.getOutputStream()::Flush();
+		OutputStream::Write(text);
+		OutputStream::Flush();
 	}
 
 	public static function WriteLine(Core.String text)
 	{
-		.getOutputStream()::Write(text);
-		.getOutputStream()::Write("\n");
-		.getOutputStream()::Flush();
+		OutputStream::Write(text);
+		OutputStream::Write("\n");
+		OutputStream::Flush();
 	}
 
-	private static function .getOutputStream() -> Core.StreamWriter
+	private Core.StreamWriter OutputStream
 	{
-		if (out == null)
-			out = new Core.StreamWriter(
-				new Core.FileStream("CONOUT$", 2),
-				new Core.Encoding(Core.Native.Win32::GetConsoleOutputCP())
-			);
-		return out;
+		get
+		{
+			if (out == null)
+				out = new Core.StreamWriter(
+					new Core.FileStream("CONOUT$", 2),
+					new Core.Encoding(Core.Native.Win32::GetConsoleOutputCP())
+				);
+			return out;
+		}
 	}
 }

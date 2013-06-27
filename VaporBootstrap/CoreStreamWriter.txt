@@ -26,7 +26,7 @@ class Core.StreamWriter
 
 	public function Write(Core.String string)
 	{
-		int32 current = 0, length = string::.getLength();
+		int32 current = 0, length = string::Length;
 		while (current < length)
 		{
 			int32 count = Core.Math::Min(length - current, bufferSize - currentBufferPos);

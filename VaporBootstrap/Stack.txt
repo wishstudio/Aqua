@@ -11,7 +11,7 @@ class Stack
 
 	public function Push(Core.Object item)
 	{
-		if (size == data::.getSize())
+		if (size == data::Size)
 			data::Add(item);
 		else
 			data::Set(size, item);
@@ -33,8 +33,8 @@ class Stack
 		return data[size - 1];
 	}
 
-	public function .getSize() -> int32
+	public int32 Size
 	{
-		return size;
+		get { return size; }
 	}
 }

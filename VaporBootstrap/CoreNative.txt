@@ -2,7 +2,7 @@ class Core.Native.Converter
 {
 	static public function ToWCharPtr(Core.String string) -> int
 	{
-		return string::.getRawData();
+		return string::RawData;
 	}
 }
 

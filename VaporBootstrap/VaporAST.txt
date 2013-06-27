@@ -362,7 +362,7 @@ class Modifier
 	{
 		/* FIXME: Accessing private members */
 		Core.String ret = "";
-		for (int32 i = 0; i < hash::.getSize(); i = i + 1)
+		for (int32 i = 0; i < hash::Size; i = i + 1)
 			if (modifier & Core.Int32::Parse([Core.String] hash::values[i]) > 0)
 				if (ret::Equals("") > 0)
 					ret = ret + [Core.String] hash::keys[i];

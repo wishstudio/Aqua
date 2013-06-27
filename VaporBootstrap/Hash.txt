@@ -41,8 +41,8 @@ class Hash
 		throw new Core.KeyNotFoundException();
 	}
 
-	public function .getSize() -> int32
+	public int32 Size
 	{
-		return keys::.getSize();
+		get { return keys::Size; }
 	}
 }

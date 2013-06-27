@@ -113,7 +113,7 @@ class Compiler
 
 	private function FindSymbol(Core.String name) -> Variable, int32
 	{
-		for (int32 i = symbolTable::.getSize() - 1; i >= 0; i = i - 1)
+		for (int32 i = symbolTable::Size - 1; i >= 0; i = i - 1)
 		{
 			int32 found;
 			Core.Object ret;
@@ -160,7 +160,7 @@ class Compiler
 	
 	private function ToScalar(Vector values) -> Value
 	{
-		if (values::.getSize() == 0)
+		if (values::Size == 0)
 			throw new Core.Exception(); /* TODO */
 		return [Value] values[0];
 	}
@@ -176,7 +176,7 @@ class Compiler
 	{
 		/* Set class::baseClass */
 		/* HACK: iterator */
-		for (int32 i = 0; i < classes::.getSize(); i = i + 1)
+		for (int32 i = 0; i < classes::Size; i = i + 1)
 		{
 			Class current = [Class] classes::values[i];
 			if (current::baseName::Equals("") == 0)
@@ -192,7 +192,7 @@ class Compiler
 
 		tab = 0;
 		Vector classes = this::classes::values;
-		for (int32 i = 0; i < classes::.getSize(); i = i + 1)
+		for (int32 i = 0; i < classes::Size; i = i + 1)
 		{
 			currentClass = [Class] classes[i];
 			if (currentClass::baseClass == null)
@@ -203,15 +203,15 @@ class Compiler
 			Tab();
 
 			Vector fields = currentClass::fields::values;
-			for (int32 j = 0; j < fields::.getSize(); j = j + 1)
+			for (int32 j = 0; j < fields::Size; j = j + 1)
 				CompileField([Field] fields[j]);
 
 			Vector properties = currentClass::properties::values;
-			for (int32 j = 0; j < properties::.getSize(); j = j + 1)
+			for (int32 j = 0; j < properties::Size; j = j + 1)
 				CompileProperty([Property] properties[j]);
 
 			Vector methods = currentClass::methods::values;
-			for (int32 j = 0; j < methods::.getSize(); j = j + 1)
+			for (int32 j = 0; j < methods::Size; j = j + 1)
 				CompileMethod([Method] methods[j]);
 
 			Untab();
@@ -222,7 +222,7 @@ class Compiler
 	private function CompileField(Field field)
 	{
 		Core.String modifier = Modifier::ToString(field::modifier);
-		if (modifier::.getLength() > 0)
+		if (modifier::Length > 0)
 			modifier = modifier + " ";
 		AddCode(".field " + modifier + ResolveType(field::type)::ToString() + " " + field::name);
 	}
@@ -230,7 +230,7 @@ class Compiler
 	private function CompileProperty(Property property)
 	{
 		Core.String modifier = Modifier::ToString(property::modifier);
-		if (modifier::.getLength() > 0)
+		if (modifier::Length > 0)
 			modifier = modifier + " ";
 		AddCode(".property " + modifier + ResolveType(property::type)::ToString() + " " + property::name);
 		if (property::getter != null)
@@ -242,7 +242,7 @@ class Compiler
 	private function CompileMethod(Method method)
 	{
 		Core.String modifier = Modifier::ToString(method::modifier);
-		if (modifier::.getLength() > 0)
+		if (modifier::Length > 0)
 			modifier = modifier + " ";
 
 		AddCode(".method " + modifier + "function " + method::name + ResolvePrototype(method));
@@ -271,7 +271,7 @@ class Compiler
 					Vector methods = c::methods::FindAll(method::name);
 					/* HACK: bool */
 					int32 done = 0;
-					for (int32 i = 0; i < methods::.getSize(); i = i + 1)
+					for (int32 i = 0; i < methods::Size; i = i + 1)
 					{
 						Method another = [Method] methods[i];
 						if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
@@ -310,7 +310,7 @@ class Compiler
 			if (method::modifier & Modifier::Static == 0)
 				freereg = freereg + 1;
 
-			for (int32 i = 0; i < method::paramNames::.getSize(); i = i + 1)
+			for (int32 i = 0; i < method::paramNames::Size; i = i + 1)
 			{
 				Core.String name = [Core.String] method::paramNames[i];
 				if (name::Equals("") == 0)
@@ -321,9 +321,9 @@ class Compiler
 					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
 				}
 			}
-			freereg = freereg + method::paramNames::.getSize();
+			freereg = freereg + method::paramNames::Size;
 			context::firstReturnRegister = freereg;
-			for (int32 i = 0; i < method::returnNames::.getSize(); i = i + 1)
+			for (int32 i = 0; i < method::returnNames::Size; i = i + 1)
 			{
 				Core.String name = [Core.String] method::returnNames[i];
 				if (name::Equals("") == 0)
@@ -334,7 +334,7 @@ class Compiler
 					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
 				}
 			}
-			freereg = freereg + method::returnNames::.getSize();
+			freereg = freereg + method::returnNames::Size;
 
 			currentMethod = method;
 			currentLabelId = 1;
@@ -344,13 +344,13 @@ class Compiler
 				if (context::generateEpilogue > 0)
 					AddStringLabel("_Epilogue");
 				/* Unclosed statement block, insert return statement manually */
-				if (method::returnNames::.getSize() == 0)
+				if (method::returnNames::Size == 0)
 					AddCode("ret");
-				else if (method::returnNames::.getSize() == 1)
+				else if (method::returnNames::Size == 1)
 					AddCode("ret\t$" + context::firstReturnRegister);
 				else
 					AddCode("ret\t$" + context::firstReturnRegister + ", $"
-						+ (context::firstReturnRegister + method::returnTypes::.getSize()));
+						+ (context::firstReturnRegister + method::returnTypes::Size));
 			}
 
 			PopSymbolStack();
@@ -368,7 +368,7 @@ class Compiler
 			PushSymbolStack();
 			int32 closed = 0, _freereg = freereg;
 			MultipleNode mnode = [MultipleNode] node;
-			for (int32 i = 0; i < mnode::nodes::.getSize(); i = i + 1)
+			for (int32 i = 0; i < mnode::nodes::Size; i = i + 1)
 				closed, _freereg = CompileStatement([Node] mnode::nodes[i], _freereg, context);
 			PopSymbolStack();
 			return closed, freereg;
@@ -376,7 +376,7 @@ class Compiler
 		else if (node::op == Token::Definition)
 		{
 			DefinitionNode dnode = [DefinitionNode] node;
-			for (int32 i = 0; i < dnode::names::.getSize(); i = i + 1)
+			for (int32 i = 0; i < dnode::names::Size; i = i + 1)
 			{
 				Variable variable = new Variable();
 				variable::regid = freereg;
@@ -533,7 +533,7 @@ class Compiler
 		else if (node::op == Token::Return)
 		{
 			ReturnNode rnode = [ReturnNode] node;
-			if (rnode::values::.getSize() != currentMethod::returnTypes::.getSize() && rnode::values::.getSize() != 0)
+			if (rnode::values::Size != currentMethod::returnTypes::Size && rnode::values::Size != 0)
 				throw new CompilerException("Unmatched number of return values.", node::location);
 			if (context::finallyLevel > 0)
 				throw new CompilerException("Control cannot go out of the finally block.", node::location);
@@ -541,7 +541,7 @@ class Compiler
 			{
 				/* We are inside a try finally block */
 				/* First, save supplied return values into return registers */
-				for (int32 i = 0; i < rnode::values::.getSize(); i = i + 1)
+				for (int32 i = 0; i < rnode::values::Size; i = i + 1)
 				{
 					Node vnode = [Node] rnode::values[i];
 					/* TODO: Type */
@@ -556,11 +556,11 @@ class Compiler
 			else
 			{
 				/* Normal return */
-				if (currentMethod::returnTypes::.getSize() == 0)
+				if (currentMethod::returnTypes::Size == 0)
 					AddCode("ret");
-				else if (currentMethod::returnTypes::.getSize() == 1)
+				else if (currentMethod::returnTypes::Size == 1)
 				{
-					if (rnode::values::.getSize() == 0)
+					if (rnode::values::Size == 0)
 						AddCode("ret\t$" + context::firstReturnRegister);
 					else
 					{
@@ -571,19 +571,19 @@ class Compiler
 				}
 				else
 				{
-					if (rnode::values::.getSize() == 0)
+					if (rnode::values::Size == 0)
 						AddCode("ret\t$" + context::firstReturnRegister + ", $"
-							+ (context::firstReturnRegister + currentMethod::returnTypes::.getSize() - 1));
+							+ (context::firstReturnRegister + currentMethod::returnTypes::Size - 1));
 					else
 					{
-						for (int32 i = 0; i < rnode::values::.getSize(); i = i + 1)
+						for (int32 i = 0; i < rnode::values::Size; i = i + 1)
 						{
 							Node vnode = [Node] rnode::values[i];
 							/* TODO: Type */
 							CompileExpression(vnode, freereg + i, freereg + i, 0, 0)
 								::ToFreeRegister(this, freereg + i);
 						}
-						AddCode("ret\t$" + freereg + ", $" + (freereg + rnode::values::.getSize() - 1));
+						AddCode("ret\t$" + freereg + ", $" + (freereg + rnode::values::Size - 1));
 					}
 				}
 			}
@@ -641,7 +641,7 @@ class Compiler
 					AddCode("leave\t" + GetLabelName(endTarget));
 			Untab();
 			AddCode("}");
-			for (int32 i = 0; i < tnode::catchNodes::.getSize(); i = i + 1)
+			for (int32 i = 0; i < tnode::catchNodes::Size; i = i + 1)
 			{
 				CatchNode cnode = [CatchNode] tnode::catchNodes[i];
 				AddCode(".catch(" + ResolveType(cnode::type)::ToString() + " $" + freereg + ") {");
@@ -704,17 +704,17 @@ class Compiler
 		{
 			ListNode lnode = [ListNode] node;
 			Vector ret = new Vector();
-			for (int32 i = 0; i < lnode::values::.getSize(); i = i + 1)
+			for (int32 i = 0; i < lnode::values::Size; i = i + 1)
 			{
 				Node node = [Node] lnode::values[i];
-				int32 reg = freereg + ret::.getSize();
+				int32 reg = freereg + ret::Size;
 				if (node::op == Token::Call)
 				{
 					Vector r = CompileCall(node, reg);
-					for (int32 j = 0; j < r::.getSize(); j = j + 1)
+					for (int32 j = 0; j < r::Size; j = j + 1)
 						ret::Add(r[j]);
 				}
-				else if (lastreg != -1 && i + 1 == lnode::values::.getSize()) /* Last scalar */
+				else if (lastreg != -1 && i + 1 == lnode::values::Size) /* Last scalar */
 					ret::Add([Core.Object] CompileExpression(node, reg, lastreg, 0, 0)::EnsureRegister(this, lastreg));
 				else /* Ensure value is a register at stack position */
 					ret::Add([Core.Object] CompileExpression(node, reg, reg, 0, 0)::ToFreeRegister(this, reg));
@@ -747,7 +747,7 @@ class Compiler
 			{
 				Vector left = new Vector();
 				ListNode lnode = [ListNode] bnode::left;
-				for (int32 i = 0; i < lnode::values::.getSize(); i = i + 1)
+				for (int32 i = 0; i < lnode::values::Size; i = i + 1)
 				{
 					Value value = CompileExpression([Node] lnode::values[i], freereg, freereg, 0, 0);
 					freereg = value::GetNextFreeRegister(freereg);
@@ -761,15 +761,15 @@ class Compiler
 
 				/* Optimize: if last element of 'left' is a variable,
 				   directly store corresponding result in 'right' to that register */
-				if (left[left::.getSize() - 1] is VariableValue)
-					lastreg = ([VariableValue] left[left::.getSize() - 1])::regid;
+				if (left[left::Size - 1] is VariableValue)
+					lastreg = ([VariableValue] left[left::Size - 1])::regid;
 				else
 					lastreg = -1;
 				Vector right = CompileList(bnode::right, freereg, lastreg);
-				if (left::.getSize() != right::.getSize())
+				if (left::Size != right::Size)
 					throw new CompilerException("List size unmatch.", node::location);
 				/* Move results to left, note the last one must be copied first, due to the optimization above */
-				for (int32 i = left::.getSize() - 1; i >= 0; i = i - 1)
+				for (int32 i = left::Size - 1; i >= 0; i = i - 1)
 					([Value] right[i])::ToLValue(this, [LValue] left[i], freereg);
 				return left;
 			}
@@ -827,7 +827,7 @@ class Compiler
 	private function FixRawValue(RegisterValue value, int32 targetreg) -> RegisterValue
 	{
 		/* TODO: Immediate value */
-		Type stackType = value::type::.getStackType();
+		Type stackType = value::type::StackType;
 		if (value::type::Equals(stackType) == 0)
 		{
 			RegisterValue ret = value::EnsureRegister(this, targetreg);
@@ -857,7 +857,7 @@ class Compiler
 				right = right::EnsureRegister(this, freereg + 1);
 				if (left::type is PointerType)
 				{
-					Type valueType = ([PointerType] left::type)::.getValueType();
+					Type valueType = ([PointerType] left::type)::ValueType;
 
 					RegisterValue ret = new RegisterValue(bnode::location, targetreg, left::type);
 					AddCode("addp\t$" + targetreg + ", $" + left::regid + ", $" + ([RegisterValue] right)::regid
@@ -897,7 +897,7 @@ class Compiler
 				Value l;
 				l, right = UnifyTypes(node, left, right, freereg, freereg + 1);
 				left = l::EnsureRegister(this, freereg);
-				inst = inst + left::type::.getStackType()::.getSuffix();
+				inst = inst + left::type::StackType::Suffix;
 			}
 			else
 				return CompileCustomBinaryOperator(node, bnode::op, left, [TypedValue] right, freereg);
@@ -1070,7 +1070,7 @@ class Compiler
 				if (value::type is IntType)
 					return new DerefValue(unode::location, value::regid, Type::Char);
 				else if (value::type is PointerType)
-					return new DerefValue(unode::location, value::regid, ([PointerType] value::type)::.getValueType());
+					return new DerefValue(unode::location, value::regid, ([PointerType] value::type)::ValueType);
 				else
 					throw new CompilerException("Not a pointer.", node::location);
 			}
@@ -1135,11 +1135,11 @@ class Compiler
 			else
 				throw new CompilerException("Not a class type", nnode::location);
 			ClassType type = [ClassType] t;
-			Class classObject = type::.getClass();
+			Class classObject = type::Class;
 			/* HACK */
 			Vector methods = ResolveMethodInClass(classObject, ".ctor", null);
 			Vector values = new Vector();
-			for (int32 i = 0; i < nnode::parameters::.getSize(); i = i + 1)
+			for (int32 i = 0; i < nnode::parameters::Size; i = i + 1)
 			{
 				Value value = ToScalar(CompileList([Node] nnode::parameters[i], freereg + 2 + i, -1));
 				values::Add(value::EnsureSingleSlot(this, freereg + 2 + i));
@@ -1151,7 +1151,7 @@ class Compiler
 		else if (node::op == Token::NewArray)
 		{
 			NewNode nnode = [NewNode] node;
-			if (nnode::parameters::.getSize() != 1)
+			if (nnode::parameters::Size != 1)
 				throw new CompilerException("Currently only 1 dim array supported.", node::location);
 
 			RegisterValue value = ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1))::ToFreeRegister(this, freereg);
@@ -1204,8 +1204,7 @@ class Compiler
 			{
 				freereg = array::GetNextFreeRegister(freereg);
 				RegisterValue index = ToScalar(CompileList(anode::index, freereg, -1))::EnsureRegister(this, freereg);
-				return new ArrayElementValue(anode::location, array::regid, index::regid,
-					([ArrayType] array::type)::.getElementType());
+				return new ArrayElementValue(anode::location, array::regid, index::regid, ([ArrayType] array::type)::ElementType);
 			}
 			else
 			{
@@ -1242,7 +1241,7 @@ class Compiler
 
 			/* HACK: not */
 			if (type is ClassType)
-				classObject = ([ClassType] type)::.getClass();
+				classObject = ([ClassType] type)::Class;
 			else
 				throw new CompilerException("Not an object or class.", fnode::object::location);
 
@@ -1257,7 +1256,7 @@ class Compiler
 			/* HACK */
 			Vector methods = new Vector();
 			ResolveMethod(classObject, fnode::field, methods);
-			if (methods::.getSize() == 0)
+			if (methods::Size == 0)
 				throw new CompilerException("Unknown field.", node::location);
 			return new MethodValue(fnode::location, regid, methods);
 		}
@@ -1282,7 +1281,7 @@ class Compiler
 			/* HACK */
 			Vector methods = new Vector();
 			ResolveMethod(currentClass, inode::ident, methods);
-			if (methods::.getSize() > 0)
+			if (methods::Size > 0)
 				return new MethodValue(inode::location, 0, methods);
 
 			Core.Object classObject;
@@ -1345,7 +1344,7 @@ class Compiler
 
 		/* Evaluate parameters */
 		Vector values = new Vector();
-		for (int32 i = 0; i < cnode::parameters::.getSize(); i = i + 1)
+		for (int32 i = 0; i < cnode::parameters::Size; i = i + 1)
 		{
 			Value value = ToScalar(CompileList([Node] cnode::parameters[i], firstreg + i, -1));
 			values::Add([Core.Object] value::EnsureSingleSlot(this, firstreg + i));
@@ -1363,7 +1362,7 @@ class Compiler
 
 		/* Return value */
 		Vector ret = new Vector();
-		for (int32 i = 0; i < method::returnTypes::.getSize(); i = i + 1)
+		for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
 			ret::Add([Core.Object] new RegisterValue(cnode::location, freereg + i,
 				ResolveType([ParserType] method::returnTypes[i])));
 		return ret;
@@ -1380,9 +1379,9 @@ class Compiler
 
 		Vector methods = new Vector();
 		if (l::type is ClassType)
-			ResolveMethod(([ClassType] l::type)::.getClass(), methodName, methods);
+			ResolveMethod(([ClassType] l::type)::Class, methodName, methods);
 		if (r::type is ClassType)
-			ResolveMethod(([ClassType] r::type)::.getClass(), methodName, methods);
+			ResolveMethod(([ClassType] r::type)::Class, methodName, methods);
 
 		Vector values = new Vector();
 		values::Add(l);
@@ -1414,10 +1413,10 @@ class Compiler
 			return Type::Char;
 		else if (type::Equals("int") > 0)
 			return Type::Int;
-		else if (type::SubString(type::.getLength() - 2, 2)::Equals("[]") > 0)
-			return new ArrayType(ResolveParserType(location, type::SubString(0, type::.getLength() - 2)));
-		else if (type::SubString(type::.getLength() - 1, 1)::Equals("*") > 0)
-			return new PointerType(ResolveParserType(location, type::SubString(0, type::.getLength() - 1)));
+		else if (type::SubString(type::Length - 2, 2)::Equals("[]") > 0)
+			return new ArrayType(ResolveParserType(location, type::SubString(0, type::Length - 2)));
+		else if (type::SubString(type::Length - 1, 1)::Equals("*") > 0)
+			return new PointerType(ResolveParserType(location, type::SubString(0, type::Length - 1)));
 		else
 		{
 			Core.Object c;
@@ -1442,7 +1441,7 @@ class Compiler
 		{
 			/* Concatenate prototype string */
 			Core.String prototype = "(";
-			for (int32 i = 0; i < method::paramTypes::.getSize(); i = i + 1)
+			for (int32 i = 0; i < method::paramTypes::Size; i = i + 1)
 			{
 				if (i == 0)
 					prototype = prototype + ResolveType([ParserType] method::paramTypes[i])::ToString();
@@ -1450,10 +1449,10 @@ class Compiler
 					prototype = prototype + ", " + ResolveType([ParserType] method::paramTypes[i])::ToString();
 			}
 			prototype = prototype + ")";
-			if (method::returnTypes::.getSize() > 0)
+			if (method::returnTypes::Size > 0)
 			{
 				prototype = prototype + " -> ";
-				for (int32 i = 0; i < method::returnTypes::.getSize(); i = i + 1)
+				for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
 				{
 					if (i == 0)
 						prototype = prototype + ResolveType([ParserType] method::returnTypes[i])::ToString();
@@ -1517,7 +1516,7 @@ class Compiler
 		if (methods == null)
 			methods = new Vector();
 		Vector current = classObject::methods::FindAll(name);
-		for (int32 i = 0; i < current::.getSize(); i = i + 1)
+		for (int32 i = 0; i < current::Size; i = i + 1)
 		{
 			Method method = [Method] current[i];
 			if (method::modifier & Modifier::Override == 0) /* Do not include overridden methods */
@@ -1525,7 +1524,7 @@ class Compiler
 				/* HACK: bool */
 				int32 ok = 1;
 				/* Make sure this method is not overridden by a subclass method */
-				for (int32 j = 0; j < methods::.getSize(); j = j + 1)
+				for (int32 j = 0; j < methods::Size; j = j + 1)
 				{
 					Method another = [Method] methods[j];
 					if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
@@ -1548,14 +1547,14 @@ class Compiler
 	{
 		Vector candidates = new Vector();
 		/* Check valid candidates */
-		for (int32 i = 0; i < methods::.getSize(); i = i + 1)
+		for (int32 i = 0; i < methods::Size; i = i + 1)
 		{
 			Method method = [Method] methods[i];
-			if (method::paramTypes::.getSize() == values::.getSize())
+			if (method::paramTypes::Size == values::Size)
 			{
 				/* HACK: bool */
 				int32 ok = 1;
-				for (int32 j = 0; j < method::paramTypes::.getSize(); j = j + 1)
+				for (int32 j = 0; j < method::paramTypes::Size; j = j + 1)
 					if (([Value] values[j])::CanImplicitlyConvertTo(ResolveType([ParserType] method::paramTypes[j])) == 0)
 					{
 						ok = 0;
@@ -1567,7 +1566,7 @@ class Compiler
 		}
 		Method method = ChooseBestMethod(node, candidates, values);
 		/* Prepare values */
-		for (int32 i = 0; i < values::.getSize(); i = i + 1)
+		for (int32 i = 0; i < values::Size; i = i + 1)
 			([Value] values[i])::ToTypedRegister(
 				this, firstreg + i, firstreg + i, ResolveType([ParserType] method::paramTypes[i])
 			);
@@ -1586,20 +1585,20 @@ class Compiler
 	 */
 	private function ChooseBestMethod(Node node, Vector methods, Vector values) -> Method
 	{
-		if (methods::.getSize() == 0)
+		if (methods::Size == 0)
 			throw new CompilerException("No method prototype match type of given parameters.", node::location);
-		for (int32 i = 0; i < methods::.getSize(); i = i + 1)
+		for (int32 i = 0; i < methods::Size; i = i + 1)
 		{
 			Method current = [Method] methods[i];
 			/* HACK: bool */
 			int32 ok = 1;
-			for (int32 j = 0; j < methods::.getSize(); j = j + 1)
+			for (int32 j = 0; j < methods::Size; j = j + 1)
 				if (i != j)
 				{
 					Method another = [Method] methods[j];
 					/* HACK: bool */
 					int32 better = 0;
-					for (int32 k = 0; k < values::.getSize(); k = k + 1)
+					for (int32 k = 0; k < values::Size; k = k + 1)
 					{
 						Type S = Type::Unit;
 						if (values[k] is TypedValue)

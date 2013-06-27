@@ -40,8 +40,8 @@ class Vector
 		size = size + 1;
 	}
 
-	public function .getSize() -> int32
+	public int32 Size
 	{
-		return size;
+		get { return size; }
 	}
 }

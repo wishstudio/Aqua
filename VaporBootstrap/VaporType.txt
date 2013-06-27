@@ -5,11 +5,11 @@ class Type
 
 	public abstract function ToString() -> Core.String;
 
-	public abstract function .getSuffix() -> Core.String;
+	public abstract Core.String Suffix { get; }
 
-	public virtual function .getStackType() -> Type
+	public virtual Type StackType
 	{
-		return this;
+		get { return this; }
 	}
 
 	/* HACK: bool */
@@ -48,14 +48,14 @@ class UnitType: Type
 		return "unit";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		throw new Core.InvalidOperationException();
+		get { throw new Core.InvalidOperationException(); }
 	}
 
-	public override function .getStackType() -> Type
+	public override Type StackType
 	{
-		throw new Core.InvalidOperationException();
+		get { throw new Core.InvalidOperationException(); }
 	}
 }
 
@@ -77,14 +77,14 @@ class BoolType: PrimitiveType
 		return "bool";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "ub";
+		get { return "ub"; }
 	}
 
-	public override function .getStackType() -> Type
+	public override Type StackType
 	{
-		return Type::Int32;
+		get { return Type::Int32; }
 	}
 }
 
@@ -102,14 +102,14 @@ class Int8Type: PrimitiveType
 		return "int8";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "b";
+		get { return "b"; }
 	}
 
-	public override function .getStackType() -> Type
+	public override Type StackType
 	{
-		return Type::Int32;
+		get { return Type::Int32; }
 	}
 }
 
@@ -127,14 +127,14 @@ class UInt8Type: PrimitiveType
 		return "uint8";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "ub";
+		get { return "ub"; }
 	}
 
-	public override function .getStackType() -> Type
+	public override Type StackType
 	{
-		return Type::UInt32;
+		get { return Type::UInt32; }
 	}
 }
 
@@ -152,14 +152,14 @@ class Int16Type: PrimitiveType
 		return "int16";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "w";
+		get { return "w"; }
 	}
 
-	public override function .getStackType() -> Type
+	public override Type StackType
 	{
-		return Type::Int32;
+		get { return Type::Int32; }
 	}
 }
 
@@ -177,14 +177,14 @@ class UInt16Type: PrimitiveType
 		return "uint16";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "uw";
+		get { return "uw"; }
 	}
 
-	public override function .getStackType() -> Type
+	public override Type StackType
 	{
-		return Type::UInt32;
+		get { return Type::UInt32; }
 	}
 }
 
@@ -202,14 +202,14 @@ class CharType: PrimitiveType
 		return "char";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "uw";
+		get { return "uw"; }
 	}
 
-	public override function .getStackType() -> Type
+	public override Type StackType
 	{
-		return Type::Int32;
+		get { return Type::UInt32; }
 	}
 }
 
@@ -227,9 +227,9 @@ class Int32Type: PrimitiveType
 		return "int32";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "i";
+		get { return "i"; }
 	}
 }
 
@@ -247,9 +247,9 @@ class UInt32Type: PrimitiveType
 		return "uint32";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "u";
+		get { return "u"; }
 	}
 }
 
@@ -268,9 +268,9 @@ class IntType: PrimitiveType
 		return "int";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "a";
+		get { return "a"; }
 	}
 }
 
@@ -286,7 +286,7 @@ class PointerType: Type
 	public override function CanImplicitlyConvertTo(Type type) -> int32
 	{
 		if (type is PointerType &&
-			([PointerType] type)::.getValueType()::Equals(valueType) > 0 || ([PointerType] type)::.getValueType() is UnitType)
+			([PointerType] type)::ValueType::Equals(valueType) > 0 || ([PointerType] type)::ValueType is UnitType)
 			return 1;
 		/* HACK: Temporary workaround */
 		if (type is IntType)
@@ -299,14 +299,14 @@ class PointerType: Type
 		return valueType::ToString() + "*";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "a";
+		get { return "a"; }
 	}
 
-	public function .getValueType() -> Type
+	public Type ValueType
 	{
-		return valueType;
+		get { return valueType; }
 	}
 }
 
@@ -321,7 +321,7 @@ class ArrayType: Type
 
 	public override function CanImplicitlyConvertTo(Type type) -> int32
 	{
-		if (type is ArrayType && ([ArrayType] type)::.getElementType()::Equals(elementType) > 0)
+		if (type is ArrayType && ([ArrayType] type)::ElementType::Equals(elementType) > 0)
 			return 1;
 		return 0;
 	}
@@ -331,14 +331,14 @@ class ArrayType: Type
 		return elementType::ToString() + "[]";
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "a";
+		get { return "a"; }
 	}
 
-	public function .getElementType() -> Type
+	public Type ElementType
 	{
-		return elementType;
+		get { return elementType; }
 	}
 }
 
@@ -355,7 +355,7 @@ class ClassType: Type
 	{
 		if (type is ClassType)
 		{
-			Class dst = ([ClassType] type)::.getClass();
+			Class dst = ([ClassType] type)::Class;
 			Class c = classObject;
 			while (c != null)
 			{
@@ -373,13 +373,13 @@ class ClassType: Type
 		return classObject::name;
 	}
 
-	public override function .getSuffix() -> Core.String
+	public override Core.String Suffix
 	{
-		return "a";
+		get { return "a"; }
 	}
 
-	public function .getClass() -> Class
+	public Class Class
 	{
-		return classObject;
+		get { return classObject; }
 	}
 }
