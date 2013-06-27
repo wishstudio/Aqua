@@ -1103,7 +1103,7 @@ class Compiler
 				}
 				else
 					throw new CompilerException("LValue expected.", node::location);
-				return new RegisterValue(unode::location, targetreg, [Type] new PointerType(type)); /* HACK: .ctor overload */
+				return new RegisterValue(unode::location, targetreg, new PointerType(type));
 			}
 			else
 			{
@@ -1146,7 +1146,7 @@ class Compiler
 			}
 			Method method = PrepareCall(nnode, methods, values, freereg + 2);
 			AddCode("new\t$" + freereg + ", " + GetMethodSignature(method));
-			return new RegisterValue(nnode::location, freereg, [Type] type); /* HACK: .ctor overload */
+			return new RegisterValue(nnode::location, freereg, type);
 		}
 		else if (node::op == Token::NewArray)
 		{
@@ -1157,7 +1157,7 @@ class Compiler
 			RegisterValue value = ToScalar(CompileList([Node] nnode::parameters[0], freereg, -1))::ToFreeRegister(this, freereg);
 			Type elementType = ResolveType(nnode::type);
 			AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
-			return new RegisterValue(nnode::location, targetreg, [Type] new ArrayType(elementType)); /* HACK: .ctor overload */
+			return new RegisterValue(nnode::location, targetreg, new ArrayType(elementType));
 		}
 		else if (node::op == Token::Call)
 			return ToScalar(CompileCall(node, freereg));
@@ -1286,7 +1286,7 @@ class Compiler
 
 			Core.Object classObject;
 			if ((found, classObject = classes::Contains(inode::ident)) > 0)
-				return new TypeValue(inode::location, [Type] new ClassType([Class] classObject)); /* HACK: .ctor overload */
+				return new TypeValue(inode::location, new ClassType([Class] classObject));
 
 			throw new CompilerException("Unknown ident.", node::location);
 		}
@@ -1294,7 +1294,7 @@ class Compiler
 		{
 			if (currentMethod::modifier & Modifier::Static > 0)
 				throw new CompilerException("'this' cannot be used in a static method.", node::location);
-			return new RegisterValue(node::location, 0, [Type] new ClassType(currentClass)); /* HACK: .ctor overload */
+			return new RegisterValue(node::location, 0, new ClassType(currentClass));
 		}
 		else if (node::op == Token::Number)
 		{
@@ -1306,8 +1306,7 @@ class Compiler
 			/* TODO: StringValue */
 			StringNode snode = [StringNode] node;
 			AddCode("ldstr\t$" + targetreg + ", \"" + snode::stringvalue + "\"");
-			return new RegisterValue(snode::location, targetreg, [Type] new ClassType([Class] classes["Core.String"]));
-			/* HACK: .ctor overload */
+			return new RegisterValue(snode::location, targetreg, new ClassType([Class] classes["Core.String"]));
 		}
 		else if (node::op == Token::Null)
 			return new NullValue(node::location);
@@ -1336,8 +1335,7 @@ class Compiler
 			firstreg = freereg;
 		else
 		{
-			/* HACK: .ctor overload */
-			(new RegisterValue(methodValue::location, ([MethodValue] methodValue)::regid, [Type] new ClassType(classObject)))
+			(new RegisterValue(methodValue::location, ([MethodValue] methodValue)::regid, new ClassType(classObject)))
 				::ToFreeRegister(this, freereg);
 			firstreg = firstreg + 1;
 		}
