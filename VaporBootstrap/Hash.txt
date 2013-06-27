@@ -32,7 +32,7 @@ class Hash
 		return ret;
 	}
 
-	public static operator [] (Hash hash, Core.String key) -> Core.Object
+	public static [] (Hash hash, Core.String key) -> Core.Object
 	{
 		int32 found;
 		Core.Object value;

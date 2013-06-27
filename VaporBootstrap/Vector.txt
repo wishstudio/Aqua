@@ -18,7 +18,7 @@ class Vector
 		elements = e;
 	}
 
-	public static operator [] (Vector vector, int32 index) -> Core.Object
+	public static [] (Vector vector, int32 index) -> Core.Object
 	{
 		if (index < 0 || index >= size)
 			throw new Core.IndexOutOfBoundException();

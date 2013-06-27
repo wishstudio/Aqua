@@ -54,7 +54,7 @@ class Core.String
 		Core.Native.Memory::CopyMemory(&destination[destinationIndex], [int] &firstChar + sourceIndex * 2, count * 2);
 	}
 
-	public static operator + (Core.String left, Core.String right) -> Core.String
+	public static + (Core.String left, Core.String right) -> Core.String
 	{
 		Core.String ret = Core.String::AllocateString(left::Length + right::Length);
 		Core.String::CopyStringData(ret, 0, left, 0, left::Length);
@@ -62,17 +62,17 @@ class Core.String
 		return ret;
 	}
 
-	public static operator + (Core.String left, int32 right) -> Core.String
+	public static + (Core.String left, int32 right) -> Core.String
 	{
 		return left + Core.Int32::ToString(right);
 	}
 
-	public static operator + (int32 left, Core.String right) -> Core.String
+	public static + (int32 left, Core.String right) -> Core.String
 	{
 		return Core.Int32::ToString(left) + right;
 	}
 
-	public static operator [] (Core.String string, int32 index) -> char
+	public static [] (Core.String string, int32 index) -> char
 	{
 		return *([int] &string::firstChar + index * 2);
 	}
