@@ -131,17 +131,22 @@ class Parser
 					Method method = new Method(GetCurrentLocation());
 					method::classObject = classObject;
 					method::modifier = modifier;
-					if (lex::token == Token::Ident)
-						method::name = lex::ident;
+					if (lex::token == Token::PLeft)
+						method::name = ".ctor";
 					else
 					{
-						if (method::modifier & Modifier::Static == 0)
-							throw new Core.Exception(); /* TODO */
-						method::name = Compiler::GetOperatorMethodName(lex::token);
+						if (lex::token == Token::Ident)
+							method::name = lex::ident;
+						else
+						{
+							if (method::modifier & Modifier::Static == 0)
+								throw new Core.Exception(); /* TODO */
+							method::name = Compiler::GetOperatorMethodName(lex::token);
+						}
+						lex::CheckNext(Token::PLeft);
 					}
 
 					/* Get parameters */
-					lex::CheckNext(Token::PLeft);
 					lex::Next();
 					/* HACK: break */
 					while (lex::token != Token::PRight)
