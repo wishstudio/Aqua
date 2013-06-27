@@ -3,21 +3,21 @@ class Core.String
 	private internal int32 length;
 	private internal char firstChar;
 
-	private static internal function AllocateString(int32 length) -> Core.String;
+	private static internal AllocateString(int32 length) -> Core.String;
 
-	private static function CopyStringData(Core.String dest, int32 destPos, Core.String source, int32 sourcePos, int32 length)
+	private static CopyStringData(Core.String dest, int32 destPos, Core.String source, int32 sourcePos, int32 length)
 	{
 		Core.Native.Memory::CopyMemory(dest::RawData + destPos * 2, source::RawData + sourcePos * 2, length * 2);
 	}
 
-	public static function FromCharBuffer(int buffer, int32 length) -> Core.String
+	public static FromCharBuffer(int buffer, int32 length) -> Core.String
 	{
 		Core.String ret = Core.String::AllocateString(length);
 		Core.Native.Memory::CopyMemory(&ret::firstChar, buffer, length * 2);
 		return ret;
 	}
 
-	public function AppendChar(char ch) -> Core.String
+	public AppendChar(char ch) -> Core.String
 	{
 		Core.String ret = Core.String::AllocateString(length + 1);
 		Core.Native.Memory::CopyMemory(&ret::firstChar, &firstChar, length * 2);
@@ -25,7 +25,7 @@ class Core.String
 		return ret;
 	}
 
-	public function Equals(Core.String right) -> int32
+	public Equals(Core.String right) -> int32
 	{
 		if (length != right::length)
 			return 0;
@@ -40,7 +40,7 @@ class Core.String
 		return 1;
 	}
 
-	public function SubString(int32 offset, int32 length) -> Core.String
+	public SubString(int32 offset, int32 length) -> Core.String
 	{
 		if (offset < 0 || offset >= this::length)
 			throw new Core.IndexOutOfBoundException();
@@ -49,7 +49,7 @@ class Core.String
 		return Core.String::FromCharBuffer([int] &firstChar + offset * 2, length);
 	}
 
-	public function CopyTo(int32 sourceIndex, char[] destination, int32 destinationIndex, int32 count)
+	public CopyTo(int32 sourceIndex, char[] destination, int32 destinationIndex, int32 count)
 	{
 		Core.Native.Memory::CopyMemory(&destination[destinationIndex], [int] &firstChar + sourceIndex * 2, count * 2);
 	}

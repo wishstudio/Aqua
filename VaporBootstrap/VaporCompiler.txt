@@ -3,13 +3,13 @@ class CompilerException
 	public Core.String message;
 	public Location location;
 
-	public function .ctor(Core.String message, Location location)
+	public .ctor(Core.String message, Location location)
 	{
 		this::message = message;
 		this::location = location;
 	}
 
-	public function ToString() -> Core.String
+	public ToString() -> Core.String
 	{
 		return location::ToString() + ": " + message;
 	}
@@ -33,12 +33,12 @@ class Context
 	/* HACK: bool */
 	public int32 generateEpilogue;
 
-	public function .ctor()
+	public .ctor()
 	{
 		contextType = new Stack();
 	}
 
-	public static function InitContext()
+	public static InitContext()
 	{
 		Context::Loop, Context::TryCatch, Context::Finally = 1, 2, 3;
 	}
@@ -55,25 +55,25 @@ class Compiler
 	private Method currentMethod;
 	private int32 currentLabelId;
 
-	public function .ctor(Hash classes)
+	public .ctor(Hash classes)
 	{
 		this::classes = classes;
 		code = new Vector();
 		symbolTable = new Stack();
 	}
 
-	private function GetLabelName(int32 labelId) -> Core.String
+	private GetLabelName(int32 labelId) -> Core.String
 	{
 		return "_L" + labelId;
 	}
 
-	private function GetNextLabelId() -> int32
+	private GetNextLabelId() -> int32
 	{
 		currentLabelId = currentLabelId + 1;
 		return currentLabelId - 1;
 	}
 
-	private function AddCode(Core.String line)
+	private AddCode(Core.String line)
 	{
 		Core.String tabs = "";
 		for (int32 i = 0; i < tab; i = i + 1)
@@ -81,37 +81,37 @@ class Compiler
 		code::Add([Core.Object] (tabs + line));
 	}
 
-	private function AddLabel(int32 labelId)
+	private AddLabel(int32 labelId)
 	{
 		code::Add([Core.Object] (GetLabelName(labelId) + ":"));
 	}
 
-	private function AddStringLabel(Core.String label)
+	private AddStringLabel(Core.String label)
 	{
 		code::Add([Core.Object] (label + ":"));
 	}
 
-	private function Tab()
+	private Tab()
 	{
 		tab = tab + 1;
 	}
 
-	private function Untab()
+	private Untab()
 	{
 		tab = tab - 1;
 	}
 
-	private function PushSymbolStack()
+	private PushSymbolStack()
 	{
 		symbolTable::Push([Core.Object] new Hash());
 	}
 
-	private function PopSymbolStack()
+	private PopSymbolStack()
 	{
 		symbolTable::Pop();
 	}
 
-	private function FindSymbol(Core.String name) -> Variable, int32
+	private FindSymbol(Core.String name) -> Variable, int32
 	{
 		for (int32 i = symbolTable::Size - 1; i >= 0; i = i - 1)
 		{
@@ -123,7 +123,7 @@ class Compiler
 		return null, 0;
 	}
 
-	public static function GetOperatorMethodName(int32 op) -> Core.String
+	public static GetOperatorMethodName(int32 op) -> Core.String
 	{
 		if (op == Token::Add)
 			return ".opAdd";
@@ -153,26 +153,26 @@ class Compiler
 			return null;
 	}
 
-	public function GetMethodSignature(Method method) -> Core.String
+	public GetMethodSignature(Method method) -> Core.String
 	{
 		return method::classObject::name + "::" + method::name + ResolvePrototype(method);
 	}
 	
-	private function ToScalar(Vector values) -> Value
+	private ToScalar(Vector values) -> Value
 	{
 		if (values::Size == 0)
 			throw new Core.Exception(); /* TODO */
 		return [Value] values[0];
 	}
 
-	private function Scalar(Value value) -> Vector
+	private Scalar(Value value) -> Vector
 	{
 		Vector ret = new Vector();
 		ret::Add([Core.Object] value);
 		return ret;
 	}
 
-	public function Compile()
+	public Compile()
 	{
 		/* Set class::baseClass */
 		/* HACK: iterator */
@@ -219,7 +219,7 @@ class Compiler
 		}
 	}
 
-	private function CompileField(Field field)
+	private CompileField(Field field)
 	{
 		Core.String modifier = Modifier::ToString(field::modifier);
 		if (modifier::Length > 0)
@@ -227,7 +227,7 @@ class Compiler
 		AddCode(".field " + modifier + ResolveType(field::type)::ToString() + " " + field::name);
 	}
 
-	private function CompileProperty(Property property)
+	private CompileProperty(Property property)
 	{
 		Core.String modifier = Modifier::ToString(property::modifier);
 		if (modifier::Length > 0)
@@ -239,7 +239,7 @@ class Compiler
 			AddCode("\t.set " + GetMethodSignature(property::setter));
 	}
 
-	private function CompileMethod(Method method)
+	private CompileMethod(Method method)
 	{
 		Core.String modifier = Modifier::ToString(method::modifier);
 		if (modifier::Length > 0)
@@ -361,7 +361,7 @@ class Compiler
 
 	/* Returns whether the statement block is fully closed (has return statements in all possible control flows) */
 	/* Returns 'closed' and 'nextfreereg' */
-	private function CompileStatement(Node node, int32 freereg, Context context) -> int32, int32
+	private CompileStatement(Node node, int32 freereg, Context context) -> int32, int32
 	{
 		if (node::op == Token::MultipleNode)
 		{
@@ -698,7 +698,7 @@ class Compiler
 	/* Call node is the only 'expression'-like node that can return multiple values (or zero). */
 	/* So don't bother mentioning it many times here */
 	/* Save last scalar value to 'lastreg' if 'lastreg' != -1 */
-	private function CompileList(Node node, int32 freereg, int32 lastreg) -> Vector
+	private CompileList(Node node, int32 freereg, int32 lastreg) -> Vector
 	{
 		if (node::op == Token::List)
 		{
@@ -785,7 +785,7 @@ class Compiler
 		}
 	}
 
-	private function FixJumpTarget(int32 jtarget) -> int32
+	private FixJumpTarget(int32 jtarget) -> int32
 	{
 		if (jtarget == 0)
 		{
@@ -797,7 +797,7 @@ class Compiler
 	}
 
 	/* Convert types to a unified stack type for doing arithmetic */
-	private function UnifyTypes(Node node, Value left, Value right, int32 leftreg, int32 rightreg) -> TypedValue, TypedValue
+	private UnifyTypes(Node node, Value left, Value right, int32 leftreg, int32 rightreg) -> TypedValue, TypedValue
 	{
 		/* TODO: Immediate value */
 		Type type;
@@ -824,7 +824,7 @@ class Compiler
 	}
 
 	/* Convert to a typed value from its corresponding raw stack value */
-	private function FixRawValue(RegisterValue value, int32 targetreg) -> RegisterValue
+	private FixRawValue(RegisterValue value, int32 targetreg) -> RegisterValue
 	{
 		/* TODO: Immediate value */
 		Type stackType = value::type::StackType;
@@ -841,7 +841,7 @@ class Compiler
 	}
 
 	/* Return 'value' */
-	private function CompileExpression(Node node, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	private CompileExpression(Node node, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
 		if (node::op <= Token::BinArith)
 		{
@@ -1317,7 +1317,7 @@ class Compiler
 			throw new CompilerException("INTERNAL: Unhandled expression case.", node::location);
 	}
 
-	private function CompileCall(Node node, int32 freereg) -> Vector
+	private CompileCall(Node node, int32 freereg) -> Vector
 	{
 		CallNode cnode = [CallNode] node;
 		Value methodValue = ToScalar(CompileList(cnode::method, freereg, -1));
@@ -1368,7 +1368,7 @@ class Compiler
 		return ret;
 	}
 
-	private function CompileCustomBinaryOperator(Node node, int32 op, TypedValue left, TypedValue right, int32 firstreg) -> Value
+	private CompileCustomBinaryOperator(Node node, int32 op, TypedValue left, TypedValue right, int32 firstreg) -> Value
 	{
 		TypedValue l = left::EnsureSingleSlot(this, firstreg);
 		TypedValue r = right::EnsureSingleSlot(this, firstreg + 1);
@@ -1393,7 +1393,7 @@ class Compiler
 	}
 
 	/* Resolves a type from standarized type string */
-	private function ResolveParserType(Location location, Core.String type) -> Type
+	private ResolveParserType(Location location, Core.String type) -> Type
 	{
 		if (type::Equals("bool") > 0)
 			return Type::Bool;
@@ -1428,14 +1428,14 @@ class Compiler
 		}
 	}
 
-	private function ResolveType(ParserType type) -> Type
+	private ResolveType(ParserType type) -> Type
 	{
 		if (type::type == null)
 			type::type = ResolveParserType(type::location, type::typestring);
 		return type::type;
 	}
 
-	private function ResolvePrototype(Method method) -> Core.String
+	private ResolvePrototype(Method method) -> Core.String
 	{
 		if (method::prototype == null)
 		{
@@ -1466,7 +1466,7 @@ class Compiler
 	}
 
 	/* Resolves a field, returns null if not found */
-	private function ResolveField(Class startClass, Core.String name) -> Field
+	private ResolveField(Class startClass, Core.String name) -> Field
 	{
 		Class c = startClass;
 		while (c != null)
@@ -1481,7 +1481,7 @@ class Compiler
 	}
 
 	/* Resolves a property, returns null if not found */
-	private function ResolveProperty(Class startClass, Core.String name) -> Property
+	private ResolveProperty(Class startClass, Core.String name) -> Property
 	{
 		Class c = startClass;
 		while (c != null)
@@ -1497,7 +1497,7 @@ class Compiler
 	}
 
 	/* Resolves a method by name, append possible candidates to `methods` vector */
-	private function ResolveMethod(Class startClass, Core.String name, Vector methods) -> Vector
+	private ResolveMethod(Class startClass, Core.String name, Vector methods) -> Vector
 	{
 		if (methods == null)
 			methods = new Vector();
@@ -1511,7 +1511,7 @@ class Compiler
 	}
 
 	/* Resolves a method in a single class */
-	private function ResolveMethodInClass(Class classObject, Core.String name, Vector methods) -> Vector
+	private ResolveMethodInClass(Class classObject, Core.String name, Vector methods) -> Vector
 	{
 		if (methods == null)
 			methods = new Vector();
@@ -1543,7 +1543,7 @@ class Compiler
 	/* Choose best method in `methods`,
 	   Ensures `values` are converted to proper types and placed sequentially from `firstreg`
 	   Returns best method */
-	private function PrepareCall(Node node, Vector methods, Vector values, int32 firstreg) -> Method
+	private PrepareCall(Node node, Vector methods, Vector values, int32 firstreg) -> Method
 	{
 		Vector candidates = new Vector();
 		/* Check valid candidates */
@@ -1583,7 +1583,7 @@ class Compiler
 	 *    If T2 -> T1 and not T1 -> T2, T2 is better.
 	 * 4. Otherwise, neither is better.
 	 */
-	private function ChooseBestMethod(Node node, Vector methods, Vector values) -> Method
+	private ChooseBestMethod(Node node, Vector methods, Vector values) -> Method
 	{
 		if (methods::Size == 0)
 			throw new CompilerException("No method prototype match type of given parameters.", node::location);

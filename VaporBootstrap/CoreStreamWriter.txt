@@ -6,7 +6,7 @@ class Core.StreamWriter
 	private char[] charBuffer;
 	private uint8[] byteBuffer;
 
-	public function .ctor(Core.FileStream stream, Core.Encoding encoding)
+	public .ctor(Core.FileStream stream, Core.Encoding encoding)
 	{
 		this::stream = stream;
 		this::encoding = encoding;
@@ -18,13 +18,13 @@ class Core.StreamWriter
 		currentBufferPos = 0;
 	}
 
-	public function Dispose()
+	public Dispose()
 	{
 		Flush();
 		stream::Close();
 	}
 
-	public function Write(Core.String string)
+	public Write(Core.String string)
 	{
 		int32 current = 0, length = string::Length;
 		while (current < length)
@@ -39,7 +39,7 @@ class Core.StreamWriter
 		}
 	}
 
-	public function Flush()
+	public Flush()
 	{
 		int32 byteCount = encoding::ToBytes(charBuffer, currentBufferPos, byteBuffer);
 		currentBufferPos = 0;

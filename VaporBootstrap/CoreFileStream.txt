@@ -5,7 +5,7 @@ class Core.FileStream
 	private uint8[] buffer;
 	private int32 mode; /* 0: Read, 1: Write */
 
-	public function .ctor(Core.String filename, int32 mode)
+	public .ctor(Core.String filename, int32 mode)
 	{
 		int32 GENERIC_READ = -2147483647 - 1; /* 0x80000000 */
 		int32 GENERIC_WRITE = 1073741824; /* 0x40000000 */
@@ -28,7 +28,7 @@ class Core.FileStream
 		this::mode = mode;
 	}
 
-	public function ReadByte() -> int32
+	public ReadByte() -> int32
 	{
 		if (mode != 0)
 			throw new Core.InvalidOperationException();
@@ -44,7 +44,7 @@ class Core.FileStream
 		return byte;
 	}
 
-	public function Write(uint8[] data, int32 length) -> int32
+	public Write(uint8[] data, int32 length) -> int32
 	{
 		if (mode == 0)
 			throw new Core.InvalidOperationException();
@@ -53,7 +53,7 @@ class Core.FileStream
 		return written;
 	}
 
-	public function Close()
+	public Close()
 	{
 		Core.Native.Win32::CloseHandle(fileHandle);
 		fileHandle = null;

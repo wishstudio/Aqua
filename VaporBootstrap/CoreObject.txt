@@ -1,4 +1,4 @@
 class Core.Object
 {
-	public internal function .getName() -> Core.String;
+	public internal .getName() -> Core.String;
 }

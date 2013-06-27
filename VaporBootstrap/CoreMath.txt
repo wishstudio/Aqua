@@ -1,6 +1,6 @@
 class Core.Math
 {
-	public static function Abs(int32 x) -> int32
+	public static Abs(int32 x) -> int32
 	{
 		if (x >= 0)
 			return x;
@@ -9,7 +9,7 @@ class Core.Math
 	}
 	/* TODO: SafeAbs: Throw exception on overflow */
 
-	public static function Min(int32 left, int32 right) -> int32
+	public static Min(int32 left, int32 right) -> int32
 	{
 		if (left <= right)
 			return left;
@@ -17,7 +17,7 @@ class Core.Math
 			return right;
 	}
 
-	public static function Max(int32 left, int32 right) -> int32
+	public static Max(int32 left, int32 right) -> int32
 	{
 		if (left <= right)
 			return right;

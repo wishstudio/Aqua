@@ -1,6 +1,6 @@
 class Core.Native.Converter
 {
-	static public function ToWCharPtr(Core.String string) -> int
+	static public ToWCharPtr(Core.String string) -> int
 	{
 		return string::RawData;
 	}
@@ -8,20 +8,20 @@ class Core.Native.Converter
 
 class Core.Native.Memory
 {
-	static public internal function CopyMemory(int destination, int source, int32 size);
-	static public internal function MoveMemory(int destination, int source, int32 size);
-	static public internal function AllocateMemory(int32 size) -> int data;
-	static public internal function FreeMemory(int data);
+	static public internal CopyMemory(int destination, int source, int32 size);
+	static public internal MoveMemory(int destination, int source, int32 size);
+	static public internal AllocateMemory(int32 size) -> int data;
+	static public internal FreeMemory(int data);
 }
 
 class Core.Native.Win32
 {
 	/* Debug helper */
-	public static native function DebugBreak();
+	public static native DebugBreak();
 	[stdcall, "kernel32.dll", "DebugBreak"]
 
 	/* File functions */
-	public static native function CreateFile(
+	public static native CreateFile(
 		int lpFileName,
 		int32 dwDesiredAccess,
 		int32 dwShareMode,
@@ -32,7 +32,7 @@ class Core.Native.Win32
 	) -> int;
 	[stdcall, "kernel32.dll", "CreateFileW"]
 
-	public static native function ReadFile(
+	public static native ReadFile(
 		int hFile,
 		int lpBuffer,
 		int32 nNumberOfBytesToRead,
@@ -41,7 +41,7 @@ class Core.Native.Win32
 	) -> int32;
 	[stdcall, "kernel32.dll", "ReadFile"]
 
-	public static native function WriteFile(
+	public static native WriteFile(
 		int hFile,
 		int lpBuffer,
 		int32 nNumberOfBytesToWrite,
@@ -50,25 +50,25 @@ class Core.Native.Win32
 	) -> int32;
 	[stdcall, "kernel32.dll", "WriteFile"]
 
-	public static native function CloseHandle(
+	public static native CloseHandle(
 		int hObject
 	) -> int32;
 	[stdcall, "kernel32.dll", "CloseHandle"]
 
 	/* Console functions */
-	public static native function GetConsoleOutputCP() -> int32;
+	public static native GetConsoleOutputCP() -> int32;
 	[stdcall, "kernel32.dll", "GetConsoleOutputCP"]
 
-	public static native function SetConsoleOutputCP(int32 wCodePageID);
+	public static native SetConsoleOutputCP(int32 wCodePageID);
 	[stdcall, "kernel32.dll", "SetConsoleOutputCP"]
 
-	public static native function GetStdHandle(int32 nStdHandle) -> int;
+	public static native GetStdHandle(int32 nStdHandle) -> int;
 	[stdcall, "kernel32.dll", "GetStdHandle"]
 
-	public static native function SetConsoleTitle(int lpConsoleTitle) -> int32;
+	public static native SetConsoleTitle(int lpConsoleTitle) -> int32;
 	[stdcall, "kernel32.dll", "SetConsoleTitleW"]
 
-	public static native function WriteConsole(
+	public static native WriteConsole(
 		int hConsoleOutput,
 		int lpBuffer,
 		int32 nNumberOfCharsToWrite,

@@ -3,13 +3,13 @@ class Stack
 	private Vector data;
 	private int32 size;
 
-	public function .ctor()
+	public .ctor()
 	{
 		data = new Vector();
 		size = 0;
 	}
 
-	public function Push(Core.Object item)
+	public Push(Core.Object item)
 	{
 		if (size == data::Size)
 			data::Add(item);
@@ -18,7 +18,7 @@ class Stack
 		size = size + 1;
 	}
 
-	public function Pop() -> Core.Object
+	public Pop() -> Core.Object
 	{
 		if (size == 0)
 			throw new Core.InvalidOperationException();
@@ -26,7 +26,7 @@ class Stack
 		return data[size];
 	}
 
-	public function Peek() -> Core.Object
+	public Peek() -> Core.Object
 	{
 		if (size == 0)
 			throw new Core.InvalidOperationException();

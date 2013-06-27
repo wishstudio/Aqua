@@ -3,14 +3,14 @@ class Vector
 	private int32 capacity, size;
 	private Core.Object[] elements;
 
-	public function .ctor()
+	public .ctor()
 	{
 		capacity = 4;
 		size = 0;
 		elements = new Core.Object[capacity];
 	}
 
-	private function Grow()
+	private Grow()
 	{
 		capacity = capacity * 2;
 		Core.Object[] e = new Core.Object[capacity];
@@ -25,14 +25,14 @@ class Vector
 		return vector::elements[index];
 	}
 
-	public function Set(int32 index, Core.Object object)
+	public Set(int32 index, Core.Object object)
 	{
 		if (index < 0 || index >= size)
 			throw new Core.IndexOutOfBoundException();
 		elements[index] = object;
 	}
 
-	public function Add(Core.Object object)
+	public Add(Core.Object object)
 	{
 		if (size == capacity)
 			Grow();

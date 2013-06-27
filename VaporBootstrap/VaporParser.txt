@@ -8,12 +8,12 @@ class Parser
 	private Lexer lex;
 	private Core.String currentFileName;
 
-	public function .ctor()
+	public .ctor()
 	{
 		classes = new Hash();
 	}
 
-	public function GetCurrentLocation() -> Location
+	public GetCurrentLocation() -> Location
 	{
 		Location location = new Location();
 		location::fileName = currentFileName;
@@ -21,7 +21,7 @@ class Parser
 		return location;
 	}
 
-	public function Parse(Core.String fileName)
+	public Parse(Core.String fileName)
 	{
 		try
 		{
@@ -39,7 +39,7 @@ class Parser
 		}
 	}
 
-	private function ParseModifier() -> int32
+	private ParseModifier() -> int32
 	{
 		int32 modifier = 0;
 		while (lex::token == Token::Ident)
@@ -53,7 +53,7 @@ class Parser
 		return modifier;
 	}
 
-	private function ParseCallingConvention() -> int32
+	private ParseCallingConvention() -> int32
 	{
 		lex::Assert(Token::Ident);
 		int32 cc = CallingConvention::Parse(lex::ident);
@@ -64,7 +64,7 @@ class Parser
 			return cc;
 	}
 
-	private function TryParseType() -> ParserType
+	private TryParseType() -> ParserType
 	{
 		Location location = GetCurrentLocation();
 		if (lex::token != Token::Ident)
@@ -87,7 +87,7 @@ class Parser
 		}
 	}
 
-	private function ParseType() -> ParserType
+	private ParseType() -> ParserType
 	{
 		ParserType type = TryParseType();
 		if (type == null)
@@ -95,7 +95,7 @@ class Parser
 		return type;
 	}
 
-	private function ParseFile()
+	private ParseFile()
 	{
 		while (lex::token == Token::Ident && lex::ident::Equals("class") > 0)
 		{
@@ -329,7 +329,7 @@ class Parser
 		}
 	}
 
-	private function ParseStatement() -> Node
+	private ParseStatement() -> Node
 	{
 		if (lex::token == Token::BLeft)
 		{
@@ -509,7 +509,7 @@ class Parser
 	}
 
 	/* Parse a single statement (without semicolon) */
-	private function ParseSingleStatement() -> Node
+	private ParseSingleStatement() -> Node
 	{
 		lex::Checkpoint();
 		ParserType type = TryParseType();
@@ -547,7 +547,7 @@ class Parser
 	}
 
 	/* Parse list operations */
-	private function ParseList() -> Node
+	private ParseList() -> Node
 	{
 		Node node = ParseExpression(0);
 		if (lex::token == Token::Comma)
@@ -577,7 +577,7 @@ class Parser
 	}
 
 	/* Parse binary operators */
-	private function ParseExpression(int32 priority) -> Node
+	private ParseExpression(int32 priority) -> Node
 	{
 		Node left = ParseObjectAccess();
 		while (lex::token <= Token::BinOp && Token::BinPriority[lex::token] > priority)
@@ -595,7 +595,7 @@ class Parser
 	}
 
 	/* Parse suffixes to unary operations */
-	private function ParseObjectAccess() -> Node
+	private ParseObjectAccess() -> Node
 	{
 		Node object = ParseUnary();
 		/* HACK: for (;;) */
@@ -664,7 +664,7 @@ class Parser
 	}
 
 	/* Parse unary operations */
-	private function ParseUnary() -> Node
+	private ParseUnary() -> Node
 	{
 		lex::FixUnary();
 		if (lex::token > Token::BinOp && lex::token <= Token::UnaryOp)

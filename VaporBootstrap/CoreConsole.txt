@@ -2,18 +2,18 @@ class Core.Console
 {
 	private static Core.StreamWriter out;
 
-	public static function SetConsoleTitle(Core.String title)
+	public static SetConsoleTitle(Core.String title)
 	{
 		Core.Native.Win32::SetConsoleTitle(Core.Native.Converter::ToWCharPtr(title));
 	}
 
-	public static function Write(Core.String text)
+	public static Write(Core.String text)
 	{
 		OutputStream::Write(text);
 		OutputStream::Flush();
 	}
 
-	public static function WriteLine(Core.String text)
+	public static WriteLine(Core.String text)
 	{
 		OutputStream::Write(text);
 		OutputStream::Write("\n");

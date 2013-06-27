@@ -3,19 +3,19 @@ class Hash
 	/* Simple multimap implementation */
 	private Vector keys, values;
 
-	public function .ctor()
+	public .ctor()
 	{
 		keys = new Vector();
 		values = new Vector();
 	}
 
-	public function Add(Core.String key, Core.Object value)
+	public Add(Core.String key, Core.Object value)
 	{
 		keys::Add([Core.Object] key);
 		values::Add(value);
 	}
 
-	public function Contains(Core.String key) -> int32 found, Core.Object value
+	public Contains(Core.String key) -> int32 found, Core.Object value
 	{
 		for (int32 i = 0; i < keys::size; i = i + 1)
 			if (([Core.String] keys[i])::Equals(key) > 0)
@@ -23,7 +23,7 @@ class Hash
 		return 0, null;
 	}
 
-	public function FindAll(Core.String key) -> Vector
+	public FindAll(Core.String key) -> Vector
 	{
 		Vector ret = new Vector();
 		for (int32 i = 0; i < keys::size; i = i + 1)

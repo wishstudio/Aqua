@@ -1,6 +1,6 @@
 class Core.Int32
 {
-	public static function ToString(int32 number) -> Core.String
+	public static ToString(int32 number) -> Core.String
 	{
 		if (number == -2147483648)
 			return "-2147483648";
@@ -25,7 +25,7 @@ class Core.Int32
 	}
 
 	/* TODO */
-	public static function Parse(Core.String string) -> int32
+	public static Parse(Core.String string) -> int32
 	{
 		int32 ret = 0;
 		if ([int32] string[0] == '-')

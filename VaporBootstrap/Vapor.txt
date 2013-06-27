@@ -1,6 +1,6 @@
 class Vapor
 {
-	public static function InitVapor()
+	public static InitVapor()
 	{
 		/* Initialize enumeration types */
 		Token::InitToken();
@@ -10,7 +10,7 @@ class Vapor
 		Context::InitContext();
 	}
 
-	public static function Main(Core.String[] args)
+	public static Main(Core.String[] args)
 	{
 		InitVapor();
 
