@@ -715,89 +715,10 @@ class Compiler
 	/* Save last scalar value to 'lastreg' if 'lastreg' != -1 */
 	private CompileList(Node node, int32 freereg, int32 lastreg) -> Vector
 	{
-		if (node::op == Token::List)
-		{
-			ListNode lnode = [ListNode] node;
-			Vector ret = new Vector();
-			for (int32 i = 0; i < lnode::values::Size; i = i + 1)
-			{
-				Node node = [Node] lnode::values[i];
-				int32 reg = freereg + ret::Size;
-				if (node::op == Token::Call)
-				{
-					Vector r = CompileCall(node, reg);
-					for (int32 j = 0; j < r::Size; j = j + 1)
-						ret::Add(r[j]);
-				}
-				else if (lastreg != -1 && i + 1 == lnode::values::Size) /* Last scalar */
-					ret::Add([Core.Object] CompileExpression(node, reg, lastreg, 0, 0)::EnsureRegister(this, lastreg));
-				else /* Ensure value is a register at stack position */
-					ret::Add([Core.Object] CompileExpression(node, reg, reg, 0, 0)::ToFreeRegister(this, reg));
-			}
-			return ret;
-		}
-		else if (node::op == Token::Assign)
-		{
-			BinNode bnode = [BinNode] node;
-			if (bnode::left::op != Token::List)
-			{
-				/* Single operand assign */
-				Value l = CompileExpression(bnode::left, freereg, freereg, 0, 0);
-				/* HACK: not */
-				if (l is LValue)
-				{}
-				else
-					throw new CompilerException("Lvalue expected.", bnode::left::location);
-				LValue left = [LValue] l;
-
-				freereg = l::GetNextFreeRegister(freereg);
-				int32 targetreg = freereg;
-				if (left is VariableValue)
-					targetreg = ([VariableValue] left)::regid;
-				Value right = CompileExpression(bnode::right, freereg, targetreg, 0, 0);
-				right::ToLValue(this, left, freereg);
-				return Scalar(left);
-			}
-			else
-			{
-				Vector left = new Vector();
-				ListNode lnode = [ListNode] bnode::left;
-				for (int32 i = 0; i < lnode::values::Size; i = i + 1)
-				{
-					Value value = CompileExpression([Node] lnode::values[i], freereg, freereg, 0, 0);
-					freereg = value::GetNextFreeRegister(freereg);
-					/* HACK: not */
-					if (value is LValue)
-					{}
-					else
-						throw new CompilerException("Lvalue expected.", node::location);
-					left::Add([Core.Object] value);
-				}
-
-				/* Optimize: if last element of 'left' is a variable,
-				   directly store corresponding result in 'right' to that register */
-				if (left[left::Size - 1] is VariableValue)
-					lastreg = ([VariableValue] left[left::Size - 1])::regid;
-				else
-					lastreg = -1;
-				Vector right = CompileList(bnode::right, freereg, lastreg);
-				if (left::Size != right::Size)
-					throw new CompilerException("List size unmatch.", node::location);
-				/* Move results to left, note the last one must be copied first, due to the optimization above */
-				for (int32 i = left::Size - 1; i >= 0; i = i - 1)
-					([Value] right[i])::ToLValue(this, [LValue] left[i], freereg);
-				return left;
-			}
-		}
-		else if (node::op == Token::Call)
+		if (node::op == Token::Call)
 			return CompileCall(node, freereg);
-		else /* Scalar */
-		{
-			if (lastreg != -1)
-				return Scalar(CompileExpression(node, freereg, lastreg, 0, 0));
-			else
-				return Scalar(CompileExpression(node, freereg, freereg, 0, 0));
-		}
+		else
+			return node::CompileList(this, freereg, lastreg);
 	}
 
 	private FixJumpTarget(int32 jtarget) -> int32

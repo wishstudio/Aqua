@@ -563,7 +563,7 @@ class Parser
 		if (lex::token == Token::Assign)
 		{
 			lex::Next();
-			BinNode ret = new BinNode(GetCurrentLocation());
+			AssignNode ret = new AssignNode(GetCurrentLocation());
 			ret::op = Token::Assign;
 			ret::left = node;
 			ret::right = ParseList();

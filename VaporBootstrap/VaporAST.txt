@@ -31,9 +31,19 @@ class Node
 		this::location = location;
 	}
 
+	/* TODO: Aqua: Report error on abstract method invocation */
 	public virtual CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
 		throw new CompilerException("INTERNAL EXCEPTION.", location);
+	}
+
+	/* Save last scalar value to 'lastreg' if 'lastreg' != -1 */
+	public virtual CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
+	{
+		if (lastreg != -1)
+			return compiler::Scalar(CompileExpression(compiler, freereg, lastreg, 0, 0));
+		else
+			return compiler::Scalar(CompileExpression(compiler, freereg, freereg, 0, 0));
 	}
 }
 
@@ -627,18 +637,6 @@ class BinLogicNode: BinNode
 	}
 }
 
-class CallNode: Node
-{
-	public Node method;
-	public Vector parameters;
-
-	public (Location location)
-	{
-		this::location = location;
-		parameters = new Vector();
-	}
-}
-
 class NewNode: Node
 {
 	public ParserType type;
@@ -693,6 +691,18 @@ class NewArrayNode: Node
 	}
 }
 
+class CallNode: Node
+{
+	public Node method;
+	public Vector parameters;
+
+	public (Location location)
+	{
+		this::location = location;
+		parameters = new Vector();
+	}
+}
+
 class ListNode: Node
 {
 	public Vector values;
@@ -701,6 +711,88 @@ class ListNode: Node
 	{
 		this::location = location;
 		values = new Vector();
+	}
+
+	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
+	{
+		Vector ret = new Vector();
+		for (int32 i = 0; i < values::Size; i = i + 1)
+		{
+			Node node = [Node] values[i];
+			int32 reg = freereg + ret::Size;
+			if (node::op == Token::Call)
+			{
+				Vector r = compiler::CompileCall(node, reg);
+				for (int32 j = 0; j < r::Size; j = j + 1)
+					ret::Add(r[j]);
+			}
+			else if (lastreg != -1 && i + 1 == values::Size) /* Last scalar */
+				ret::Add([Core.Object] compiler::CompileExpression(node, reg, lastreg, 0, 0)::EnsureRegister(compiler, lastreg));
+			else /* Ensure value is a register at stack position */
+				ret::Add([Core.Object] compiler::CompileExpression(node, reg, reg, 0, 0)::ToFreeRegister(compiler, reg));
+		}
+		return ret;
+	}
+}
+
+class AssignNode: BinNode
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
+	{
+		if (this::left is ListNode)
+		{
+			Vector left = new Vector();
+			ListNode lnode = [ListNode] this::left;
+			for (int32 i = 0; i < lnode::values::Size; i = i + 1)
+			{
+				Value value = compiler::CompileExpression([Node] lnode::values[i], freereg, freereg, 0, 0);
+				freereg = value::GetNextFreeRegister(freereg);
+				/* HACK: not */
+				if (value is LValue)
+				{}
+				else
+					throw new CompilerException("Lvalue expected.", lnode::location);
+				left::Add([Core.Object] value);
+			}
+
+			/* Optimize: if last element of 'left' is a variable,
+			   directly store corresponding result in 'right' to that register */
+			if (left[left::Size - 1] is VariableValue)
+				lastreg = ([VariableValue] left[left::Size - 1])::regid;
+			else
+				lastreg = -1;
+			Vector right = compiler::CompileList(this::right, freereg, lastreg);
+			if (left::Size != right::Size)
+				throw new CompilerException("List size unmatch.", location);
+			/* Move results to left, note the last one must be copied first, due to the optimization above */
+			for (int32 i = left::Size - 1; i >= 0; i = i - 1)
+				([Value] right[i])::ToLValue(compiler, [LValue] left[i], freereg);
+			return left;
+		}
+		else
+		{
+			/* Single operand assign */
+			Value l = compiler::CompileExpression(this::left, freereg, freereg, 0, 0);
+			/* HACK: not */
+			if (l is LValue)
+			{}
+			else
+				throw new CompilerException("Lvalue expected.", this::left::location);
+
+			LValue left = [LValue] l;
+			freereg = l::GetNextFreeRegister(freereg);
+			int32 targetreg = freereg;
+			if (left is VariableValue)
+				targetreg = ([VariableValue] left)::regid;
+			Value right = compiler::CompileExpression(this::right, freereg, targetreg, 0, 0);
+			right::ToLValue(compiler, left, freereg);
+			return compiler::Scalar(left);
+		}
 	}
 }
 
