@@ -405,7 +405,7 @@ class Compiler
 				{
 					Node vnode = [Node] vn;
 					LValue value = new VariableValue(dnode::location, freereg, ResolveType(dnode::type));
-					CompileExpression(vnode, freereg, freereg, 0, 0)::ToLValue(this, value, freereg);
+					vnode::CompileExpression(this, freereg, freereg, 0, 0)::ToLValue(this, value, freereg);
 				}
 				freereg = freereg + 1;
 			}
@@ -418,7 +418,7 @@ class Compiler
 			{
 				/* If - Then */
 				int32 falseTarget = GetNextLabelId();
-				CompileExpression(inode::condition, freereg, freereg, falseTarget, 0)
+				inode::condition::CompileExpression(this, freereg, freereg, falseTarget, 0)
 					::ToJumpTarget(this, freereg, falseTarget, 0);
 				CompileStatement(inode::trueBody, freereg, context);
 				AddLabel(falseTarget);
@@ -429,7 +429,7 @@ class Compiler
 				/* If - Then - Else */
 				int32 falseTarget = GetNextLabelId();
 				int32 endTarget = GetNextLabelId();
-				CompileExpression(inode::condition, freereg, freereg, falseTarget, 0)
+				inode::condition::CompileExpression(this, freereg, freereg, falseTarget, 0)
 					::ToJumpTarget(this, freereg, falseTarget, 0);
 				int32 thenClosed, elseClosed;
 				thenClosed = CompileStatement(inode::trueBody, freereg, context);
@@ -471,13 +471,13 @@ class Compiler
 			if ((fnode::condition != null || fnode::update != null) && context::continueLabelId > 0)
 				AddLabel(context::continueLabelId);
 			if (fnode::update != null)
-				CompileList(fnode::update, _freereg, -1);
+				fnode::update::CompileList(this, _freereg, -1);
 			if (fnode::condition == null)
 				AddCode("jmp\t" + GetLabelName(bodyTarget));
 			else
 			{
 				AddLabel(conditionTarget);
-				CompileExpression(fnode::condition, _freereg, _freereg, bodyTarget, 1)
+				fnode::condition::CompileExpression(this, _freereg, _freereg, bodyTarget, 1)
 					::ToJumpTarget(this, _freereg, bodyTarget, 1);
 			}
 
@@ -507,7 +507,7 @@ class Compiler
 			AddLabel(bodyTarget);
 			CompileStatement(wnode::body, freereg, context);
 			AddLabel(conditionTarget);
-			CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1)
+			wnode::condition::CompileExpression(this, freereg, freereg, bodyTarget, 1)
 				::ToJumpTarget(this, freereg, bodyTarget, 1);
 
 			if (context::breakLabelId > 0)
@@ -534,7 +534,7 @@ class Compiler
 			CompileStatement(wnode::body, freereg, context);
 			if (context::continueLabelId > 0)
 				AddLabel(context::continueLabelId);
-			CompileExpression(wnode::condition, freereg, freereg, bodyTarget, 1)
+			wnode::condition::CompileExpression(this, freereg, freereg, bodyTarget, 1)
 				::ToJumpTarget(this, freereg, bodyTarget, 1);
 
 			if (context::breakLabelId > 0)
@@ -560,7 +560,7 @@ class Compiler
 				{
 					Node vnode = [Node] rnode::values[i];
 					/* TODO: Type */
-					CompileExpression(vnode, freereg, context::firstReturnRegister + i, 0, 0)
+					vnode::CompileExpression(this, freereg, context::firstReturnRegister + i, 0, 0)
 						::ToFreeRegister(this, context::firstReturnRegister + 1);
 				}
 				/* Second, add leave instruction */
@@ -579,7 +579,7 @@ class Compiler
 						AddCode("ret\t$" + context::firstReturnRegister);
 					else
 					{
-						RegisterValue value = CompileExpression([Node] rnode::values[0], freereg, freereg, 0, 0)
+						RegisterValue value = ([Node] rnode::values[0])::CompileExpression(this, freereg, freereg, 0, 0)
 							::EnsureRegister(this, freereg);
 						AddCode("ret\t$" + value::regid);
 					}
@@ -595,8 +595,7 @@ class Compiler
 						{
 							Node vnode = [Node] rnode::values[i];
 							/* TODO: Type */
-							CompileExpression(vnode, freereg + i, freereg + i, 0, 0)
-								::ToFreeRegister(this, freereg + i);
+							vnode::CompileExpression(this, freereg + i, freereg + i, 0, 0)::ToFreeRegister(this, freereg + i);
 						}
 						AddCode("ret\t$" + freereg + ", $" + (freereg + rnode::values::Size - 1));
 					}
@@ -699,23 +698,15 @@ class Compiler
 		else if (node::op == Token::Throw)
 		{
 			ThrowNode tnode = [ThrowNode] node;
-			RegisterValue value = ToScalar(CompileList(tnode::exception, freereg, -1))::EnsureRegister(this, freereg);
+			RegisterValue value = tnode::exception::CompileExpression(this, freereg, freereg, 0, 0)::EnsureRegister(this, freereg);
 			AddCode("throw\t$" + value::regid);
 			return 1, freereg;
 		}
 		else
 		{
-			CompileList(node, freereg, -1);
+			node::CompileList(this, freereg, -1);
 			return 0, freereg;
 		}
-	}
-
-	/* Call node is the only 'expression'-like node that can return multiple values (or zero). */
-	/* So don't bother mentioning it many times here */
-	/* Save last scalar value to 'lastreg' if 'lastreg' != -1 */
-	private CompileList(Node node, int32 freereg, int32 lastreg) -> Vector
-	{
-		return node::CompileList(this, freereg, lastreg);
 	}
 
 	private FixJumpTarget(int32 jtarget) -> int32
@@ -771,12 +762,6 @@ class Compiler
 		}
 		else
 			return value;
-	}
-
-	/* Return 'value' */
-	private CompileExpression(Node node, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
-	{
-		return node::CompileExpression(this, freereg, targetreg, jtarget, jtrue);
 	}
 
 	private CompileCustomBinaryOperator(Node node, int32 op, TypedValue left, TypedValue right, int32 firstreg) -> Value

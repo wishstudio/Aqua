@@ -174,7 +174,7 @@ class FieldNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		Value object = compiler::CompileExpression(this::object, freereg, freereg, 0, 0);
+		Value object = this::object::CompileExpression(compiler, freereg, freereg, 0, 0);
 		/* TODO */
 		if (object is TypedValue && ([TypedValue] object)::type is ArrayType)
 		{
@@ -232,17 +232,17 @@ class ArrayElementNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue array = compiler::CompileExpression(this::array, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		RegisterValue array = this::array::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
 		if (array::type is ArrayType)
 		{
 			freereg = array::GetNextFreeRegister(freereg);
-			RegisterValue index = compiler::CompileExpression(this::index, freereg, freereg, 0, 0)
+			RegisterValue index = this::index::CompileExpression(compiler, freereg, freereg, 0, 0)
 				::EnsureRegister(compiler, freereg);
 			return new ArrayElementValue(location, array::regid, index::regid, ([ArrayType] array::type)::ElementType);
 		}
 		else
 		{
-			RegisterValue index = compiler::CompileExpression(this::index, freereg + 1, freereg + 1, 0, 0)
+			RegisterValue index = this::index::CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0)
 				::EnsureRegister(compiler, freereg + 1);
 			return compiler::CompileCustomBinaryOperator(this, Token::Array, array, index, freereg);
 		}
@@ -261,7 +261,7 @@ class TypeCastNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = compiler::CompileExpression(operand, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
+		RegisterValue value = operand::CompileExpression(compiler, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
 		Type type = compiler::ResolveType(this::type);
 		/* HACK: Workaround */
 		if (value::type is PointerType && type is IntType)
@@ -304,7 +304,7 @@ class DereferenceNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = compiler::CompileExpression(operand, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		RegisterValue value = operand::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
 		/* HACK: Temporary workaround */
 		if (value::type is IntType)
 			return new DerefValue(location, value::regid, Type::Char);
@@ -326,7 +326,7 @@ class AddressOfNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		Value value = compiler::CompileExpression(operand, freereg, freereg, 0, 0);
+		Value value = operand::CompileExpression(compiler, freereg, freereg, 0, 0);
 		/* TODO */
 		Type type;
 		if (value is VariableValue)
@@ -368,7 +368,7 @@ class UnaryNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = compiler::CompileExpression(operand, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
+		RegisterValue value = operand::CompileExpression(compiler, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
 		/* HACK: not */
 		if (value::type is Int32Type)
 		{
@@ -406,8 +406,8 @@ class BinArithNode: BinNode
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue left = compiler::CompileExpression(this::left, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
-		Value right = compiler::CompileExpression(this::right, freereg + 1, freereg + 1, 0, 0);
+		RegisterValue left = this::left::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		Value right = this::right::CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
 		Core.String inst;
 
 		/* TODO */
@@ -488,8 +488,8 @@ class BinComparisonNode: BinNode
 	{
 		jtarget = compiler::FixJumpTarget(jtarget);
 
-		RegisterValue left = compiler::CompileExpression(this::left, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
-		Value right = compiler::CompileExpression(this::right, freereg + 1, freereg + 1, 0, 0);
+		RegisterValue left = this::left::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		Value right = this::right::CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
 		Core.String inst;
 		/* TODO */
 		if ((left::type is Int32Type || left::type is CharType)
@@ -626,9 +626,9 @@ class BinLogicNode: BinNode
 		}
 		else
 			throw new Core.InvalidOperationException();
-		compiler::CompileExpression(left, freereg, freereg, leftjtarget, leftjtrue)
+		left::CompileExpression(compiler, freereg, freereg, leftjtarget, leftjtrue)
 			::ToJumpTarget(compiler, freereg, leftjtarget, leftjtrue);
-		compiler::CompileExpression(right, freereg, freereg, rightjtarget, rightjtrue)
+		right::CompileExpression(compiler, freereg, freereg, rightjtarget, rightjtrue)
 			::ToJumpTarget(compiler, freereg, rightjtarget, rightjtrue);
 		if (leftjtarget != jtarget)
 			compiler::AddLabel(leftjtarget);
@@ -663,7 +663,7 @@ class NewNode: Node
 		Vector values = new Vector();
 		for (int32 i = 0; i < parameters::Size; i = i + 1)
 		{
-			Value value = compiler::CompileExpression([Node] parameters[i], freereg + 2 + i, freereg + 2 + i, 0, 0);
+			Value value = ([Node] parameters[i])::CompileExpression(compiler, freereg + 2 + i, freereg + 2 + i, 0, 0);
 			values::Add(value::EnsureSingleSlot(compiler, freereg + 2 + i));
 		}
 		Method method = compiler::PrepareCall(this, methods, values, freereg + 2);
@@ -684,7 +684,7 @@ class NewArrayNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = compiler::CompileExpression(parameter, freereg, freereg, 0, 0)::ToFreeRegister(compiler, freereg);
+		RegisterValue value = parameter::CompileExpression(compiler, freereg, freereg, 0, 0)::ToFreeRegister(compiler, freereg);
 		Type elementType = compiler::ResolveType(type);
 		compiler::AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
 		return new RegisterValue(location, targetreg, new ArrayType(elementType));
@@ -715,14 +715,14 @@ class ListNode: Node
 			int32 reg = freereg + ret::Size;
 			if (node::op == Token::Call)
 			{
-				Vector r = compiler::CompileList(node, reg, -1);
+				Vector r = node::CompileList(compiler, reg, -1);
 				for (int32 j = 0; j < r::Size; j = j + 1)
 					ret::Add(r[j]);
 			}
 			else if (lastreg != -1 && i + 1 == values::Size) /* Last scalar */
-				ret::Add([Core.Object] compiler::CompileExpression(node, reg, lastreg, 0, 0)::EnsureRegister(compiler, lastreg));
+				ret::Add([Core.Object] node::CompileExpression(compiler, reg, lastreg, 0, 0)::EnsureRegister(compiler, lastreg));
 			else /* Ensure value is a register at stack position */
-				ret::Add([Core.Object] compiler::CompileExpression(node, reg, reg, 0, 0)::ToFreeRegister(compiler, reg));
+				ret::Add([Core.Object] node::CompileExpression(compiler, reg, reg, 0, 0)::ToFreeRegister(compiler, reg));
 		}
 		return ret;
 	}
@@ -745,7 +745,7 @@ class AssignNode: ListNode
 			ListNode lnode = [ListNode] this::left;
 			for (int32 i = 0; i < lnode::values::Size; i = i + 1)
 			{
-				Value value = compiler::CompileExpression([Node] lnode::values[i], freereg, freereg, 0, 0);
+				Value value = ([Node] lnode::values[i])::CompileExpression(compiler, freereg, freereg, 0, 0);
 				freereg = value::GetNextFreeRegister(freereg);
 				/* HACK: not */
 				if (value is LValue)
@@ -761,7 +761,7 @@ class AssignNode: ListNode
 				lastreg = ([VariableValue] left[left::Size - 1])::regid;
 			else
 				lastreg = -1;
-			Vector right = compiler::CompileList(this::right, freereg, lastreg);
+			Vector right = this::right::CompileList(compiler, freereg, lastreg);
 			if (left::Size != right::Size)
 				throw new CompilerException("List size unmatch.", location);
 			/* Move results to left, note the last one must be copied first, due to the optimization above */
@@ -772,7 +772,7 @@ class AssignNode: ListNode
 		else
 		{
 			/* Single operand assign */
-			Value l = compiler::CompileExpression(this::left, freereg, freereg, 0, 0);
+			Value l = this::left::CompileExpression(compiler, freereg, freereg, 0, 0);
 			/* HACK: not */
 			if (l is LValue)
 			{}
@@ -784,7 +784,7 @@ class AssignNode: ListNode
 			int32 targetreg = freereg;
 			if (left is VariableValue)
 				targetreg = ([VariableValue] left)::regid;
-			Value right = compiler::CompileExpression(this::right, freereg, targetreg, 0, 0);
+			Value right = this::right::CompileExpression(compiler, freereg, targetreg, 0, 0);
 			right::ToLValue(compiler, left, freereg);
 			return compiler::Scalar(left);
 		}
@@ -804,7 +804,7 @@ class CallNode: ListNode
 
 	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
-		Value methodValue = compiler::CompileExpression(method, freereg, freereg, 0, 0);
+		Value methodValue = method::CompileExpression(compiler, freereg, freereg, 0, 0);
 		/* HACK: not */
 		if (methodValue is MethodValue)
 		{}
@@ -829,7 +829,7 @@ class CallNode: ListNode
 		Vector values = new Vector();
 		for (int32 i = 0; i < parameters::Size; i = i + 1)
 		{
-			Value value = compiler::CompileExpression([Node] parameters[i], firstreg + i, firstreg + i, 0, 0);
+			Value value = ([Node] parameters[i])::CompileExpression(compiler, firstreg + i, firstreg + i, 0, 0);
 			values::Add([Core.Object] value::EnsureSingleSlot(compiler, firstreg + i));
 		}
 
