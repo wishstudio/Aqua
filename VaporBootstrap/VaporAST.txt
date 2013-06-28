@@ -232,12 +232,12 @@ class ArrayElementNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue array = compiler::ToScalar(compiler::CompileList(this::array, freereg, -1))::EnsureRegister(compiler, freereg);
+		RegisterValue array = compiler::CompileExpression(this::array, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
 		if (array::type is ArrayType)
 		{
 			freereg = array::GetNextFreeRegister(freereg);
-			RegisterValue index = compiler::ToScalar(compiler::CompileList(this::index, freereg, -1))
-			::EnsureRegister(compiler, freereg);
+			RegisterValue index = compiler::CompileExpression(this::index, freereg, freereg, 0, 0)
+				::EnsureRegister(compiler, freereg);
 			return new ArrayElementValue(location, array::regid, index::regid, ([ArrayType] array::type)::ElementType);
 		}
 		else
@@ -663,7 +663,7 @@ class NewNode: Node
 		Vector values = new Vector();
 		for (int32 i = 0; i < parameters::Size; i = i + 1)
 		{
-			Value value = compiler::ToScalar(compiler::CompileList([Node] parameters[i], freereg + 2 + i, -1));
+			Value value = compiler::CompileExpression([Node] parameters[i], freereg + 2 + i, freereg + 2 + i, 0, 0);
 			values::Add(value::EnsureSingleSlot(compiler, freereg + 2 + i));
 		}
 		Method method = compiler::PrepareCall(this, methods, values, freereg + 2);
@@ -684,22 +684,10 @@ class NewArrayNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = compiler::ToScalar(compiler::CompileList(parameter, freereg, -1))::ToFreeRegister(compiler, freereg);
+		RegisterValue value = compiler::CompileExpression(parameter, freereg, freereg, 0, 0)::ToFreeRegister(compiler, freereg);
 		Type elementType = compiler::ResolveType(type);
 		compiler::AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
 		return new RegisterValue(location, targetreg, new ArrayType(elementType));
-	}
-}
-
-class CallNode: Node
-{
-	public Node method;
-	public Vector parameters;
-
-	public (Location location)
-	{
-		this::location = location;
-		parameters = new Vector();
 	}
 }
 
@@ -713,6 +701,11 @@ class ListNode: Node
 		values = new Vector();
 	}
 
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		return compiler::ToScalar(CompileList(compiler, freereg, -1));
+	}
+
 	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
 		Vector ret = new Vector();
@@ -722,7 +715,7 @@ class ListNode: Node
 			int32 reg = freereg + ret::Size;
 			if (node::op == Token::Call)
 			{
-				Vector r = compiler::CompileCall(node, reg);
+				Vector r = compiler::CompileList(node, reg, -1);
 				for (int32 j = 0; j < r::Size; j = j + 1)
 					ret::Add(r[j]);
 			}
@@ -735,8 +728,10 @@ class ListNode: Node
 	}
 }
 
-class AssignNode: BinNode
+class AssignNode: ListNode
 {
+	public Node left, right;
+
 	public (Location location)
 	{
 		this::location = location;
@@ -793,6 +788,67 @@ class AssignNode: BinNode
 			right::ToLValue(compiler, left, freereg);
 			return compiler::Scalar(left);
 		}
+	}
+}
+
+class CallNode: ListNode
+{
+	public Node method;
+	public Vector parameters;
+
+	public (Location location)
+	{
+		this::location = location;
+		parameters = new Vector();
+	}
+
+	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
+	{
+		Value methodValue = compiler::CompileExpression(method, freereg, freereg, 0, 0);
+		/* HACK: not */
+		if (methodValue is MethodValue)
+		{}
+		else
+			throw new CompilerException("Method expected.", method::location);
+		Vector methods = ([MethodValue] methodValue)::methods;
+		Class classObject = ([Method] methods[0])::classObject;
+
+		/* Push 'this' if necessary */
+		/* TODO: We do not allow overload mixed static/unstatic methods */
+		int32 firstreg = freereg;
+		if (([Method] methods[0])::modifier & Modifier::Static > 0)
+			firstreg = freereg;
+		else
+		{
+			(new RegisterValue(methodValue::location, ([MethodValue] methodValue)::regid, new ClassType(classObject)))
+				::ToFreeRegister(compiler, freereg);
+			firstreg = firstreg + 1;
+		}
+
+		/* Evaluate parameters */
+		Vector values = new Vector();
+		for (int32 i = 0; i < parameters::Size; i = i + 1)
+		{
+			Value value = compiler::CompileExpression([Node] parameters[i], firstreg + i, firstreg + i, 0, 0);
+			values::Add([Core.Object] value::EnsureSingleSlot(compiler, firstreg + i));
+		}
+
+		Method method = compiler::PrepareCall(this, methods, values, firstreg);
+
+		/* Call function */
+		Core.String inst;
+		if (method::modifier & Modifier::Virtual > 0 || method::modifier & Modifier::Abstract > 0)
+			inst = "callv";
+		else
+			inst = "call";
+		compiler::AddCode(inst + "\t$" + freereg + ", " + compiler::GetMethodSignature(method));
+
+		/* Return value */
+		Vector ret = new Vector();
+		for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
+			ret::Add([Core.Object] new RegisterValue(location, freereg + i,
+				compiler::ResolveType([ParserType] method::returnTypes[i])));
+		return ret;
 	}
 }
 

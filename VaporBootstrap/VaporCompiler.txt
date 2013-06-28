@@ -715,10 +715,7 @@ class Compiler
 	/* Save last scalar value to 'lastreg' if 'lastreg' != -1 */
 	private CompileList(Node node, int32 freereg, int32 lastreg) -> Vector
 	{
-		if (node::op == Token::Call)
-			return CompileCall(node, freereg);
-		else
-			return node::CompileList(this, freereg, lastreg);
+		return node::CompileList(this, freereg, lastreg);
 	}
 
 	private FixJumpTarget(int32 jtarget) -> int32
@@ -779,62 +776,7 @@ class Compiler
 	/* Return 'value' */
 	private CompileExpression(Node node, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		if (node::op == Token::Call)
-			return ToScalar(CompileCall(node, freereg));
-		else if (node::op == Token::Assign)
-			return ToScalar(CompileList(node, freereg, -1));
-		else
-			return node::CompileExpression(this, freereg, targetreg, jtarget, jtrue);
-	}
-
-	private CompileCall(Node node, int32 freereg) -> Vector
-	{
-		CallNode cnode = [CallNode] node;
-		Value methodValue = ToScalar(CompileList(cnode::method, freereg, -1));
-		/* HACK: not */
-		if (methodValue is MethodValue)
-		{}
-		else
-			throw new CompilerException("Method expected.", cnode::method::location);
-		Vector methods = ([MethodValue] methodValue)::methods;
-		Class classObject = ([Method] methods[0])::classObject;
-
-		/* Push 'this' if necessary */
-		/* TODO: We do not allow overload mixed static/unstatic methods */
-		int32 firstreg = freereg;
-		if (([Method] methods[0])::modifier & Modifier::Static > 0)
-			firstreg = freereg;
-		else
-		{
-			(new RegisterValue(methodValue::location, ([MethodValue] methodValue)::regid, new ClassType(classObject)))
-				::ToFreeRegister(this, freereg);
-			firstreg = firstreg + 1;
-		}
-
-		/* Evaluate parameters */
-		Vector values = new Vector();
-		for (int32 i = 0; i < cnode::parameters::Size; i = i + 1)
-		{
-			Value value = ToScalar(CompileList([Node] cnode::parameters[i], firstreg + i, -1));
-			values::Add([Core.Object] value::EnsureSingleSlot(this, firstreg + i));
-		}
-
-		Method method = PrepareCall(node, methods, values, firstreg);
-
-		/* Call function */
-		Core.String inst;
-		if (method::modifier & Modifier::Virtual > 0 || method::modifier & Modifier::Abstract > 0)
-			inst = "callv";
-		else
-			inst = "call";
-		AddCode(inst + "\t$" + freereg + ", " + GetMethodSignature(method));
-
-		/* Return value */
-		Vector ret = new Vector();
-		for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
-			ret::Add([Core.Object] new RegisterValue(cnode::location, freereg + i,
-				ResolveType([ParserType] method::returnTypes[i])));
-		return ret;
+		return node::CompileExpression(this, freereg, targetreg, jtarget, jtrue);
 	}
 
 	private CompileCustomBinaryOperator(Node node, int32 op, TypedValue left, TypedValue right, int32 firstreg) -> Value
