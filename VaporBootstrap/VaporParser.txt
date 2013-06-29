@@ -313,7 +313,6 @@ class Parser
 			if (classObject::methods::Contains(".ctor") == 0)
 			{
 				ReturnNode body = new ReturnNode(GetCurrentLocation());
-				body::op = Token::Return;
 
 				Method method = new Method(GetCurrentLocation());
 				method::classObject = classObject;
@@ -341,7 +340,6 @@ class Parser
 		else if (lex::token == Token::If)
 		{
 			IfNode node = new IfNode(GetCurrentLocation());
-			node::op = Token::If;
 			lex::CheckNext(Token::PLeft);
 			lex::Next();
 			node::condition = ParseList();
@@ -360,7 +358,6 @@ class Parser
 		else if (lex::token == Token::For)
 		{
 			ForNode node = new ForNode(GetCurrentLocation());
-			node::op = Token::For;
 			lex::CheckNext(Token::PLeft);
 			lex::Next();
 			if (lex::token == Token::Semicolon)
@@ -393,7 +390,6 @@ class Parser
 		else if (lex::token == Token::While)
 		{
 			WhileNode node = new WhileNode(GetCurrentLocation());
-			node::op = Token::While;
 			lex::CheckNext(Token::PLeft);
 			lex::Next();
 			node::condition = ParseList();
@@ -405,7 +401,6 @@ class Parser
 		else if (lex::token == Token::Do)
 		{
 			DoWhileNode node = new DoWhileNode(GetCurrentLocation());
-			node::op = Token::Do;
 			lex::Next();
 			node::body = ParseStatement();
 			lex::Assert(Token::While);
@@ -421,7 +416,6 @@ class Parser
 		{
 			lex::Next();
 			ReturnNode node = new ReturnNode(GetCurrentLocation());
-			node::op = Token::Return;
 			if (lex::token != Token::Semicolon)
 			{
 				/* HACK: break */
@@ -445,23 +439,18 @@ class Parser
 		{
 			lex::CheckNext(Token::Semicolon);
 			lex::Next();
-			ContinueNode node = new ContinueNode(GetCurrentLocation());
-			node::op = Token::Continue;
-			return node;
+			return new ContinueNode(GetCurrentLocation());
 		}
 		else if (lex::token == Token::Break)
 		{
 			lex::CheckNext(Token::Semicolon);
 			lex::Next();
-			BreakNode node = new BreakNode(GetCurrentLocation());
-			node::op = Token::Break;
-			return node;
+			return new BreakNode(GetCurrentLocation());
 		}
 		else if (lex::token == Token::Try)
 		{
 			lex::Next();
 			TryNode node = new TryNode(GetCurrentLocation());
-			node::op = Token::Try;
 			node::body = ParseStatement();
 			while (lex::token == Token::Catch)
 			{
@@ -489,7 +478,6 @@ class Parser
 		{
 			lex::Next();
 			ThrowNode node = new ThrowNode(GetCurrentLocation());
-			node::op = Token::Throw;
 			node::exception = ParseList();
 			lex::Assert(Token::Semicolon);
 			lex::Next();
@@ -561,7 +549,6 @@ class Parser
 		{
 			lex::Next();
 			AssignNode ret = new AssignNode(GetCurrentLocation());
-			ret::op = Token::Assign;
 			ret::left = node;
 			ret::right = ParseList();
 			return ret;
@@ -677,7 +664,6 @@ class Parser
 		else if (lex::token == Token::Star)
 		{
 			DereferenceNode node = new DereferenceNode(GetCurrentLocation());
-			node::op = Token::Star;
 			lex::Next();
 			node::operand = ParseObjectAccess();
 			return node;
@@ -685,7 +671,6 @@ class Parser
 		else if (lex::token == Token::AddressOf)
 		{
 			AddressOfNode node = new AddressOfNode(GetCurrentLocation());
-			node::op = Token::AddressOf;
 			lex::Next();
 			node::operand = ParseObjectAccess();
 			return node;
@@ -716,7 +701,6 @@ class Parser
 			{
 				NewArrayNode node = new NewArrayNode(GetCurrentLocation());
 				node::type = type;
-				node::op = Token::NewArray;
 				lex::Next();
 				node::parameter = ParseList();
 				lex::Assert(Token::SRight);
@@ -729,7 +713,6 @@ class Parser
 				node::type = type;
 				lex::Assert(Token::PLeft);
 				lex::Next();
-				node::op = Token::New;
 				if (lex::token != Token::PRight)
 				{
 					/* HACK: for (;;) */
@@ -753,16 +736,12 @@ class Parser
 		else if (lex::token == Token::This)
 		{
 			lex::Next();
-			Node node = new ThisNode(GetCurrentLocation());
-			node::op = Token::This;
-			return node;
+			return new ThisNode(GetCurrentLocation());
 		}
 		else if (lex::token == Token::Null)
 		{
 			lex::Next();
-			Node node = new NullNode(GetCurrentLocation());
-			node::op = Token::Null;
-			return node;
+			return new NullNode(GetCurrentLocation());
 		}
 		else if (lex::token == Token::True || lex::token == Token::False)
 		{
@@ -778,7 +757,6 @@ class Parser
 		else if (lex::token == Token::Number)
 		{
 			IntegerNode node = new IntegerNode(GetCurrentLocation());
-			node::op = Token::Number;
 			node::intvalue = lex::ident;
 			lex::Next();
 			return node;
@@ -786,7 +764,6 @@ class Parser
 		else if (lex::token == Token::String)
 		{
 			StringNode node = new StringNode(GetCurrentLocation());
-			node::op = Token::String;
 			node::stringvalue = lex::ident;
 			lex::Next();
 			return node;
@@ -794,7 +771,6 @@ class Parser
 		else if (lex::token == Token::Ident)
 		{
 			IdentNode node = new IdentNode(GetCurrentLocation());
-			node::op = Token::Ident;
 			node::ident = lex::ident;
 			lex::Next();
 			return node;

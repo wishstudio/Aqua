@@ -23,7 +23,6 @@ class ParserType
 
 class Node
 {
-	public int32 op;
 	Location location;
 
 	public (Location location)
@@ -428,6 +427,7 @@ class AddressOfNode: Node
 
 class UnaryNode: Node
 {
+	public int32 op;
 	public Node operand;
 
 	public (Location location)
@@ -458,6 +458,7 @@ class UnaryNode: Node
 
 class BinNode: Node
 {
+	public int32 op;
 	public Node left, right;
 
 	public (Location location)
