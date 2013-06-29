@@ -721,7 +721,7 @@ class Compiler
 	}
 
 	/* Convert types to a unified stack type for doing arithmetic */
-	private UnifyTypes(Node node, Value left, Value right, int32 leftreg, int32 rightreg) -> TypedValue, TypedValue
+	private UnifyTypes(Node node, Value left, Value right, int32 leftreg, int32 rightreg) -> Value, Value
 	{
 		/* TODO: Immediate value */
 		Type type;
@@ -741,8 +741,8 @@ class Compiler
 		else
 			throw new CompilerException("Uncompatible types.", node::location);
 
-		TypedValue l = left::ToTyped(this, leftreg, type);
-		TypedValue r = right::ToTyped(this, rightreg, type);
+		Value l = left::ToTyped(this, leftreg, type);
+		Value r = right::ToTyped(this, rightreg, type);
 
 		return l, r;
 	}
@@ -764,10 +764,10 @@ class Compiler
 			return value;
 	}
 
-	private CompileCustomBinaryOperator(Node node, int32 op, TypedValue left, TypedValue right, int32 firstreg) -> Value
+	private CompileCustomBinaryOperator(Node node, int32 op, Value left, Value right, int32 firstreg) -> Value
 	{
-		TypedValue l = left::EnsureSingleSlot(this, firstreg);
-		TypedValue r = right::EnsureSingleSlot(this, firstreg + 1);
+		Value l = left::EnsureSingleSlot(this, firstreg);
+		Value r = right::EnsureSingleSlot(this, firstreg + 1);
 
 		Core.String methodName = GetOperatorMethodName(op);
 		if (methodName == null)
@@ -996,9 +996,7 @@ class Compiler
 					int32 better = 0;
 					for (int32 k = 0; k < values::Size; k = k + 1)
 					{
-						Type S = Type::Unit;
-						if (values[k] is TypedValue)
-							S = ([TypedValue] values[k])::type;
+						Type S = ([Value] values[k])::type;
 						Type T1 = ResolveType([ParserType] current::paramTypes[k]);
 						Type T2 = ResolveType([ParserType] another::paramTypes[k]);
 						if (T1::Equals(T2) > 0)

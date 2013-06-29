@@ -1,9 +1,27 @@
+class MethodReference
+{
+	public Location location;
+	public int32 regid;
+	public Vector methods;
+
+	public (Location location, int32 regid, Vector methods)
+	{
+		this::location = location;
+		this::regid = regid;
+		this::methods = methods;
+	}
+}
+
 class Value
 {
 	public Location location;
+	public Type type;
 
 	/* HACK: bool */
-	public abstract CanImplicitlyConvertTo(Type type) -> int32;
+	public virtual CanImplicitlyConvertTo(Type dst) -> int32
+	{
+		return type::CanImplicitlyConvertTo(dst);
+	}
 
 	public abstract GetNextFreeRegister(int32 freereg) -> int32;
 
@@ -20,7 +38,7 @@ class Value
 	}
 
 	/* Ensure a value occupies a single register slot at most */
-	public EnsureSingleSlot(Compiler compiler, int32 freereg) -> TypedValue
+	public EnsureSingleSlot(Compiler compiler, int32 freereg) -> Value
 	{
 		if (this is ImmediateValue)
 			return this;
@@ -29,94 +47,7 @@ class Value
 
 	/* TODO: super function call */
 	/* Ensure value is of given type, convert it otherwise */
-	public abstract ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue;
-
-	/* Convert value to a given type and move in to given register */
-	public ToTypedRegister(Compiler compiler, int32 regid, int32 freereg, Type type) -> RegisterValue
-	{
-		return ToTyped(compiler, freereg, type)::ToRegister(compiler, regid, freereg);
-	}
-
-	public EnsureTypedRegister(Compiler compiler, int32 freereg, Type type) -> RegisterValue
-	{
-		return ToTyped(compiler, freereg, type)::EnsureRegister(compiler, freereg);
-	}
-
-	public ToLValue(Compiler compiler, LValue lvalue, int32 freereg)
-	{
-		if (CanImplicitlyConvertTo(lvalue::type) == 0)
-			throw new CompilerException(
-				"Cannot implicitly convert to \"" + lvalue::type::ToString() + "\"",
-				location
-			);
-		lvalue::AssignValue(compiler, this, freereg);
-	}
-
-	/* HACK: bool */
-	public virtual ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
-		-> JumpTargetValue
-	{
-		throw new CompilerException("Logical value expected.", location);
-	}
-}
-
-class PseudoValue: Value
-{
-	public override CanImplicitlyConvertTo(Type type) -> int32
-	{
-		throw new Core.InvalidOperationException();
-	}
-
-	public override GetNextFreeRegister(int32 freereg) -> int32
-	{
-		throw new Core.InvalidOperationException();
-	}
-
-	public override ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
-	{
-		throw new Core.InvalidOperationException();
-	}
-
-	public override ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
-	{
-		throw new Core.InvalidOperationException();
-	}
-}
-
-class TypeValue: PseudoValue
-{
-	public Type type;
-
-	public (Location location, Type type)
-	{
-		this::location = location;
-		this::type = type;
-	}
-}
-
-class MethodValue: PseudoValue
-{
-	public int32 regid;
-	public Vector methods;
-
-	public (Location location, int32 regid, Vector methods)
-	{
-		this::location = location;
-		this::regid = regid;
-		this::methods = methods;
-	}
-}
-
-class TypedValue: Value
-{
-	Type type;
-
-	public override CanImplicitlyConvertTo(Type dst) -> int32
-	{
-		return type::CanImplicitlyConvertTo(dst);
-	}
-
-	public override ToTyped(Compiler compiler, int32 freereg, Type dst) -> TypedValue
+	public virtual ToTyped(Compiler compiler, int32 freereg, Type dst) -> Value
 	{
 		Type stackType = type::StackType;
 		/* HACK: Temporary workaround */
@@ -163,7 +94,29 @@ class TypedValue: Value
 		}
 	}
 
-	public override ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
+	/* Convert value to a given type and move in to given register */
+	public ToTypedRegister(Compiler compiler, int32 regid, int32 freereg, Type type) -> RegisterValue
+	{
+		return ToTyped(compiler, freereg, type)::ToRegister(compiler, regid, freereg);
+	}
+
+	public EnsureTypedRegister(Compiler compiler, int32 freereg, Type type) -> RegisterValue
+	{
+		return ToTyped(compiler, freereg, type)::EnsureRegister(compiler, freereg);
+	}
+
+	public ToLValue(Compiler compiler, LValue lvalue, int32 freereg)
+	{
+		if (CanImplicitlyConvertTo(lvalue::type) == 0)
+			throw new CompilerException(
+				"Cannot implicitly convert to \"" + lvalue::type::ToString() + "\"",
+				location
+			);
+		lvalue::AssignValue(compiler, this, freereg);
+	}
+
+	/* HACK: bool */
+	public virtual ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
 		-> JumpTargetValue
 	{
 		RegisterValue value = EnsureTypedRegister(compiler, freereg, Type::Bool);
@@ -177,7 +130,7 @@ class TypedValue: Value
 	}
 }
 
-class ImmediateValue: TypedValue
+class ImmediateValue: Value
 {
 	public override GetNextFreeRegister(int32 freereg) -> int32
 	{
@@ -210,7 +163,7 @@ class BoolValue: ImmediateValue
 		return new RegisterValue(location, regid, Type::Bool);
 	}
 
-	public override ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
+	public override ToTyped(Compiler compiler, int32 freereg, Type type) -> Value
 	{
 		if (type is BoolType)
 			return ToFreeRegister(compiler, freereg);
@@ -241,7 +194,7 @@ class NullValue: ImmediateValue
 		return new RegisterValue(location, regid, Type::Int);
 	}
 
-	public override ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
+	public override ToTyped(Compiler compiler, int32 freereg, Type type) -> Value
 	{
 		if (type is IntType || type is ClassType || type is PointerType)
 		{
@@ -281,14 +234,14 @@ class IntegerValue: ImmediateValue
 		return new RegisterValue(location, regid, Type::Int32);
 	}
 
-	public override ToTyped(Compiler compiler, int32 freereg, Type type) -> TypedValue
+	public override ToTyped(Compiler compiler, int32 freereg, Type type) -> Value
 	{
 		/* TODO: Super call */
 		return this;
 	}
 }
 
-class JumpTargetValue: TypedValue
+class JumpTargetValue: Value
 {
 	public int32 labelId;
 
@@ -324,7 +277,7 @@ class JumpTargetValue: TypedValue
 	}
 }
 
-class RegisterValue: TypedValue
+class RegisterValue: Value
 {
 	public int32 regid;
 
@@ -356,7 +309,7 @@ class RegisterValue: TypedValue
 	}
 }
 
-class LValue: TypedValue
+class LValue: Value
 {
 	/* Assign a value to this lvalue, caller ensures type consistent */
 	public virtual AssignValue(Compiler compiler, Value value, int32 freereg) {}

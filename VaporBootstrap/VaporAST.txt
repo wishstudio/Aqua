@@ -31,7 +31,7 @@ class Node
 		this::location = location;
 	}
 
-	public virtual ToMethod(Compiler compiler, int32 freereg) -> MethodValue
+	public virtual ToMethod(Compiler compiler, int32 freereg) -> MethodReference
 	{
 		throw new CompilerException("Method expected.", location);
 	}
@@ -161,18 +161,18 @@ class IdentNode: Node
 
 		Core.Object classObject;
 		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
-			return new TypeValue(location, new ClassType([Class] classObject));
+			return classObject;
 
 		throw new CompilerException("Unknown ident.", location);
 	}
 
-	public override ToMethod(Compiler compiler, int32 freereg) -> MethodValue
+	public override ToMethod(Compiler compiler, int32 freereg) -> MethodReference
 	{
 		/* HACK */
 		Vector methods = new Vector();
 		compiler::ResolveMethod(compiler::CurrentClass, ident, methods);
 		if (methods::Size > 0)
-			return new MethodValue(location, 0, methods);
+			return new MethodReference(location, 0, methods);
 
 		throw new CompilerException("Method expected.", location);
 	}
@@ -200,20 +200,27 @@ class FieldNode: Node
 	private ResolveObject(Compiler compiler, int32 freereg, Core.Object object) -> Class, int32
 	{
 		int32 regid;
-		Type type = Type::Unit;
 		Class classObject;
-		if (object is TypeValue)
-			type = ([TypeValue] object)::type;
-		else if (object is TypedValue)
+		bool ok = false;
+		if (object is Class)
+		{
+			classObject = [Class] object;
+			ok = true;
+		}
+		else if (object is Value)
 		{
 			RegisterValue v = ([Value] object)::EnsureRegister(compiler, freereg);
-			type = ([TypedValue] object)::type;
+			Type type = ([Value] object)::type;
 			regid = v::regid;
+			if (type is ClassType)
+			{
+				classObject = ([ClassType] type)::Class;
+				ok = true;
+			}
 		}
-
 		/* HACK: not */
-		if (type is ClassType)
-			classObject = ([ClassType] type)::Class;
+		if (ok)
+		{}
 		else
 			throw new CompilerException("Not an object or class.", this::object::location);
 
@@ -227,7 +234,7 @@ class FieldNode: Node
 		throw new CompilerException("Type expected.", location);
 	}
 
-	public override ToMethod(Compiler compiler, int32 freereg) -> MethodValue
+	public override ToMethod(Compiler compiler, int32 freereg) -> MethodReference
 	{
 		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
 
@@ -241,7 +248,7 @@ class FieldNode: Node
 		if (methods::Size == 0)
 			throw new CompilerException("Unknown method.", location);
 
-		return new MethodValue(location, regid, methods);
+		return new MethodReference(location, regid, methods);
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
@@ -249,7 +256,7 @@ class FieldNode: Node
 		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
 
 		/* TODO */
-		if (object is TypedValue && ([TypedValue] object)::type is ArrayType)
+		if (object is Value && ([Value] object)::type is ArrayType)
 		{
 			if (field::Equals("Length") == 0)
 				throw new CompilerException("Unknown field.", location);
@@ -465,8 +472,7 @@ class BinArithNode: BinNode
 		Core.String inst;
 
 		/* TODO */
-		if ((left::type is IntType || left::type is PointerType) &&
-			(right is IntegerValue || (right is TypedValue && ([TypedValue] right)::type is Int32Type)))
+		if ((left::type is IntType || left::type is PointerType) && (right is IntegerValue || right::type is Int32Type))
 		{
 			right = right::EnsureRegister(compiler, freereg + 1);
 			if (left::type is PointerType)
@@ -487,8 +493,7 @@ class BinArithNode: BinNode
 		}
 		/* HACK: not */
 		/* TODO */
-		else if (left::type is PrimitiveType &&
-			(right is ImmediateValue || (right is TypedValue && ([TypedValue] right)::type is PrimitiveType)))
+		else if (left::type is PrimitiveType && (right is ImmediateValue || right::type is PrimitiveType))
 		{
 			if (op == Token::Add)
 				inst = "add";
@@ -514,7 +519,7 @@ class BinArithNode: BinNode
 			inst = inst + left::type::StackType::Suffix;
 		}
 		else
-			return compiler::CompileCustomBinaryOperator(this, op, left, [TypedValue] right, freereg);
+			return compiler::CompileCustomBinaryOperator(this, op, left, right, freereg);
 
 		RegisterValue ret = new RegisterValue(location, targetreg, left::type);
 	
@@ -549,7 +554,7 @@ class BinComparisonNode: BinNode
 		{
 			Core.Object right = this::right::ToEntity(compiler, freereg + 1, freereg + 1);
 			/* HACK: not */
-			if (right is TypeValue)
+			if (right is Class)
 			{}
 			else
 				throw new CompilerException("Not a type.", location);
@@ -558,7 +563,7 @@ class BinComparisonNode: BinNode
 				inst = "jinst";
 			else /* jump on false */
 				inst = "jninst";
-			compiler::AddCode(inst + "\t$" + left::regid + ", " + ([TypeValue] right)::type::ToString()
+			compiler::AddCode(inst + "\t$" + left::regid + ", " + ([Class] right)::name
 				+ ", " + compiler::GetLabelName(jtarget));
 
 			return new JumpTargetValue(location, jtarget);
@@ -568,7 +573,7 @@ class BinComparisonNode: BinNode
 		Core.String inst;
 		/* TODO */
 		if ((left::type is Int32Type || left::type is CharType)
-			&& (right is IntegerValue || (right is TypedValue && left::type::Equals(([TypedValue] right)::type) > 0)))
+			&& (right is IntegerValue || left::type::Equals(right::type) > 0))
 		{
 			if (jtrue > 0) /* jump on true */
 			{
@@ -865,13 +870,8 @@ class CallNode: ListNode
 
 	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
-		Value methodValue = method::ToMethod(compiler, freereg);
-		/* HACK: not */
-		if (methodValue is MethodValue)
-		{}
-		else
-			throw new CompilerException("Method expected.", method::location);
-		Vector methods = ([MethodValue] methodValue)::methods;
+		MethodReference methodReference = method::ToMethod(compiler, freereg);
+		Vector methods = ([MethodReference] methodReference)::methods;
 		Class classObject = ([Method] methods[0])::classObject;
 
 		/* Push 'this' if necessary */
@@ -881,7 +881,7 @@ class CallNode: ListNode
 			firstreg = freereg;
 		else
 		{
-			(new RegisterValue(methodValue::location, ([MethodValue] methodValue)::regid, new ClassType(classObject)))
+			(new RegisterValue(methodReference::location, ([MethodReference] methodReference)::regid, new ClassType(classObject)))
 				::ToFreeRegister(compiler, freereg);
 			firstreg = firstreg + 1;
 		}
