@@ -31,6 +31,17 @@ class Node
 		this::location = location;
 	}
 
+	public virtual ToMethod(Compiler compiler, int32 freereg) -> MethodValue
+	{
+		throw new CompilerException("Method expected.", location);
+	}
+
+	/* Returns 'Value' or 'Type' */
+	public virtual ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	{
+		return CompileExpression(compiler, freereg, targetreg, 0, 0);
+	}
+
 	/* TODO: Aqua: Report error on abstract method invocation */
 	public virtual CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
@@ -132,7 +143,7 @@ class IdentNode: Node
 		this::location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
 	{
 		Variable variable;
 		int32 found;
@@ -148,17 +159,31 @@ class IdentNode: Node
 		if (property != null)
 			return new PropertyValue(location, 0, property, compiler::ResolveType(property::type));
 
+		Core.Object classObject;
+		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
+			return new TypeValue(location, new ClassType([Class] classObject));
+
+		throw new CompilerException("Unknown ident.", location);
+	}
+
+	public override ToMethod(Compiler compiler, int32 freereg) -> MethodValue
+	{
 		/* HACK */
 		Vector methods = new Vector();
 		compiler::ResolveMethod(compiler::CurrentClass, ident, methods);
 		if (methods::Size > 0)
 			return new MethodValue(location, 0, methods);
 
-		Core.Object classObject;
-		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
-			return new TypeValue(location, new ClassType([Class] classObject));
+		throw new CompilerException("Method expected.", location);
+	}
 
-		throw new CompilerException("Unknown ident.", location);
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		Core.Object value = ToEntity(compiler, freereg, targetreg);
+		if (value is Value)
+			return [Value] value;
+
+		throw new CompilerException("Value expected.", location);
 	}
 }
 
@@ -172,19 +197,8 @@ class FieldNode: Node
 		this::location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	private ResolveObject(Compiler compiler, int32 freereg, Core.Object object) -> Class, int32
 	{
-		Value object = this::object::CompileExpression(compiler, freereg, freereg, 0, 0);
-		/* TODO */
-		if (object is TypedValue && ([TypedValue] object)::type is ArrayType)
-		{
-			if (field::Equals("Length") == 0)
-				throw new CompilerException("Unknown field.", location);
-			RegisterValue v = object::EnsureRegister(compiler, freereg);
-			compiler::AddCode("ldlen\t$" + targetreg + ", $" + v::regid);
-			return new RegisterValue(location, targetreg, Type::Int32);
-		}
-
 		int32 regid;
 		Type type = Type::Unit;
 		Class classObject;
@@ -192,7 +206,7 @@ class FieldNode: Node
 			type = ([TypeValue] object)::type;
 		else if (object is TypedValue)
 		{
-			RegisterValue v = object::EnsureRegister(compiler, freereg);
+			RegisterValue v = ([Value] object)::EnsureRegister(compiler, freereg);
 			type = ([TypedValue] object)::type;
 			regid = v::regid;
 		}
@@ -203,6 +217,51 @@ class FieldNode: Node
 		else
 			throw new CompilerException("Not an object or class.", this::object::location);
 
+		return classObject, regid;
+	}
+
+	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	{
+		return CompileExpression(compiler, freereg, targetreg, 0, 0);
+
+		throw new CompilerException("Type expected.", location);
+	}
+
+	public override ToMethod(Compiler compiler, int32 freereg) -> MethodValue
+	{
+		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
+
+		Class classObject;
+		int32 regid;
+		classObject, regid = ResolveObject(compiler, freereg, object);
+
+		/* HACK */
+		Vector methods = new Vector();
+		compiler::ResolveMethod(classObject, this::field, methods);
+		if (methods::Size == 0)
+			throw new CompilerException("Unknown method.", location);
+
+		return new MethodValue(location, regid, methods);
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
+
+		/* TODO */
+		if (object is TypedValue && ([TypedValue] object)::type is ArrayType)
+		{
+			if (field::Equals("Length") == 0)
+				throw new CompilerException("Unknown field.", location);
+			RegisterValue v = ([Value] object)::EnsureRegister(compiler, freereg);
+			compiler::AddCode("ldlen\t$" + targetreg + ", $" + v::regid);
+			return new RegisterValue(location, targetreg, Type::Int32);
+		}
+
+		Class classObject;
+		int32 regid;
+		classObject, regid = ResolveObject(compiler, freereg, object);
+
 		Field field = compiler::ResolveField(classObject, this::field);
 		if (field != null)
 			return new FieldValue(location, regid, field, compiler::ResolveType(field::type));
@@ -211,12 +270,7 @@ class FieldNode: Node
 		if (property != null)
 			return new PropertyValue(location, regid, property, compiler::ResolveType(property::type));
 
-		/* HACK */
-		Vector methods = new Vector();
-		compiler::ResolveMethod(classObject, this::field, methods);
-		if (methods::Size == 0)
-			throw new CompilerException("Unknown field.", location);
-		return new MethodValue(location, regid, methods);
+		throw new CompilerException("Unknown field.", location);
 	}
 }
 
@@ -489,6 +543,27 @@ class BinComparisonNode: BinNode
 		jtarget = compiler::FixJumpTarget(jtarget);
 
 		RegisterValue left = this::left::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+
+		/* HACK: Temporary workaround */
+		if (op == Token::Is)
+		{
+			Core.Object right = this::right::ToEntity(compiler, freereg + 1, freereg + 1);
+			/* HACK: not */
+			if (right is TypeValue)
+			{}
+			else
+				throw new CompilerException("Not a type.", location);
+			Core.String inst;
+			if (jtrue > 0) /* jump on true */
+				inst = "jinst";
+			else /* jump on false */
+				inst = "jninst";
+			compiler::AddCode(inst + "\t$" + left::regid + ", " + ([TypeValue] right)::type::ToString()
+				+ ", " + compiler::GetLabelName(jtarget));
+
+			return new JumpTargetValue(location, jtarget);
+		}
+
 		Value right = this::right::CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
 		Core.String inst;
 		/* TODO */
@@ -557,20 +632,6 @@ class BinComparisonNode: BinNode
 				else
 					throw new CompilerException("Unsupported comparison operatior.", location);
 			compiler::AddCode(inst + "\t$" + left::regid + ", " + compiler::GetLabelName(jtarget));
-		}
-		else if (op == Token::Is)
-		{
-			/* HACK: not */
-			if (right is TypeValue)
-			{}
-			else
-				throw new CompilerException("Not a type.", location);
-			if (jtrue > 0) /* jump on true */
-				inst = "jinst";
-			else /* jump on false */
-				inst = "jninst";
-			compiler::AddCode(inst + "\t$" + left::regid + ", " + ([TypeValue] right)::type::ToString()
-				+ ", " + compiler::GetLabelName(jtarget));
 		}
 		else
 			throw new CompilerException("Unhandled jcc case.", location);
@@ -804,7 +865,7 @@ class CallNode: ListNode
 
 	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
-		Value methodValue = method::CompileExpression(compiler, freereg, freereg, 0, 0);
+		Value methodValue = method::ToMethod(compiler, freereg);
 		/* HACK: not */
 		if (methodValue is MethodValue)
 		{}
