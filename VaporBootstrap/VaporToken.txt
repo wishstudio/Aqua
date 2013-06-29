@@ -24,9 +24,6 @@ class Token
 	public static int32 Continue, Break;
 	public static int32 Try, Catch, Finally, Throw;
 
-	/* Pseudo-token for AST ops */
-	public static int32 TypeCast, ArrayElement, List, MultipleNode, Definition, Call, Field, Bool;
-
 	public static InitToken()
 	{
 		/* Binary operations */
@@ -66,8 +63,5 @@ class Token
 		Token::If, Token::Else, Token::For, Token::While, Token::Do, Token::Return = 58, 59, 60, 61, 62, 63;
 		Token::Continue, Token::Break = 64, 65;
 		Token::Try, Token::Catch, Token::Finally, Token::Throw = 66, 67, 68, 69;
-
-		/* Pseudo-token for AST ops */
-		Token::MultipleNode, Token::Definition, Token::Call, Token::Field, Token::Bool = 73, 74, 75, 76, 77;
 	}
 }

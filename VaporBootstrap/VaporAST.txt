@@ -787,7 +787,8 @@ class ListNode: Node
 		{
 			Node node = [Node] values[i];
 			int32 reg = freereg + ret::Size;
-			if (node::op == Token::Call)
+			/* TODO */
+			if (node is CallNode)
 			{
 				Vector r = node::CompileList(compiler, reg, -1);
 				for (int32 j = 0; j < r::Size; j = j + 1)

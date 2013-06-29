@@ -331,7 +331,6 @@ class Parser
 		if (lex::token == Token::BLeft)
 		{
 			MultipleNode node = new MultipleNode(GetCurrentLocation());
-			node::op = Token::MultipleNode;
 			lex::Next();
 			/* TODO: This cannot handle bugs */
 			while (lex::token != Token::BRight)
@@ -518,7 +517,6 @@ class Parser
 		lex::FinishCheckpoint();
 
 		DefinitionNode node = new DefinitionNode(GetCurrentLocation());
-		node::op = Token::Definition;
 		node::type = type;
 		/* HACK: for (;;) */
 		/* HACK: break */
@@ -550,7 +548,6 @@ class Parser
 		if (lex::token == Token::Comma)
 		{
 			ListNode ret = new ListNode(GetCurrentLocation());
-			ret::op = Token::List;
 			ret::values::Add([Core.Object] node);
 			while (lex::token == Token::Comma)
 			{
@@ -613,7 +610,6 @@ class Parser
 				lex::CheckNext(Token::Ident);
 
 				FieldNode node = new FieldNode(GetCurrentLocation());
-				node::op = Token::Field;
 				node::object = object;
 				node::field = lex::ident;
 				object = [Node] node;
@@ -625,7 +621,6 @@ class Parser
 				lex::Next();
 
 				CallNode node = new CallNode(GetCurrentLocation());
-				node::op = Token::Call;
 				node::method = object;
 
 				if (lex::token != Token::PRight)
@@ -654,7 +649,6 @@ class Parser
 				lex::Next();
 
 				ArrayElementNode node = new ArrayElementNode(GetCurrentLocation());
-				node::op = Token::ArrayElement;
 				node::array = object;
 				node::index = ParseList();
 				object = [Node] node;
@@ -708,7 +702,6 @@ class Parser
 		{
 			lex::Next();
 			TypeCastNode node = new TypeCastNode(GetCurrentLocation());
-			node::op = Token::TypeCast;
 			node::type = ParseType();
 			lex::Assert(Token::SRight);
 			lex::Next();
@@ -774,7 +767,6 @@ class Parser
 		else if (lex::token == Token::True || lex::token == Token::False)
 		{
 			BoolNode node = new BoolNode(GetCurrentLocation());
-			node::op = Token::Bool;
 			/* HACK: bool */
 			if (lex::token == Token::True)
 				node::boolvalue = 1;
