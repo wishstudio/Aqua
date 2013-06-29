@@ -68,7 +68,6 @@ class Token
 		Token::Try, Token::Catch, Token::Finally, Token::Throw = 66, 67, 68, 69;
 
 		/* Pseudo-token for AST ops */
-		Token::TypeCast, Token::ArrayElement, Token::List = 70, 71, 72;
 		Token::MultipleNode, Token::Definition, Token::Call, Token::Field, Token::Bool = 73, 74, 75, 76, 77;
 	}
 }

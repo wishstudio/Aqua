@@ -405,7 +405,7 @@ class Parser
 		}
 		else if (lex::token == Token::Do)
 		{
-			WhileNode node = new WhileNode(GetCurrentLocation());
+			DoWhileNode node = new DoWhileNode(GetCurrentLocation());
 			node::op = Token::Do;
 			lex::Next();
 			node::body = ParseStatement();
@@ -446,7 +446,7 @@ class Parser
 		{
 			lex::CheckNext(Token::Semicolon);
 			lex::Next();
-			Node node = new Node(GetCurrentLocation());
+			ContinueNode node = new ContinueNode(GetCurrentLocation());
 			node::op = Token::Continue;
 			return node;
 		}
@@ -454,7 +454,7 @@ class Parser
 		{
 			lex::CheckNext(Token::Semicolon);
 			lex::Next();
-			Node node = new Node(GetCurrentLocation());
+			BreakNode node = new BreakNode(GetCurrentLocation());
 			node::op = Token::Break;
 			return node;
 		}

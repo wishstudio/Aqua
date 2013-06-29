@@ -56,6 +56,14 @@ class Node
 		else
 			return compiler::Scalar(CompileExpression(compiler, freereg, freereg, 0, 0));
 	}
+
+	/* Returns whether the statement block is fully closed (has return statements in all possible control flows) */
+	/* Returns 'closed' and 'nextfreereg' */
+	private virtual CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		CompileList(compiler, freereg, -1);
+		return 0, freereg;
+	}
 }
 
 class NullNode: Node
@@ -913,6 +921,27 @@ class CallNode: ListNode
 	}
 }
 
+class MultipleNode: Node
+{
+	public Vector nodes;
+
+	public (Location location)
+	{
+		this::location = location;
+		nodes = new Vector();
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		compiler::PushSymbolStack();
+		int32 closed = 0, _freereg = freereg;
+		for (int32 i = 0; i < nodes::Size; i = i + 1)
+			closed, _freereg = ([Node] nodes[i])::CompileStatement(compiler, _freereg, context);
+		compiler::PopSymbolStack();
+		return closed, freereg;
+	}
+}
+
 class DefinitionNode: Node
 {
 	public ParserType type;
@@ -925,16 +954,28 @@ class DefinitionNode: Node
 		names = new Vector();
 		values = new Vector();
 	}
-}
 
-class MultipleNode: Node
-{
-	public Vector nodes;
-
-	public (Location location)
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		this::location = location;
-		nodes = new Vector();
+		for (int32 i = 0; i < names::Size; i = i + 1)
+		{
+			Variable variable = new Variable();
+			variable::regid = freereg;
+			variable::type = compiler::ResolveType(type);
+
+			/* TODO */
+			([Hash] compiler::symbolTable::Peek())::Add([Core.String] names[i], variable);
+
+			Core.Object vn = values[i];
+			if (vn != null)
+			{
+				Node vnode = [Node] vn;
+				LValue value = new VariableValue(location, freereg, compiler::ResolveType(type));
+				vnode::CompileExpression(compiler, freereg, freereg, 0, 0)::ToLValue(compiler, value, freereg);
+			}
+			freereg = freereg + 1;
+		}
+		return 0, freereg;
 	}
 }
 
@@ -947,16 +988,34 @@ class IfNode: Node
 	{
 		this::location = location;
 	}
-}
 
-class WhileNode: Node
-{
-	public Node condition;
-	public Node body;
-
-	public (Location location)
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		this::location = location;
+		if (falseBody == null)
+		{
+			/* If - Then */
+			int32 falseTarget = compiler::GetNextLabelId();
+			condition::CompileExpression(compiler, freereg, freereg, falseTarget, 0)::ToJumpTarget(compiler, freereg, falseTarget, 0);
+			trueBody::CompileStatement(compiler, freereg, context);
+			compiler::AddLabel(falseTarget);
+			return 0, freereg;
+		}
+		else
+		{
+			/* If - Then - Else */
+			int32 falseTarget = compiler::GetNextLabelId();
+			int32 endTarget = compiler::GetNextLabelId();
+			condition::CompileExpression(compiler, freereg, freereg, falseTarget, 0)::ToJumpTarget(compiler, freereg, falseTarget, 0);
+			int32 thenClosed, elseClosed;
+			thenClosed = trueBody::CompileStatement(compiler, freereg, context);
+			if (thenClosed == 0)
+				compiler::AddCode("jmp\t" + compiler::GetLabelName(endTarget));
+			compiler::AddLabel(falseTarget);
+			elseClosed = falseBody::CompileStatement(compiler, freereg, context);
+			if (thenClosed == 0)
+				compiler::AddLabel(endTarget);
+			return thenClosed & elseClosed, freereg;
+		}
 	}
 }
 
@@ -969,6 +1028,128 @@ class ForNode: Node
 	{
 		this::location = location;
 	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		compiler::PushSymbolStack();
+		context::loopLevel = context::loopLevel + 1;
+		int32 backupContinueLabelId = context::continueLabelId;
+		int32 backupBreakLabelId = context::breakLabelId;
+		context::contextType::Push(Core.Int32::ToString(Context::Loop));
+
+		int32 bodyTarget = compiler::GetNextLabelId();
+		int32 conditionTarget;
+		if (condition != null)
+			conditionTarget = compiler::GetNextLabelId();
+		int32 closed, _freereg = freereg;
+
+		context::continueLabelId = 0;
+		context::breakLabelId = 0;
+		if (condition == null && update == null)
+			context::continueLabelId = bodyTarget;
+
+		if (init != null)
+			closed, _freereg = init::CompileStatement(compiler, freereg, context);
+		if (condition != null)
+			compiler::AddCode("jmp\t" + compiler::GetLabelName(conditionTarget));
+		compiler::AddLabel(bodyTarget);
+		body::CompileStatement(compiler, _freereg, context);
+		if ((condition != null || update != null) && context::continueLabelId > 0)
+			compiler::AddLabel(context::continueLabelId);
+		if (update != null)
+			update::CompileList(compiler, _freereg, -1);
+		if (condition == null)
+			compiler::AddCode("jmp\t" + compiler::GetLabelName(bodyTarget));
+		else
+		{
+			compiler::AddLabel(conditionTarget);
+			condition::CompileExpression(compiler, _freereg, _freereg, bodyTarget, 1)::ToJumpTarget(compiler, _freereg, bodyTarget, 1);
+		}
+
+		if (context::breakLabelId > 0)
+			compiler::AddLabel(context::breakLabelId);
+		context::contextType::Pop();
+		context::continueLabelId = backupContinueLabelId;
+		context::breakLabelId = backupBreakLabelId;
+		context::loopLevel = context::loopLevel - 1;
+		compiler::PopSymbolStack();
+		return 0, freereg;
+	}
+}
+
+class WhileNode: Node
+{
+	public Node condition;
+	public Node body;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		context::loopLevel = context::loopLevel + 1;
+		int32 backupContinueLabelId = context::continueLabelId;
+		int32 backupBreakLabelId = context::breakLabelId;
+		context::contextType::Push(Core.Int32::ToString(Context::Loop));
+
+		int32 bodyTarget = compiler::GetNextLabelId();
+		int32 conditionTarget = compiler::GetNextLabelId();
+
+		context::continueLabelId = conditionTarget;
+		context::breakLabelId = 0;
+		compiler::AddCode("jmp\t" + compiler::GetLabelName(conditionTarget));
+		compiler::AddLabel(bodyTarget);
+		body::CompileStatement(compiler, freereg, context);
+		compiler::AddLabel(conditionTarget);
+		condition::CompileExpression(compiler, freereg, freereg, bodyTarget, 1)::ToJumpTarget(compiler, freereg, bodyTarget, 1);
+
+		if (context::breakLabelId > 0)
+			compiler::AddLabel(context::breakLabelId);
+		context::contextType::Pop();
+		context::continueLabelId = backupContinueLabelId;
+		context::breakLabelId = backupBreakLabelId;
+		context::loopLevel = context::loopLevel - 1;
+		return 0, freereg;
+	}
+}
+
+class DoWhileNode: Node
+{
+	public Node condition;
+	public Node body;
+
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		context::loopLevel = context::loopLevel + 1;
+		int32 backupContinueLabelId = context::continueLabelId;
+		int32 backupBreakLabelId = context::breakLabelId;
+		context::contextType::Push(Core.Int32::ToString(Context::Loop));
+
+		int32 bodyTarget = compiler::GetNextLabelId();
+
+		context::continueLabelId = 0;
+		context::breakLabelId = 0;
+		compiler::AddLabel(bodyTarget);
+		body::CompileStatement(compiler, freereg, context);
+		if (context::continueLabelId > 0)
+			compiler::AddLabel(context::continueLabelId);
+		condition::CompileExpression(compiler, freereg, freereg, bodyTarget, 1)::ToJumpTarget(compiler, freereg, bodyTarget, 1);
+
+		if (context::breakLabelId > 0)
+			compiler::AddLabel(context::breakLabelId);
+		context::contextType::Pop();
+		context::continueLabelId = backupContinueLabelId;
+		context::breakLabelId = backupBreakLabelId;
+		context::loopLevel = context::loopLevel - 1;
+		return 0, freereg;
+	}
 }
 
 class ReturnNode: Node
@@ -979,6 +1160,112 @@ class ReturnNode: Node
 	{
 		this::location = location;
 		values = new Vector();
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		if (values::Size != compiler::CurrentMethod::returnTypes::Size && values::Size != 0)
+			throw new CompilerException("Unmatched number of return values.", location);
+		if (context::finallyLevel > 0)
+			throw new CompilerException("Control cannot go out of the finally block.", location);
+		if (context::tryCatchLevel > 0)
+		{
+			/* We are inside a try finally block */
+			/* First, save supplied return values into return registers */
+			for (int32 i = 0; i < values::Size; i = i + 1)
+			{
+				Node vnode = [Node] values[i];
+				/* TODO: Type */
+				vnode::CompileExpression(compiler, freereg, context::firstReturnRegister + i, 0, 0)
+					::ToFreeRegister(compiler, context::firstReturnRegister + 1);
+			}
+			/* Second, add leave instruction */
+			compiler::AddCode("leave\t_Epilogue");
+			/* Last, tell CompileMethod() that we need an epilogue */
+			context::generateEpilogue = 1;
+		}
+		else
+		{
+			/* Normal return */
+			if (compiler::CurrentMethod::returnTypes::Size == 0)
+				compiler::AddCode("ret");
+			else if (compiler::CurrentMethod::returnTypes::Size == 1)
+			{
+				if (values::Size == 0)
+					compiler::AddCode("ret\t$" + context::firstReturnRegister);
+				else
+				{
+					RegisterValue value = ([Node] values[0])::CompileExpression(compiler, freereg, freereg, 0, 0)
+						::EnsureRegister(compiler, freereg);
+					compiler::AddCode("ret\t$" + value::regid);
+				}
+			}
+			else
+			{
+				if (values::Size == 0)
+					compiler::AddCode("ret\t$" + context::firstReturnRegister + ", $"
+						+ (context::firstReturnRegister + compiler::CurrentMethod::returnTypes::Size - 1));
+				else
+				{
+					for (int32 i = 0; i < values::Size; i = i + 1)
+					{
+						Node vnode = [Node] values[i];
+						/* TODO: Type */
+						vnode::CompileExpression(compiler, freereg + i, freereg + i, 0, 0)::ToFreeRegister(compiler, freereg + i);
+					}
+					compiler::AddCode("ret\t$" + freereg + ", $" + (freereg + values::Size - 1));
+				}
+			}
+		}
+		return 1, freereg;
+	}
+}
+
+class ContinueNode: Node
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		if (context::loopLevel == 0)
+			throw new CompilerException("Not in a loop.", location);
+		int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
+		if (ctx == Context::Finally)
+			throw new CompilerException("Control cannot go out of the finally block.", location);
+
+		context::continueLabelId = compiler::FixJumpTarget(context::continueLabelId);
+		if (ctx == Context::TryCatch)
+			compiler::AddCode("leave\t" + compiler::GetLabelName(context::continueLabelId));
+		else
+			compiler::AddCode("jmp\t" + compiler::GetLabelName(context::continueLabelId));
+		return 1, freereg;
+	}
+}
+
+class BreakNode: Node
+{
+	public (Location location)
+	{
+		this::location = location;
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		if (context::loopLevel == 0)
+			throw new CompilerException("Not in a loop.", location);
+		int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
+		if (ctx == Context::Finally)
+			throw new CompilerException("Control cannot go out of the finally block.", location);
+
+		context::breakLabelId = compiler::FixJumpTarget(context::breakLabelId);
+		if (ctx == Context::TryCatch)
+			compiler::AddCode("leave\t" + compiler::GetLabelName(context::breakLabelId));
+		else
+			compiler::AddCode("jmp\t" + compiler::GetLabelName(context::breakLabelId));
+		return 1, freereg;
 	}
 }
 
@@ -992,6 +1279,68 @@ class TryNode: Node
 	{
 		this::location = location;
 		catchNodes = new Vector();
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		int32 endTarget = compiler::GetNextLabelId();
+
+		if (finallyNode != null)
+		{
+			context::tryCatchLevel = context::tryCatchLevel + 1;
+			context::contextType::Push(Core.Int32::ToString(Context::TryCatch));
+		}
+
+		compiler::AddCode(".try {");
+		compiler::Tab();
+		int32 closed = body::CompileStatement(compiler, freereg, context);
+		if (closed == 0)
+			if (finallyNode == null)
+				compiler::AddCode("jmp\t" + compiler::GetLabelName(endTarget));
+			else
+				compiler::AddCode("leave\t" + compiler::GetLabelName(endTarget));
+		compiler::Untab();
+		compiler::AddCode("}");
+		for (int32 i = 0; i < catchNodes::Size; i = i + 1)
+		{
+			CatchNode cnode = [CatchNode] catchNodes[i];
+			compiler::AddCode(".catch(" + compiler::ResolveType(cnode::type)::ToString() + " $" + freereg + ") {");
+			compiler::PushSymbolStack();
+			Variable var = new Variable();
+			var::regid = freereg;
+			var::type = compiler::ResolveType(cnode::type);
+			/* TODO */
+			([Hash] compiler::symbolTable::Peek())::Add(cnode::name, var);
+			compiler::Tab();
+			int32 closed = body::CompileStatement(compiler, freereg + 1, context);
+			if (closed == 0)
+				if (finallyNode == null)
+					compiler::AddCode("jmp\t" + compiler::GetLabelName(endTarget));
+				else
+					compiler::AddCode("leave\t" + compiler::GetLabelName(endTarget));
+			compiler::Untab();
+			compiler::AddCode("}");
+			compiler::PopSymbolStack(); 
+		}
+		if (finallyNode != null)
+		{
+			context::tryCatchLevel = context::tryCatchLevel - 1;
+			context::contextType::Pop();
+			context::finallyLevel = context::finallyLevel + 1;
+			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Finally));
+
+			compiler::AddCode(".finally {");
+			compiler::Tab();
+			finallyNode::CompileStatement(compiler, freereg, context);
+			compiler::AddCode("endfinally");
+			compiler::Untab();
+			compiler::AddCode("}");
+
+			context::contextType::Pop();
+			context::finallyLevel = context::finallyLevel - 1;
+		}
+		compiler::AddLabel(endTarget);
+		return 0, freereg;
 	}
 }
 
@@ -1014,6 +1363,13 @@ class ThrowNode: Node
 	public (Location location)
 	{
 		this::location = location;
+	}
+
+	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
+	{
+		RegisterValue value = exception::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		compiler::AddCode("throw\t$" + value::regid);
+		return 1, freereg;
 	}
 }
 
