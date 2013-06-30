@@ -332,7 +332,7 @@ class Compiler
 				{
 					Variable var = new Variable();
 					var::regid = freereg + i;
-					var::type = ResolveType([ParserType] method::paramTypes[i]);
+					var::type = ResolveType([TypeCache] method::paramTypes[i]);
 					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
 				}
 			}
@@ -345,7 +345,7 @@ class Compiler
 				{
 					Variable var = new Variable();
 					var::regid = freereg + i;
-					var::type = ResolveType([ParserType] method::returnTypes[i]);
+					var::type = ResolveType([TypeCache] method::returnTypes[i]);
 					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
 				}
 			}
@@ -450,50 +450,14 @@ class Compiler
 
 		Method method = PrepareCall(node, methods, values, firstreg);
 		AddCode("call\t$" + firstreg + ", " + GetMethodSignature(method));
-		return new RegisterValue(node::location, firstreg, ResolveType([ParserType] method::returnTypes[0]));
+		return new RegisterValue(node::location, firstreg, ResolveType([TypeCache] method::returnTypes[0]));
 	}
 
-	/* Resolves a type from standarized type string */
-	private ResolveParserType(Location location, Core.String type) -> Type
+	private ResolveType(TypeCache type) -> Type
 	{
-		if (type::Equals("bool") > 0)
-			return Type::Bool;
-		else if (type::Equals("int8") > 0)
-			return Type::Int8;
-		else if (type::Equals("uint8") > 0)
-			return Type::UInt8;
-		else if (type::Equals("int16") > 0)
-			return Type::Int16;
-		else if (type::Equals("uint16") > 0)
-			return Type::UInt16;
-		else if (type::Equals("int32") > 0)
-			return Type::Int32;
-		else if (type::Equals("uint32") > 0)
-			return Type::UInt32;
-		else if (type::Equals("char") > 0)
-			return Type::Char;
-		else if (type::Equals("int") > 0)
-			return Type::Int;
-		else if (type::SubString(type::Length - 2, 2)::Equals("[]") > 0)
-			return new ArrayType(ResolveParserType(location, type::SubString(0, type::Length - 2)));
-		else if (type::SubString(type::Length - 1, 1)::Equals("*") > 0)
-			return new PointerType(ResolveParserType(location, type::SubString(0, type::Length - 1)));
-		else
-		{
-			Core.Object c;
-			int32 found;
-			found, c = classes::Contains(type);
-			if (found == 0)
-				throw new CompilerException("Unknown type \"" + type + "\".", location);
-			return new ClassType([Class] c);
-		}
-	}
-
-	private ResolveType(ParserType type) -> Type
-	{
-		if (type::type == null)
-			type::type = ResolveParserType(type::location, type::typestring);
-		return type::type;
+		if (type::cache == null)
+			type::cache = type::type::ToType(this);
+		return type::cache;
 	}
 
 	private ResolvePrototype(Method method) -> Core.String
@@ -505,9 +469,9 @@ class Compiler
 			for (int32 i = 0; i < method::paramTypes::Size; i = i + 1)
 			{
 				if (i == 0)
-					prototype = prototype + ResolveType([ParserType] method::paramTypes[i])::ToString();
+					prototype = prototype + ResolveType([TypeCache] method::paramTypes[i])::ToString();
 				else
-					prototype = prototype + ", " + ResolveType([ParserType] method::paramTypes[i])::ToString();
+					prototype = prototype + ", " + ResolveType([TypeCache] method::paramTypes[i])::ToString();
 			}
 			prototype = prototype + ")";
 			if (method::returnTypes::Size > 0)
@@ -516,9 +480,9 @@ class Compiler
 				for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
 				{
 					if (i == 0)
-						prototype = prototype + ResolveType([ParserType] method::returnTypes[i])::ToString();
+						prototype = prototype + ResolveType([TypeCache] method::returnTypes[i])::ToString();
 					else
-						prototype = prototype + ", " + ResolveType([ParserType] method::returnTypes[i])::ToString();
+						prototype = prototype + ", " + ResolveType([TypeCache] method::returnTypes[i])::ToString();
 				}
 			}
 			method::prototype = prototype;
@@ -616,7 +580,7 @@ class Compiler
 				/* HACK: bool */
 				int32 ok = 1;
 				for (int32 j = 0; j < method::paramTypes::Size; j = j + 1)
-					if (([Value] values[j])::CanImplicitlyConvertTo(ResolveType([ParserType] method::paramTypes[j])) == 0)
+					if (([Value] values[j])::CanImplicitlyConvertTo(ResolveType([TypeCache] method::paramTypes[j])) == 0)
 					{
 						ok = 0;
 						break;
@@ -629,7 +593,7 @@ class Compiler
 		/* Prepare values */
 		for (int32 i = 0; i < values::Size; i = i + 1)
 			([Value] values[i])::ToTypedRegister(
-				this, firstreg + i, firstreg + i, ResolveType([ParserType] method::paramTypes[i])
+				this, firstreg + i, firstreg + i, ResolveType([TypeCache] method::paramTypes[i])
 			);
 		return method;
 	}
@@ -662,8 +626,8 @@ class Compiler
 					for (int32 k = 0; k < values::Size; k = k + 1)
 					{
 						Type S = ([Value] values[k])::type;
-						Type T1 = ResolveType([ParserType] current::paramTypes[k]);
-						Type T2 = ResolveType([ParserType] another::paramTypes[k]);
+						Type T1 = ResolveType([TypeCache] current::paramTypes[k]);
+						Type T2 = ResolveType([TypeCache] another::paramTypes[k]);
 						if (T1::Equals(T2) > 0)
 							continue;
 						if (S::Equals(T1) > 0)

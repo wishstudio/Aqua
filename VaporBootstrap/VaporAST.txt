@@ -9,15 +9,14 @@ class Location
 	}
 }
 
-class ParserType
+class TypeCache
 {
-	public Location location;
-	public Core.String typestring;
-	public Type type;
+	public Node type;
+	public Type cache;
 
-	public (Location location)
+	public (Node type)
 	{
-		this::location = location;
+		this::type = type;
 	}
 }
 
@@ -28,6 +27,14 @@ class Node
 	public (Location location)
 	{
 		this::location = location;
+	}
+
+	public virtual ToType(Compiler compiler) -> Type
+	{
+		Core.Object type = ToEntity(compiler, 0, 0);
+		if (type is Type)
+			return [Type] type;
+		throw new CompilerException("Type expected.", location);
 	}
 
 	public virtual ToMethod(Compiler compiler, int32 freereg) -> MethodReference
@@ -145,9 +152,21 @@ class IdentNode: Node
 {
 	public Core.String ident;
 
-	public (Location location)
+	public (Location location, Core.String ident)
 	{
 		this::location = location;
+		this::ident = ident;
+	}
+
+	/* TODO */
+	public override ToType(Compiler compiler) -> Type
+	{
+		int32 found;
+		Core.Object classObject;
+		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
+			return new ClassType([Class] classObject);
+
+		throw new CompilerException("Unknown type.", location);
 	}
 
 	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
@@ -168,7 +187,7 @@ class IdentNode: Node
 
 		Core.Object classObject;
 		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
-			return classObject;
+			return new ClassType([Class] classObject);
 
 		throw new CompilerException("Unknown ident.", location);
 	}
@@ -209,9 +228,9 @@ class FieldNode: Node
 		int32 regid;
 		Class classObject;
 		bool ok = false;
-		if (object is Class)
+		if (object is ClassType)
 		{
-			classObject = [Class] object;
+			classObject = ([ClassType] object)::classObject;
 			ok = true;
 		}
 		else if (object is Value)
@@ -288,6 +307,56 @@ class FieldNode: Node
 	}
 }
 
+class ArrayTypeNode: Node
+{
+	private Node object;
+
+	public (Location location, Node object)
+	{
+		this::location = location;
+		this::object = object;
+	}
+
+	public override ToEntity(Compiler compiler, int32 freereg, int32 targetereg) -> Core.Object
+	{
+		Type elementType = object::ToType(compiler);
+		return new ArrayType(elementType);
+	}
+}
+
+class PointerTypeNode: Node
+{
+	private Node object;
+
+	public (Location location, Node object)
+	{
+		this::location = location;
+		this::object = object;
+	}
+
+	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	{
+		Type valueType = object::ToType(compiler);
+		return new PointerType(valueType);
+	}
+}
+
+class PrimitiveTypeNode: Node
+{
+	public Type type;
+
+	public (Location location, Type type)
+	{
+		this::location = location;
+		this::type = type;
+	}
+
+	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	{
+		return type;
+	}
+}
+
 class ArrayElementNode: Node
 {
 	public Node array;
@@ -319,7 +388,7 @@ class ArrayElementNode: Node
 
 class TypeCastNode: Node
 {
-	public ParserType type;
+	public Node type;
 	public Node operand;
 
 	public (Location location)
@@ -330,7 +399,7 @@ class TypeCastNode: Node
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
 		RegisterValue value = operand::CompileExpression(compiler, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
-		Type type = compiler::ResolveType(this::type);
+		Type type = this::type::ToType(compiler);
 		/* HACK: Workaround */
 		if (value::type is PointerType && type is IntType)
 		{
@@ -561,19 +630,13 @@ class BinComparisonNode: BinNode
 		/* HACK: Temporary workaround */
 		if (op == Token::Is)
 		{
-			Core.Object right = this::right::ToEntity(compiler, freereg + 1, freereg + 1);
-			/* HACK: not */
-			if (right is Class)
-			{}
-			else
-				throw new CompilerException("Not a type.", location);
+			Type type = right::ToType(compiler);
 			Core.String inst;
 			if (jtrue > 0) /* jump on true */
 				inst = "jinst";
 			else /* jump on false */
 				inst = "jninst";
-			compiler::AddCode(inst + "\t$" + left::regid + ", " + ([Class] right)::name
-				+ ", " + compiler::GetLabelName(jtarget));
+			compiler::AddCode(inst + "\t$" + left::regid + ", " + type::ToString() + ", " + compiler::GetLabelName(jtarget));
 
 			return new JumpTargetValue(location, jtarget);
 		}
@@ -714,7 +777,7 @@ class BinLogicNode: BinNode
 
 class NewNode: Node
 {
-	public ParserType type;
+	public Node type;
 	public Vector parameters;
 
 	public (Location location)
@@ -725,7 +788,7 @@ class NewNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		Type t = compiler::ResolveType(type);
+		Type t = type::ToType(compiler);
 		/* HACK: not */
 		if (t is ClassType)
 		{}
@@ -749,7 +812,7 @@ class NewNode: Node
 
 class NewArrayNode: Node
 {
-	public ParserType type;
+	public Node type;
 	public Node parameter;
 
 	public (Location location)
@@ -760,7 +823,7 @@ class NewArrayNode: Node
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
 		RegisterValue value = parameter::CompileExpression(compiler, freereg, freereg, 0, 0)::ToFreeRegister(compiler, freereg);
-		Type elementType = compiler::ResolveType(type);
+		Type elementType = type::ToType(compiler);
 		compiler::AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
 		return new RegisterValue(location, targetreg, new ArrayType(elementType));
 	}
@@ -918,7 +981,7 @@ class CallNode: ListNode
 		Vector ret = new Vector();
 		for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
 			ret::Add([Core.Object] new RegisterValue(location, freereg + i,
-				compiler::ResolveType([ParserType] method::returnTypes[i])));
+				compiler::ResolveType([TypeCache] method::returnTypes[i])));
 		return ret;
 	}
 }
@@ -946,7 +1009,7 @@ class MultipleNode: Node
 
 class DefinitionNode: Node
 {
-	public ParserType type;
+	public Node type;
 	public Vector names;
 	public Vector values;
 
@@ -959,11 +1022,12 @@ class DefinitionNode: Node
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
+		Type type = this::type::ToType(compiler);
 		for (int32 i = 0; i < names::Size; i = i + 1)
 		{
 			Variable variable = new Variable();
 			variable::regid = freereg;
-			variable::type = compiler::ResolveType(type);
+			variable::type = type;
 
 			/* TODO */
 			([Hash] compiler::symbolTable::Peek())::Add([Core.String] names[i], variable);
@@ -972,7 +1036,7 @@ class DefinitionNode: Node
 			if (vn != null)
 			{
 				Node vnode = [Node] vn;
-				LValue value = new VariableValue(location, freereg, compiler::ResolveType(type));
+				LValue value = new VariableValue(location, freereg, type);
 				vnode::CompileExpression(compiler, freereg, freereg, 0, 0)::ToLValue(compiler, value, freereg);
 			}
 			freereg = freereg + 1;
@@ -1306,11 +1370,12 @@ class TryNode: Node
 		for (int32 i = 0; i < catchNodes::Size; i = i + 1)
 		{
 			CatchNode cnode = [CatchNode] catchNodes[i];
-			compiler::AddCode(".catch(" + compiler::ResolveType(cnode::type)::ToString() + " $" + freereg + ") {");
+			Type catchType = cnode::type::ToType(compiler);
+			compiler::AddCode(".catch(" + catchType::ToString() + " $" + freereg + ") {");
 			compiler::PushSymbolStack();
 			Variable var = new Variable();
 			var::regid = freereg;
-			var::type = compiler::ResolveType(cnode::type);
+			var::type = catchType;
 			/* TODO */
 			([Hash] compiler::symbolTable::Peek())::Add(cnode::name, var);
 			compiler::Tab();
@@ -1348,7 +1413,7 @@ class TryNode: Node
 
 class CatchNode: Node
 {
-	public ParserType type;
+	public Node type;
 	public Core.String name;
 	public Node body;
 
@@ -1380,7 +1445,7 @@ class Field
 	public Class classObject;
 	public int32 modifier;
 	public Core.String name;
-	public ParserType type;
+	public TypeCache type;
 	public Location location;
 
 	public (Location location)
@@ -1420,7 +1485,7 @@ class Property
 	public Class classObject;
 	public int32 modifier;
 	public Core.String name;
-	public ParserType type;
+	public TypeCache type;
 	public Method getter;
 	public Method setter;
 	public Location location;

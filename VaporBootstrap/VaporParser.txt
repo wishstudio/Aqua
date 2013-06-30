@@ -64,32 +64,49 @@ class Parser
 			return cc;
 	}
 
-	private TryParseType() -> ParserType
+	private TryParseType() -> Node
 	{
 		Location location = GetCurrentLocation();
 		if (lex::token != Token::Ident)
 			return null;
-		Core.String type = lex::ident;
-		/* HACK: for (;;) */
-		while (2 > 1)
+
+		Node type;
+		if (lex::ident::Equals("bool") > 0)
+			type = new PrimitiveTypeNode(location, Type::Bool);
+		else if (lex::ident::Equals("int8") > 0)
+			type = new PrimitiveTypeNode(location, Type::Int8);
+		else if (lex::ident::Equals("uint8") > 0)
+			type = new PrimitiveTypeNode(location, Type::UInt8);
+		else if (lex::ident::Equals("int16") > 0)
+			type = new PrimitiveTypeNode(location, Type::Int16);
+		else if (lex::ident::Equals("uint16") > 0)
+			type = new PrimitiveTypeNode(location, Type::UInt16);
+		else if (lex::ident::Equals("int32") > 0)
+			type = new PrimitiveTypeNode(location, Type::Int32);
+		else if (lex::ident::Equals("uint32") > 0)
+			type = new PrimitiveTypeNode(location, Type::UInt32);
+		else if (lex::ident::Equals("char") > 0)
+			type = new PrimitiveTypeNode(location, Type::Char);
+		else if (lex::ident::Equals("int") > 0)
+			type = new PrimitiveTypeNode(location, Type::Int);
+		else
+			type = new IdentNode(location, lex::ident);
+
+		for (;;)
 		{
 			lex::Next();
 			if (lex::token == Token::Array)
-				type = type + "[]";
+				type = new ArrayTypeNode(location, type);
 			else if (lex::token == Token::Mul)
-				type = type + "*";
+				type = new PointerTypeNode(location, type);
 			else
-			{
-				ParserType ret = new ParserType(location);
-				ret::typestring = type;
-				return ret;
-			}
+				return type;
 		}
 	}
 
-	private ParseType() -> ParserType
+	private ParseType() -> Node
 	{
-		ParserType type = TryParseType();
+		Node type = TryParseType();
 		if (type == null)
 			throw new UnexpectedTokenException();
 		return type;
@@ -120,7 +137,7 @@ class Parser
 				int32 modifier = ParseModifier();
 				lex::Checkpoint();
 
-				ParserType type = TryParseType();
+				Node type = TryParseType();
 				if (type == null || lex::token == Token::PLeft)
 				{
 					lex::RollbackCheckpoint();
@@ -148,17 +165,17 @@ class Parser
 					/* HACK: break */
 					while (lex::token != Token::PRight)
 					{
-						method::paramTypes::Add([Core.Object] ParseType());
+						method::paramTypes::Add(new TypeCache(ParseType()));
 						if (lex::token == Token::Ident)
 						{
 							/* Named parameter */
-							method::paramNames::Add([Core.Object] lex::ident);
+							method::paramNames::Add(lex::ident);
 							lex::Next();
 						}
 						else
 						{
 							/* Unnamed parameter */
-							method::paramNames::Add([Core.Object] "");
+							method::paramNames::Add("");
 						}
 						if (lex::token != Token::PRight)
 						{
@@ -177,17 +194,17 @@ class Parser
 						/* HACK: for (;;) */
 						while (BREAK == 0)
 						{
-							method::returnTypes::Add([Core.Object] ParseType());
+							method::returnTypes::Add(new TypeCache(ParseType()));
 							if (lex::token == Token::Ident)
 							{
 								/* Named return */
-								method::returnNames::Add([Core.Object] lex::ident);
+								method::returnNames::Add(lex::ident);
 								lex::Next();
 							}
 							else
 							{
 								/* Unnamed return */
-								method::returnNames::Add([Core.Object] "");
+								method::returnNames::Add("");
 							}
 							if (lex::token == Token::Comma)
 								lex::Next();
@@ -237,7 +254,7 @@ class Parser
 							Property property = new Property(GetCurrentLocation());
 							property::classObject = classObject;
 							property::modifier = modifier;
-							property::type = type;
+							property::type = new TypeCache(type);
 							property::name = name;
 							for (;;)
 							{
@@ -253,7 +270,7 @@ class Parser
 											throw new ParserException();
 										property::getter = method;
 										method::name = ".get" + name;
-										method::returnTypes::Add(type);
+										method::returnTypes::Add(new TypeCache(type));
 										method::returnNames::Add("");
 									}
 									else
@@ -262,7 +279,7 @@ class Parser
 											throw new ParserException();
 										property::setter = method;
 										method::name = ".set" + name;
-										method::paramTypes::Add(type);
+										method::paramTypes::Add(new TypeCache(type));
 										method::paramNames::Add("value");
 									}
 									lex::Next();
@@ -289,7 +306,7 @@ class Parser
 							Field field = new Field(GetCurrentLocation());
 							field::classObject = classObject;
 							field::modifier = modifier;
-							field::type = type;
+							field::type = new TypeCache(type);
 							field::name = name;
 							classObject::fields::Add(field::name, [Core.Object] field);
 
@@ -496,7 +513,7 @@ class Parser
 	private ParseSingleStatement() -> Node
 	{
 		lex::Checkpoint();
-		ParserType type = TryParseType();
+		Node type = TryParseType();
 		if (type == null || lex::token != Token::Ident)
 		{
 			lex::RollbackCheckpoint();
@@ -696,7 +713,7 @@ class Parser
 		else if (lex::token == Token::New)
 		{
 			lex::Next();
-			ParserType type = ParseType();
+			Node type = ParseType();
 			if (lex::token == Token::SLeft)
 			{
 				NewArrayNode node = new NewArrayNode(GetCurrentLocation());
@@ -770,8 +787,7 @@ class Parser
 		}
 		else if (lex::token == Token::Ident)
 		{
-			IdentNode node = new IdentNode(GetCurrentLocation());
-			node::ident = lex::ident;
+			IdentNode node = new IdentNode(GetCurrentLocation(), lex::ident);
 			lex::Next();
 			return node;
 		}
