@@ -4,17 +4,6 @@
 #include "Resolve.h"
 #include "VMTypes.h"
 
-/* Core.Object::get_Name() -> Core.String */
-static void Core_Object_get_Name(reg *stack)
-{
-	pointer object = (pointer) POINTER(stack[0]);
-	Class *classObject = VTABLE(object)->classObject;
-	int32 length = utf8ToUtf16(classObject->name->data, classObject->name->length + 1, NULL);
-	String *string = CreateString(length);
-	utf8ToUtf16(classObject->name->data, classObject->name->length + 1, string->data);
-	POINTER(stack[0]) = (pointer) string;
-}
-
 /* static Core.String.AllocateString(int32 length) -> Core.String */
 static void Core_String_AllocateString(reg *stack)
 {
@@ -55,13 +44,6 @@ static void Core_Native_Memory_FreeMemory(reg *stack)
 
 void initializeCoreLibraryInternal()
 {
-	registerInternalMethod(
-		objectClass,
-		resolveInternalString(".getName"),
-		resolveFunctionType(0, 1, resolveClassType(stringClass)),
-		Core_Object_get_Name
-	);
-
 	registerInternalMethod(
 		stringClass,
 		resolveInternalString("AllocateString"),
