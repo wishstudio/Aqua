@@ -14,7 +14,7 @@ class Token
 
 	/* Symbols */
 	public static int32 EOF, Number, Ident, String, Comma;
-	public static int32 Assign, Arrow, Colon, DoubleColon, Semicolon, Array;
+	public static int32 Assign, Arrow, Colon, DoubleColon, Dot, Semicolon, Array;
 	public static int32 PLeft, PRight, SLeft, SRight, BLeft, BRight;
 
 	/* Reserved identifiers */
@@ -23,6 +23,7 @@ class Token
 	public static int32 If, Else, For, While, Do, Return;
 	public static int32 Continue, Break;
 	public static int32 Try, Catch, Finally, Throw;
+	public static int32 Namespace, Using;
 
 	public static InitToken()
 	{
@@ -63,5 +64,6 @@ class Token
 		Token::If, Token::Else, Token::For, Token::While, Token::Do, Token::Return = 58, 59, 60, 61, 62, 63;
 		Token::Continue, Token::Break = 64, 65;
 		Token::Try, Token::Catch, Token::Finally, Token::Throw = 66, 67, 68, 69;
+		Token::Namespace, Token::Using = 70, 71;
 	}
 }

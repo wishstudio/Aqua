@@ -29,11 +29,18 @@ class Node
 		this::location = location;
 	}
 
-	public virtual ToType(Compiler compiler) -> Type
+	public ToType(Compiler compiler) -> Type
 	{
-		Core.Object type = ToEntity(compiler, 0, 0);
+		Core.Object type = ToTypeEntity(compiler);
 		if (type is Type)
 			return [Type] type;
+		if (type is Class)
+			return new ClassType([Class] type);
+		throw new CompilerException("Type expected.", location);
+	}
+
+	public virtual ToTypeEntity(Compiler compiler) -> Core.Object
+	{
 		throw new CompilerException("Type expected.", location);
 	}
 
@@ -150,7 +157,7 @@ class ThisNode: Node
 
 class IdentNode: Node
 {
-	public Core.String ident;
+	private Core.String ident;
 
 	public (Location location, Core.String ident)
 	{
@@ -159,14 +166,17 @@ class IdentNode: Node
 	}
 
 	/* TODO */
-	public override ToType(Compiler compiler) -> Type
+	public override ToTypeEntity(Compiler compiler) -> Core.Object
 	{
 		int32 found;
-		Core.Object classObject;
-		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
-			return new ClassType([Class] classObject);
+		Core.Object object;
+		if ((found, object = compiler::Classes::Contains(ident)) > 0)
+			return object;
 
-		throw new CompilerException("Unknown type.", location);
+		if ((found, object = compiler::Root::children::Contains(ident)) > 0)
+			return object;
+
+		throw new CompilerException("Unknown identifier \"" + ident + "\".", location);
 	}
 
 	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
@@ -185,11 +195,7 @@ class IdentNode: Node
 		if (property != null)
 			return new PropertyValue(location, 0, property, compiler::ResolveType(property::type));
 
-		Core.Object classObject;
-		if ((found, classObject = compiler::Classes::Contains(ident)) > 0)
-			return new ClassType([Class] classObject);
-
-		throw new CompilerException("Unknown ident.", location);
+		return ToTypeEntity(compiler);
 	}
 
 	public override ToMethod(Compiler compiler, int32 freereg) -> MethodReference
@@ -215,69 +221,49 @@ class IdentNode: Node
 
 class FieldNode: Node
 {
-	public Node object;
-	public Core.String field;
+	private Node object;
+	private Core.String field;
 
-	public (Location location)
+	public (Location location, Node object, Core.String field)
 	{
 		this::location = location;
+		this::object = object;
+		this::field = field;
 	}
 
 	private ResolveObject(Compiler compiler, int32 freereg, Core.Object object) -> Class, int32
 	{
 		int32 regid;
-		Class classObject;
-		bool ok = false;
-		if (object is ClassType)
-		{
-			classObject = ([ClassType] object)::classObject;
-			ok = true;
-		}
+		Class classObject = null;
+		if (object is Class)
+			classObject = [Class] object;
 		else if (object is Value)
 		{
 			RegisterValue v = ([Value] object)::EnsureRegister(compiler, freereg);
 			Type type = ([Value] object)::type;
 			regid = v::regid;
 			if (type is ClassType)
-			{
 				classObject = ([ClassType] type)::Class;
-				ok = true;
-			}
 		}
-		/* HACK: not */
-		if (ok)
-		{}
-		else
-			throw new CompilerException("Not an object or class.", this::object::location);
-
 		return classObject, regid;
 	}
 
+	public ToTypeEntityInternal(Compiler compiler, Core.Object objectEntity) -> Core.Object
+	{
+		int32 found;
+		Core.Object object;
+		if (objectEntity is Namespace)
+			if ((found, object = ([Namespace] objectEntity)::children::Contains(field)) > 0)
+				return object;
+		throw new CompilerException("Unknown field member \"" + this::field + "\".", location);
+	}
+
+	public override ToTypeEntity(Compiler compiler) -> Core.Object
+	{
+		return ToTypeEntityInternal(compiler, object::ToTypeEntity(compiler));
+	}
+
 	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
-	{
-		return CompileExpression(compiler, freereg, targetreg, 0, 0);
-
-		throw new CompilerException("Type expected.", location);
-	}
-
-	public override ToMethod(Compiler compiler, int32 freereg) -> MethodReference
-	{
-		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
-
-		Class classObject;
-		int32 regid;
-		classObject, regid = ResolveObject(compiler, freereg, object);
-
-		/* HACK */
-		Vector methods = new Vector();
-		compiler::ResolveMethod(classObject, this::field, methods);
-		if (methods::Size == 0)
-			throw new CompilerException("Unknown method.", location);
-
-		return new MethodReference(location, regid, methods);
-	}
-
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
 		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
 
@@ -295,15 +281,47 @@ class FieldNode: Node
 		int32 regid;
 		classObject, regid = ResolveObject(compiler, freereg, object);
 
-		Field field = compiler::ResolveField(classObject, this::field);
-		if (field != null)
-			return new FieldValue(location, regid, field, compiler::ResolveType(field::type));
+		if (classObject != null)
+		{
+			Field field = compiler::ResolveField(classObject, this::field);
+			if (field != null)
+				return new FieldValue(location, regid, field, compiler::ResolveType(field::type));
 
-		Property property = compiler::ResolveProperty(classObject, this::field);
-		if (property != null)
-			return new PropertyValue(location, regid, property, compiler::ResolveType(property::type));
+			Property property = compiler::ResolveProperty(classObject, this::field);
+			if (property != null)
+				return new PropertyValue(location, regid, property, compiler::ResolveType(property::type));
+		}
 
-		throw new CompilerException("Unknown field.", location);
+		return ToTypeEntityInternal(compiler, object);
+	}
+
+	public override ToMethod(Compiler compiler, int32 freereg) -> MethodReference
+	{
+		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
+
+		Class classObject;
+		int32 regid;
+		classObject, regid = ResolveObject(compiler, freereg, object);
+
+		if (classObject != null)
+		{
+			/* HACK */
+			Vector methods = new Vector();
+			compiler::ResolveMethod(classObject, this::field, methods);
+			if (methods::Size > 0)
+				return new MethodReference(location, regid, methods);
+		}
+
+		throw new CompilerException("Unknown method.", location);
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	{
+		Core.Object value = ToEntity(compiler, freereg, targetreg);
+		if (value is Value)
+			return [Value] value;
+
+		throw new CompilerException("Value expected.", location);
 	}
 }
 
@@ -317,7 +335,7 @@ class ArrayTypeNode: Node
 		this::object = object;
 	}
 
-	public override ToEntity(Compiler compiler, int32 freereg, int32 targetereg) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Core.Object
 	{
 		Type elementType = object::ToType(compiler);
 		return new ArrayType(elementType);
@@ -334,7 +352,7 @@ class PointerTypeNode: Node
 		this::object = object;
 	}
 
-	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Core.Object
 	{
 		Type valueType = object::ToType(compiler);
 		return new PointerType(valueType);
@@ -351,7 +369,7 @@ class PrimitiveTypeNode: Node
 		this::type = type;
 	}
 
-	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Core.Object
 	{
 		return type;
 	}
@@ -1512,6 +1530,20 @@ class Class
 		methods = new Hash();
 		fields = new Hash();
 		properties = new Hash();
+	}
+}
+
+class Namespace
+{
+	public Core.String name;
+	public Namespace parent;
+	Hash children;
+
+	public (Core.String name, Namespace parent)
+	{
+		children = new Hash();
+		this::name = name;
+		this::parent = parent;
 	}
 }
 

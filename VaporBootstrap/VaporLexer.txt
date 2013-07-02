@@ -124,12 +124,11 @@ class Lexer
 
 		while (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n')
 			NextChar();
-		if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || ch == '.')
+		if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_')
 		{
 			ident = "";
 			token = Token::Ident;
-			while ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
-				|| ch == '_' || ch == '.')
+			while ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
 			{
 				ident = ident::AppendChar([char] ch);
 				NextChar();
@@ -260,6 +259,12 @@ class Lexer
 			}
 			else
 				token = Token::Colon;
+		}
+		else if (ch == '.')
+		{
+			/* HACK: Temporary workaround */
+			NextChar();
+			token = Token::DoubleColon;
 		}
 		else if (ch == ';')
 		{

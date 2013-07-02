@@ -24,7 +24,7 @@ class Vapor
 				return;
 			}
 
-		Compiler compiler = new Compiler(parser::classes);
+		Compiler compiler = new Compiler(parser::root, parser::classes);
 		try
 			compiler::Compile();
 		catch (CompilerException e)

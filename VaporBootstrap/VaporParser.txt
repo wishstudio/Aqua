@@ -4,6 +4,7 @@
 class Parser
 {
 	public Hash classes;
+	public Namespace root;
 
 	private Lexer lex;
 	private Core.String currentFileName;
@@ -11,6 +12,7 @@ class Parser
 	public ()
 	{
 		classes = new Hash();
+		root = new Namespace("", null);
 	}
 
 	public GetCurrentLocation() -> Location
@@ -99,6 +101,11 @@ class Parser
 				type = new ArrayTypeNode(location, type);
 			else if (lex::token == Token::Mul)
 				type = new PointerTypeNode(location, type);
+			else if (lex::token == Token::DoubleColon)
+			{
+				lex::CheckNext(Token::Ident);
+				type = new FieldNode(location, type, lex::ident);
+			}
 			else
 				return type;
 		}
@@ -118,13 +125,46 @@ class Parser
 		{
 			Class classObject = new Class(GetCurrentLocation());
 			lex::CheckNext(Token::Ident);
-			classObject::name = lex::ident;
+			/* HACK: Temporary workaround */
+			/* Concatenate fields into one unique name */
+			Core.String name = lex::ident;
+			Core.String last = lex::ident;
 			lex::Next();
+			Namespace current = root;
+			while (lex::token == Token::DoubleColon)
+			{
+				int32 found;
+				Core.Object sp;
+				if ((found, sp = current::children::Contains(last)) == 0)
+				{
+					sp = new Namespace(last, current);
+					current::children::Add(last, sp);
+				}
+				current = [Namespace] sp;
+
+				lex::CheckNext(Token::Ident);
+				name = name + "." + lex::ident;
+				last = lex::ident;
+				lex::Next();
+			}
+			current::children::Add(last, classObject);
+			classObject::name = name;
 			if (lex::token == Token::Colon)
 			{
 				lex::CheckNext(Token::Ident);
-				classObject::baseName = lex::ident;
+
+				/* HACK: Temporary workaround */
+				/* Concatenate fields into one unique name */
+				Core.String baseName = lex::ident;
 				lex::Next();
+				while (lex::token == Token::DoubleColon)
+				{
+					lex::CheckNext(Token::Ident);
+					baseName = baseName + "." + lex::ident;
+					lex::Next();
+				}
+
+				classObject::baseName = baseName;
 			}
 			else if (classObject::name::Equals("Core.Object") > 0)
 				classObject::baseName = "";
@@ -613,11 +653,7 @@ class Parser
 			{
 				lex::CheckNext(Token::Ident);
 
-				FieldNode node = new FieldNode(GetCurrentLocation());
-				node::object = object;
-				node::field = lex::ident;
-				object = [Node] node;
-
+				object = new FieldNode(GetCurrentLocation(), object, lex::ident);
 				lex::Next();
 			}
 			else if (lex::token == Token::PLeft)

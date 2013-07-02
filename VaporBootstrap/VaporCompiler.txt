@@ -54,6 +54,12 @@ class Compiler
 	private Class currentClass;
 	private Method currentMethod;
 	private int32 currentLabelId;
+	private Namespace root;
+
+	public Namespace Root
+	{
+		get { return root; }
+	}
 
 	public Hash Classes
 	{
@@ -70,8 +76,9 @@ class Compiler
 		get { return currentMethod; }
 	}
 
-	public (Hash classes)
+	public (Namespace root, Hash classes)
 	{
+		this::root = root;
 		this::classes = classes;
 		code = new Vector();
 		symbolTable = new Stack();
