@@ -2,8 +2,7 @@ using Core;
 
 class Type
 {
-	/* HACK: bool */
-	public abstract CanImplicitlyConvertTo(Type type) -> int32;
+	public abstract CanImplicitlyConvertTo(Type type) -> bool;
 
 	public abstract ToString() -> String;
 
@@ -40,9 +39,9 @@ class Type
 
 class UnitType: Type
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		return 0;
+		return false;
 	}
 
 	public override ToString() -> String
@@ -67,11 +66,9 @@ class PrimitiveType: Type
 
 class BoolType: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is BoolType)
-			return 1;
-		return 0;
+		return type is BoolType;
 	}
 
 	public override ToString() -> String
@@ -92,11 +89,9 @@ class BoolType: PrimitiveType
 
 class Int8Type: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is Int8Type || type is Int16Type || type is Int32Type)
-			return 1;
-		return 0;
+		return type is Int8Type || type is Int16Type || type is Int32Type;
 	}
 
 	public override ToString() -> String
@@ -117,11 +112,9 @@ class Int8Type: PrimitiveType
 
 class UInt8Type: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is UInt8Type || type is Int16Type || type is UInt16Type || type is Int32Type || type is UInt32Type)
-			return 1;
-		return 0;
+		return type is UInt8Type || type is Int16Type || type is UInt16Type || type is Int32Type || type is UInt32Type;
 	}
 
 	public override ToString() -> String
@@ -142,11 +135,9 @@ class UInt8Type: PrimitiveType
 
 class Int16Type: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is Int16Type || type is Int32Type)
-			return 1;
-		return 0;
+		return type is Int16Type || type is Int32Type;
 	}
 
 	public override ToString() -> String
@@ -167,11 +158,9 @@ class Int16Type: PrimitiveType
 
 class UInt16Type: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is UInt16Type || type is Int32Type || type is UInt32Type)
-			return 1;
-		return 0;
+		return type is UInt16Type || type is Int32Type || type is UInt32Type;
 	}
 
 	public override ToString() -> String
@@ -192,11 +181,9 @@ class UInt16Type: PrimitiveType
 
 class CharType: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is CharType)
-			return 1;
-		return 0;
+		return type is CharType;
 	}
 
 	public override ToString() -> String
@@ -217,11 +204,9 @@ class CharType: PrimitiveType
 
 class Int32Type: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is Int32Type)
-			return 1;
-		return 0;
+		return type is Int32Type;
 	}
 
 	public override ToString() -> String
@@ -237,11 +222,9 @@ class Int32Type: PrimitiveType
 
 class UInt32Type: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is UInt32Type)
-			return 1;
-		return 0;
+		return type is UInt32Type;
 	}
 
 	public override ToString() -> String
@@ -257,12 +240,10 @@ class UInt32Type: PrimitiveType
 
 class IntType: PrimitiveType
 {
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
 		/* FIXME: Temporary workaround */
-		if (type is IntType || type is ClassType || type is ArrayType)
-			return 1;
-		return 0;
+		return type is IntType || type is ClassType || type is ArrayType;
 	}
 
 	public override ToString() -> String
@@ -285,15 +266,15 @@ class PointerType: Type
 		this.valueType = valueType;
 	}
 
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
 		if (type is PointerType &&
 			([PointerType] type).ValueType.Equals(valueType) > 0 || ([PointerType] type).ValueType is UnitType)
-			return 1;
+			return true;
 		/* HACK: Temporary workaround */
 		if (type is IntType)
-			return 1;
-		return 0;
+			return true;
+		return false;
 	}
 
 	public override ToString() -> String
@@ -321,11 +302,9 @@ class ArrayType: Type
 		this.elementType = elementType;
 	}
 
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is ArrayType && ([ArrayType] type).ElementType.Equals(elementType) > 0)
-			return 1;
-		return 0;
+		return type is ArrayType && ([ArrayType] type).ElementType.Equals(elementType) > 0;
 	}
 
 	public override ToString() -> String
@@ -353,7 +332,7 @@ class ClassType: Type
 		this.classObject = classObject;
 	}
 
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
 		if (type is ClassType)
 		{
@@ -363,11 +342,11 @@ class ClassType: Type
 			{
 				/* HACK: object pointer comparison */
 				if (c.name.Equals(dst.name) > 0)
-					return 1;
+					return true;
 				c = c.baseClass;
 			}
 		}
-		return 0;
+		return false;
 	}
 
 	public override ToString() -> String

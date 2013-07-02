@@ -19,8 +19,7 @@ class Value
 	public Location location;
 	public Type type;
 
-	/* HACK: bool */
-	public virtual CanImplicitlyConvertTo(Type dst) -> int32
+	public virtual CanImplicitlyConvertTo(Type dst) -> bool
 	{
 		return type.CanImplicitlyConvertTo(dst);
 	}
@@ -80,7 +79,7 @@ class Value
 
 			/* Object cast */
 			/* TODO */
-			if (type.CanImplicitlyConvertTo(dst) > 0)
+			if (type.CanImplicitlyConvertTo(dst))
 			{
 				/* FIXME: Clone */
 				this.type = type;
@@ -109,7 +108,10 @@ class Value
 
 	public ToLValue(Compiler compiler, LValue lvalue, int32 freereg)
 	{
-		if (CanImplicitlyConvertTo(lvalue.type) == 0)
+		/* HACK: not */
+		if (CanImplicitlyConvertTo(lvalue.type))
+		{}
+		else
 			throw new CompilerException(
 				"Cannot implicitly convert to \"" + lvalue.type.ToString() + "\"",
 				location
@@ -117,15 +119,14 @@ class Value
 		lvalue.AssignValue(compiler, this, freereg);
 	}
 
-	/* HACK: bool */
-	public virtual ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
+	public virtual ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, bool jtrue)
 		-> JumpTargetValue
 	{
 		RegisterValue value = EnsureTypedRegister(compiler, freereg, Type.Bool);
 		String inst;
-		if (jtrue > 0) /* jump on true */
+		if (jtrue)
 			inst = "jnzi";
-		else /* jump on false */
+		else
 			inst = "jzi";
 		compiler.AddCode(inst + "\t$" + value.regid + ", " + compiler.GetLabelName(jtarget));
 		return new JumpTargetValue(location, jtarget);
@@ -140,28 +141,28 @@ class ImmediateValue: Value
 	}
 }
 
-/* HACK: bool */
 class BoolValue: ImmediateValue
 {
-	public int32 value;
+	public bool value;
 
-	public (Location location, int32 value)
+	public (Location location, bool value)
 	{
 		this.location = location;
 		this.value = value;
 		this.type = Type.Bool;
 	}
 
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is BoolType)
-			return 1;
-		return 0;
+		return type is BoolType;
 	}
 
 	public override ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
-		compiler.AddCode("ldi\t$" + regid + ", " + value);
+		int32 v = 0;
+		if (value)
+			v = 1;
+		compiler.AddCode("ldi\t$" + regid + ", " + v);
 		return new RegisterValue(location, regid, Type.Bool);
 	}
 
@@ -182,11 +183,9 @@ class NullValue: ImmediateValue
 		this.type = Type.Int;
 	}
 
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		if (type is IntType || type is ClassType || type is PointerType)
-			return 1;
-		return 0;
+		return type is IntType || type is ClassType || type is PointerType;
 	}
 
 	public override ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
@@ -220,13 +219,11 @@ class IntegerValue: ImmediateValue
 		this.type = Type.Int32;
 	}
 
-	public override CanImplicitlyConvertTo(Type type) -> int32
+	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
 		/* TODO */
-		if (type is Int8Type || type is UInt8Type || type is Int16Type || type is UInt16Type
-			|| type is Int32Type || type is UInt32Type)
-			return 1;
-		return 0;
+		return type is Int8Type || type is UInt8Type || type is Int16Type || type is UInt16Type
+			|| type is Int32Type || type is UInt32Type;
 	}
 
 	public override ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
@@ -272,7 +269,7 @@ class JumpTargetValue: Value
 		return new RegisterValue(location, regid, Type.Bool);
 	}
 
-	public override ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, int32 jtrue)
+	public override ToJumpTarget(Compiler compiler, int32 freereg, int32 jtarget, bool jtrue)
 		-> JumpTargetValue
 	{
 		return this;

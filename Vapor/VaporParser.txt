@@ -835,11 +835,10 @@ class Parser
 		else if (lex.token == Token.True || lex.token == Token.False)
 		{
 			BoolNode node = new BoolNode(GetCurrentLocation());
-			/* HACK: bool */
 			if (lex.token == Token.True)
-				node.boolvalue = 1;
+				node.boolvalue = true;
 			else
-				node.boolvalue = 0;
+				node.boolvalue = false;
 			lex.Next();
 			return node;
 		}

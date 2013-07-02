@@ -32,8 +32,7 @@ class Context
 	public int32 breakLabelId;
 	public int32 firstReturnRegister;
 	public Stack contextType;
-	/* HACK: bool */
-	public int32 generateEpilogue;
+	public bool generateEpilogue;
 
 	public ()
 	{
@@ -293,15 +292,13 @@ class Compiler
 			if (method.modifier & Modifier.Override > 0)
 			{
 				/* Check if it actually overrides a method */
-				/* HACK: bool */
-				int32 ok = 0;
+				bool ok = false;
 				Class c = method.classObject;
 				while (c.baseClass != null)
 				{
 					c = c.baseClass;
 					Vector methods = c.methods.FindAll(method.name);
-					/* HACK: bool */
-					int32 done = 0;
+					bool done = false;
 					for (int32 i = 0; i < methods.Size; i = i + 1)
 					{
 						Method another = [Method] methods[i];
@@ -309,21 +306,24 @@ class Compiler
 						{
 							if (another.modifier & Modifier.Virtual > 0 || another.modifier & Modifier.Abstract > 0)
 							{
-								done = 1;
-								ok = 1;
+								done = true;
+								ok = true;
 								break;
 							}
 							else if (another.modifier & Modifier.Override == 0)
 							{
-								done = 1;
+								done = true;
 								break;
 							}
 						}
 					}
-					if (done > 0)
+					if (done)
 						break;
 				}
-				if (ok == 0)
+				/* HACK: not */
+				if (ok)
+				{}
+				else
 					throw new CompilerException("The method \"" + method.name
 						+ "\" makred with \"override\" does not override any methods.", method.location);
 			}
@@ -370,9 +370,9 @@ class Compiler
 			currentMethod = method;
 			currentLabelId = 1;
 			int32 closed = method.body.CompileStatement(this, freereg, context);
-			if (closed == 0 || context.generateEpilogue > 0)	
+			if (closed == 0 || context.generateEpilogue)
 			{
-				if (context.generateEpilogue > 0)
+				if (context.generateEpilogue)
 					AddStringLabel("_Epilogue");
 				/* Unclosed statement block, insert return statement manually */
 				if (method.returnNames.Size == 0)
@@ -407,17 +407,17 @@ class Compiler
 		/* TODO: Immediate value */
 		Type type;
 
-		if (left.CanImplicitlyConvertTo(Type.Int8) > 0 && right.CanImplicitlyConvertTo(Type.Int8) > 0)
+		if (left.CanImplicitlyConvertTo(Type.Int8) && right.CanImplicitlyConvertTo(Type.Int8))
 			type = Type.Int8;
-		else if (left.CanImplicitlyConvertTo(Type.UInt8) > 0 && right.CanImplicitlyConvertTo(Type.UInt8) > 0)
+		else if (left.CanImplicitlyConvertTo(Type.UInt8) && right.CanImplicitlyConvertTo(Type.UInt8))
 			type = Type.UInt8;
-		else if (left.CanImplicitlyConvertTo(Type.Int16) > 0 && right.CanImplicitlyConvertTo(Type.Int16) > 0)
+		else if (left.CanImplicitlyConvertTo(Type.Int16) && right.CanImplicitlyConvertTo(Type.Int16))
 			type = Type.Int16;
-		else if (left.CanImplicitlyConvertTo(Type.UInt16) > 0 && right.CanImplicitlyConvertTo(Type.UInt16) > 0)
+		else if (left.CanImplicitlyConvertTo(Type.UInt16) && right.CanImplicitlyConvertTo(Type.UInt16))
 			type = Type.UInt16;
-		else if (left.CanImplicitlyConvertTo(Type.Int32) > 0 && right.CanImplicitlyConvertTo(Type.Int32) > 0)
+		else if (left.CanImplicitlyConvertTo(Type.Int32) && right.CanImplicitlyConvertTo(Type.Int32))
 			type = Type.Int32;
-		else if (left.CanImplicitlyConvertTo(Type.UInt32) > 0 && right.CanImplicitlyConvertTo(Type.UInt32) > 0)
+		else if (left.CanImplicitlyConvertTo(Type.UInt32) && right.CanImplicitlyConvertTo(Type.UInt32))
 			type = Type.UInt32;
 		else
 			throw new CompilerException("Uncompatible types.", node.location);
@@ -562,19 +562,18 @@ class Compiler
 			Method method = [Method] current[i];
 			if (method.modifier & Modifier.Override == 0) /* Do not include overridden methods */
 			{
-				/* HACK: bool */
-				int32 ok = 1;
+				bool ok = true;
 				/* Make sure this method is not overridden by a subclass method */
 				for (int32 j = 0; j < methods.Size; j = j + 1)
 				{
 					Method another = [Method] methods[j];
 					if (ResolvePrototype(method).Equals(ResolvePrototype(another)) > 0)
 					{
-						ok = 0;
+						ok = false;
 						break;
 					}
 				}
-				if (ok > 0)
+				if (ok)
 					methods.Add(method);
 			}
 		}
@@ -593,15 +592,17 @@ class Compiler
 			Method method = [Method] methods[i];
 			if (method.paramTypes.Size == values.Size)
 			{
-				/* HACK: bool */
-				int32 ok = 1;
+				bool ok = true;
 				for (int32 j = 0; j < method.paramTypes.Size; j = j + 1)
-					if (([Value] values[j]).CanImplicitlyConvertTo(ResolveType([TypeCache] method.paramTypes[j])) == 0)
+					/* HACK: not */
+					if (([Value] values[j]).CanImplicitlyConvertTo(ResolveType([TypeCache] method.paramTypes[j])))
+					{}
+					else
 					{
-						ok = 0;
+						ok = false;
 						break;
 					}
-				if (ok > 0)
+				if (ok)
 					candidates.Add(method);
 			}
 		}
@@ -631,14 +632,12 @@ class Compiler
 		for (int32 i = 0; i < methods.Size; i = i + 1)
 		{
 			Method current = [Method] methods[i];
-			/* HACK: bool */
-			int32 ok = 1;
+			bool ok = true;
 			for (int32 j = 0; j < methods.Size; j = j + 1)
 				if (i != j)
 				{
 					Method another = [Method] methods[j];
-					/* HACK: bool */
-					int32 better = 0;
+					bool better = false;
 					for (int32 k = 0; k < values.Size; k = k + 1)
 					{
 						Type S = ([Value] values[k]).type;
@@ -648,32 +647,40 @@ class Compiler
 							continue;
 						if (S.Equals(T1) > 0)
 						{
-							better = 1;
+							better = true;
 							continue;
 						}
 						if (S.Equals(T2) > 0)
 						{
-							better = 0;
+							better = false;
 							break;
 						}
-						/* HACK: bool */
-						int32 c1 = T1.CanImplicitlyConvertTo(T2), c2 = T2.CanImplicitlyConvertTo(T1);
+						/* HACK: not */
+						int32 c1 = 0, c2 = 0;
+						if (T1.CanImplicitlyConvertTo(T2))
+							c1 = 1;
+						if (T2.CanImplicitlyConvertTo(T1))
+							c2 = 1;
+						/*bool c1 = T1.CanImplicitlyConvertTo(T2), c2 = T2.CanImplicitlyConvertTo(T1);*/
 						if (c1 > 0 && c2 == 0)
-							better = 1;
+							better = true;
 						else if (c1 == 0 && c2 > 0)
 						{
-							better = 0;
+							better = false;
 							break;
 						}
 					}
 					/* Best method must be better than any other method */
-					if (better == 0)
+					/* HACK: not */
+					if (better)
+					{}
+					else
 					{
-						ok = 0;
+						ok = false;
 						break;
 					}
 				}
-			if (ok > 0)
+			if (ok)
 				return current;
 		}
 		throw new CompilerException("Ambiguous function call.", node.location);

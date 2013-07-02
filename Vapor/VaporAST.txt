@@ -54,11 +54,11 @@ class Node
 	/* Returns 'Value' or 'Type' */
 	public virtual ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Object
 	{
-		return CompileExpression(compiler, freereg, targetreg, 0, 0);
+		return CompileExpression(compiler, freereg, targetreg, 0, false);
 	}
 
 	/* TODO: Aqua: Report error on abstract method invocation */
-	public virtual CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public virtual CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		throw new CompilerException("INTERNAL EXCEPTION.", location);
 	}
@@ -67,9 +67,9 @@ class Node
 	public virtual CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
 		if (lastreg != -1)
-			return compiler.Scalar(CompileExpression(compiler, freereg, lastreg, 0, 0));
+			return compiler.Scalar(CompileExpression(compiler, freereg, lastreg, 0, false));
 		else
-			return compiler.Scalar(CompileExpression(compiler, freereg, freereg, 0, 0));
+			return compiler.Scalar(CompileExpression(compiler, freereg, freereg, 0, false));
 	}
 
 	/* Returns whether the statement block is fully closed (has return statements in all possible control flows) */
@@ -88,7 +88,7 @@ class NullNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		return new NullValue(location);
 	}
@@ -96,15 +96,14 @@ class NullNode: Node
 
 class BoolNode: Node
 {
-	/* HACK: bool */
-	public int32 boolvalue;
+	public bool boolvalue;
 
 	public (Location location)
 	{
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		return new BoolValue(location, boolvalue);
 	}
@@ -119,7 +118,7 @@ class IntegerNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		return new IntegerValue(location, intvalue);
 	}
@@ -134,7 +133,7 @@ class StringNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		/* TODO: StringValue */
 		compiler.AddCode("ldstr\t$" + targetreg + ", \"" + stringvalue + "\"");
@@ -151,7 +150,7 @@ class ThisNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		if (compiler.CurrentMethod.modifier & Modifier.Static > 0)
 			throw new CompilerException("'this' cannot be used in a static method.", location);
@@ -213,7 +212,7 @@ class IdentNode: Node
 		throw new CompilerException("Method expected.", location);
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		Object value = ToEntity(compiler, freereg, targetreg);
 		if (value is Value)
@@ -319,7 +318,7 @@ class FieldNode: Node
 		throw new CompilerException("Unknown method.", location);
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		Object value = ToEntity(compiler, freereg, targetreg);
 		if (value is Value)
@@ -389,19 +388,19 @@ class ArrayElementNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		RegisterValue array = this.array.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
+		RegisterValue array = this.array.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
 		if (array.type is ArrayType)
 		{
 			freereg = array.GetNextFreeRegister(freereg);
-			RegisterValue index = this.index.CompileExpression(compiler, freereg, freereg, 0, 0)
+			RegisterValue index = this.index.CompileExpression(compiler, freereg, freereg, 0, false)
 				.EnsureRegister(compiler, freereg);
 			return new ArrayElementValue(location, array.regid, index.regid, ([ArrayType] array.type).ElementType);
 		}
 		else
 		{
-			RegisterValue index = this.index.CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0)
+			RegisterValue index = this.index.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false)
 				.EnsureRegister(compiler, freereg + 1);
 			return compiler.CompileCustomBinaryOperator(this, Token.Array, array, index, freereg);
 		}
@@ -418,9 +417,9 @@ class TypeCastNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, 0).EnsureRegister(compiler, targetreg);
+		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, false).EnsureRegister(compiler, targetreg);
 		Type type = this.type.ToType(compiler);
 		/* HACK: Workaround */
 		if (value.type is PointerType && type is IntType)
@@ -461,9 +460,9 @@ class DereferenceNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		RegisterValue value = operand.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
+		RegisterValue value = operand.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
 		/* HACK: Temporary workaround */
 		if (value.type is IntType)
 			return new DerefValue(location, value.regid, Type.Char);
@@ -483,9 +482,9 @@ class AddressOfNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		Value value = operand.CompileExpression(compiler, freereg, freereg, 0, 0);
+		Value value = operand.CompileExpression(compiler, freereg, freereg, 0, false);
 		/* TODO */
 		Type type;
 		if (value is VariableValue)
@@ -526,9 +525,9 @@ class UnaryNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, 0).EnsureRegister(compiler, targetreg);
+		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, false).EnsureRegister(compiler, targetreg);
 		/* HACK: not */
 		if (value.type is Int32Type)
 		{
@@ -565,10 +564,10 @@ class BinArithNode: BinNode
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
-		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
+		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
+		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false);
 		String inst;
 
 		/* TODO */
@@ -643,33 +642,33 @@ class BinComparisonNode: BinNode
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		jtarget = compiler.FixJumpTarget(jtarget);
 
-		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
+		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
 
 		/* HACK: Temporary workaround */
 		if (op == Token.Is)
 		{
 			Type type = right.ToType(compiler);
 			String inst;
-			if (jtrue > 0) /* jump on true */
+			if (jtrue)
 				inst = "jinst";
-			else /* jump on false */
+			else
 				inst = "jninst";
 			compiler.AddCode(inst + "\t$" + left.regid + ", " + type.ToString() + ", " + compiler.GetLabelName(jtarget));
 
 			return new JumpTargetValue(location, jtarget);
 		}
 
-		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
+		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false);
 		String inst;
 		/* TODO */
 		if ((left.type is Int32Type || left.type is CharType)
 			&& (right is IntegerValue || left.type.Equals(right.type) > 0))
 		{
-			if (jtrue > 0) /* jump on true */
+			if (jtrue)
 			{
 				if (op == Token.LT)
 					inst = "lt";
@@ -686,7 +685,7 @@ class BinComparisonNode: BinNode
 				else
 					throw new CompilerException("Unsupported comparison operatior.", location);
 			}
-			else /* jump on false */
+			else
 			{
 				if (op == Token.LT)
 					inst = "ge";
@@ -712,18 +711,17 @@ class BinComparisonNode: BinNode
 			}
 		}
 		/* HACK: not */
-		/* HACK: null */
 		else if ((left.type is IntType || left.type is ArrayType || left.type is ClassType)
 			&& right is NullValue)
 		{
-			if (jtrue > 0) /* jump on true */
+			if (jtrue)
 				if (op == Token.EQ)
 					inst = "jn";
 				else if (op == Token.NEQ)
 					inst = "jnn";
 				else
 					throw new CompilerException("Unsupported comparison operatior.", location);
-			else /* jump on false */
+			else
 				if (op == Token.EQ)
 					inst = "jnn";
 				else if (op == Token.NEQ)
@@ -745,42 +743,42 @@ class BinLogicNode: BinNode
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		jtarget = compiler.FixJumpTarget(jtarget);
 
-		int32 leftjtrue, rightjtrue;
+		bool leftjtrue, rightjtrue;
 		int32 leftjtarget, rightjtarget;
 		/* Calculate jump target of left/right */
 		if (op == Token.And)
 		{
-			if (jtrue > 0)
+			if (jtrue)
 			{
-				leftjtrue = 0;
+				leftjtrue = false;
 				leftjtarget = compiler.GetNextLabelId();
-				rightjtrue = 1;
+				rightjtrue = true;
 				rightjtarget = jtarget;
 			}
 			else
 			{
-				leftjtrue = 0;
-				rightjtrue = 0;
+				leftjtrue = false;
+				rightjtrue = false;
 				leftjtarget = rightjtarget = jtarget;
 			}
 		}
 		else if (op == Token.Or)
 		{
-			if (jtrue > 0)
+			if (jtrue)
 			{
-				leftjtrue = 1;
-				rightjtrue = 1;
+				leftjtrue = true;
+				rightjtrue = true;
 				leftjtarget = rightjtarget = jtarget;
 			}
 			else
 			{
-				leftjtrue = 1;
+				leftjtrue = true;
 				leftjtarget = compiler.GetNextLabelId();
-				rightjtrue = 0;
+				rightjtrue = false;
 				rightjtarget = jtarget;
 			}
 		}
@@ -808,7 +806,7 @@ class NewNode: Node
 		parameters = new Vector();
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		Type t = type.ToType(compiler);
 		/* HACK: not */
@@ -823,7 +821,7 @@ class NewNode: Node
 		Vector values = new Vector();
 		for (int32 i = 0; i < parameters.Size; i = i + 1)
 		{
-			Value value = ([Node] parameters[i]).CompileExpression(compiler, freereg + 2 + i, freereg + 2 + i, 0, 0);
+			Value value = ([Node] parameters[i]).CompileExpression(compiler, freereg + 2 + i, freereg + 2 + i, 0, false);
 			values.Add(value.EnsureSingleSlot(compiler, freereg + 2 + i));
 		}
 		Method method = compiler.PrepareCall(this, methods, values, freereg + 2);
@@ -842,9 +840,9 @@ class NewArrayNode: Node
 		this.location = location;
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		RegisterValue value = parameter.CompileExpression(compiler, freereg, freereg, 0, 0).ToFreeRegister(compiler, freereg);
+		RegisterValue value = parameter.CompileExpression(compiler, freereg, freereg, 0, false).ToFreeRegister(compiler, freereg);
 		Type elementType = type.ToType(compiler);
 		compiler.AddCode("newarr\t$" + targetreg + ", " + elementType.ToString() + "($" + value.regid + ")");
 		return new RegisterValue(location, targetreg, new ArrayType(elementType));
@@ -861,7 +859,7 @@ class ListNode: Node
 		values = new Vector();
 	}
 
-	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		return compiler.ToScalar(CompileList(compiler, freereg, -1));
 	}
@@ -881,9 +879,9 @@ class ListNode: Node
 					ret.Add(r[j]);
 			}
 			else if (lastreg != -1 && i + 1 == values.Size) /* Last scalar */
-				ret.Add(node.CompileExpression(compiler, reg, lastreg, 0, 0).EnsureRegister(compiler, lastreg));
+				ret.Add(node.CompileExpression(compiler, reg, lastreg, 0, false).EnsureRegister(compiler, lastreg));
 			else /* Ensure value is a register at stack position */
-				ret.Add(node.CompileExpression(compiler, reg, reg, 0, 0).ToFreeRegister(compiler, reg));
+				ret.Add(node.CompileExpression(compiler, reg, reg, 0, false).ToFreeRegister(compiler, reg));
 		}
 		return ret;
 	}
@@ -906,7 +904,7 @@ class AssignNode: ListNode
 			ListNode lnode = [ListNode] this.left;
 			for (int32 i = 0; i < lnode.values.Size; i = i + 1)
 			{
-				Value value = ([Node] lnode.values[i]).CompileExpression(compiler, freereg, freereg, 0, 0);
+				Value value = ([Node] lnode.values[i]).CompileExpression(compiler, freereg, freereg, 0, false);
 				freereg = value.GetNextFreeRegister(freereg);
 				/* HACK: not */
 				if (value is LValue)
@@ -933,7 +931,7 @@ class AssignNode: ListNode
 		else
 		{
 			/* Single operand assign */
-			Value l = this.left.CompileExpression(compiler, freereg, freereg, 0, 0);
+			Value l = this.left.CompileExpression(compiler, freereg, freereg, 0, false);
 			/* HACK: not */
 			if (l is LValue)
 			{}
@@ -945,7 +943,7 @@ class AssignNode: ListNode
 			int32 targetreg = freereg;
 			if (left is VariableValue)
 				targetreg = ([VariableValue] left).regid;
-			Value right = this.right.CompileExpression(compiler, freereg, targetreg, 0, 0);
+			Value right = this.right.CompileExpression(compiler, freereg, targetreg, 0, false);
 			right.ToLValue(compiler, left, freereg);
 			return compiler.Scalar(left);
 		}
@@ -985,7 +983,7 @@ class CallNode: ListNode
 		Vector values = new Vector();
 		for (int32 i = 0; i < parameters.Size; i = i + 1)
 		{
-			Value value = ([Node] parameters[i]).CompileExpression(compiler, firstreg + i, firstreg + i, 0, 0);
+			Value value = ([Node] parameters[i]).CompileExpression(compiler, firstreg + i, firstreg + i, 0, false);
 			values.Add(value.EnsureSingleSlot(compiler, firstreg + i));
 		}
 
@@ -1059,7 +1057,7 @@ class DefinitionNode: Node
 			{
 				Node vnode = [Node] vn;
 				LValue value = new VariableValue(location, freereg, type);
-				vnode.CompileExpression(compiler, freereg, freereg, 0, 0).ToLValue(compiler, value, freereg);
+				vnode.CompileExpression(compiler, freereg, freereg, 0, false).ToLValue(compiler, value, freereg);
 			}
 			freereg = freereg + 1;
 		}
@@ -1083,7 +1081,8 @@ class IfNode: Node
 		{
 			/* If - Then */
 			int32 falseTarget = compiler.GetNextLabelId();
-			condition.CompileExpression(compiler, freereg, freereg, falseTarget, 0).ToJumpTarget(compiler, freereg, falseTarget, 0);
+			condition.CompileExpression(compiler, freereg, freereg, falseTarget, false)
+				.ToJumpTarget(compiler, freereg, falseTarget, false);
 			trueBody.CompileStatement(compiler, freereg, context);
 			compiler.AddLabel(falseTarget);
 			return 0, freereg;
@@ -1093,7 +1092,8 @@ class IfNode: Node
 			/* If - Then - Else */
 			int32 falseTarget = compiler.GetNextLabelId();
 			int32 endTarget = compiler.GetNextLabelId();
-			condition.CompileExpression(compiler, freereg, freereg, falseTarget, 0).ToJumpTarget(compiler, freereg, falseTarget, 0);
+			condition.CompileExpression(compiler, freereg, freereg, falseTarget, false)
+				.ToJumpTarget(compiler, freereg, falseTarget, false);
 			int32 thenClosed, elseClosed;
 			thenClosed = trueBody.CompileStatement(compiler, freereg, context);
 			if (thenClosed == 0)
@@ -1151,7 +1151,8 @@ class ForNode: Node
 		else
 		{
 			compiler.AddLabel(conditionTarget);
-			condition.CompileExpression(compiler, _freereg, _freereg, bodyTarget, 1).ToJumpTarget(compiler, _freereg, bodyTarget, 1);
+			condition.CompileExpression(compiler, _freereg, _freereg, bodyTarget, true)
+				.ToJumpTarget(compiler, _freereg, bodyTarget, true);
 		}
 
 		if (context.breakLabelId > 0)
@@ -1191,7 +1192,7 @@ class WhileNode: Node
 		compiler.AddLabel(bodyTarget);
 		body.CompileStatement(compiler, freereg, context);
 		compiler.AddLabel(conditionTarget);
-		condition.CompileExpression(compiler, freereg, freereg, bodyTarget, 1).ToJumpTarget(compiler, freereg, bodyTarget, 1);
+		condition.CompileExpression(compiler, freereg, freereg, bodyTarget, true).ToJumpTarget(compiler, freereg, bodyTarget, true);
 
 		if (context.breakLabelId > 0)
 			compiler.AddLabel(context.breakLabelId);
@@ -1228,7 +1229,7 @@ class DoWhileNode: Node
 		body.CompileStatement(compiler, freereg, context);
 		if (context.continueLabelId > 0)
 			compiler.AddLabel(context.continueLabelId);
-		condition.CompileExpression(compiler, freereg, freereg, bodyTarget, 1).ToJumpTarget(compiler, freereg, bodyTarget, 1);
+		condition.CompileExpression(compiler, freereg, freereg, bodyTarget, true).ToJumpTarget(compiler, freereg, bodyTarget, true);
 
 		if (context.breakLabelId > 0)
 			compiler.AddLabel(context.breakLabelId);
@@ -1264,13 +1265,13 @@ class ReturnNode: Node
 			{
 				Node vnode = [Node] values[i];
 				Type type = compiler.ResolveType([TypeCache] compiler.CurrentMethod.returnTypes[i]);
-				vnode.CompileExpression(compiler, freereg, context.firstReturnRegister + i, 0, 0)
+				vnode.CompileExpression(compiler, freereg, context.firstReturnRegister + i, 0, false)
 					.ToTypedRegister(compiler, context.firstReturnRegister + 1, context.firstReturnRegister + 1, type);
 			}
 			/* Second, add leave instruction */
 			compiler.AddCode("leave\t_Epilogue");
 			/* Last, tell CompileMethod() that we need an epilogue */
-			context.generateEpilogue = 1;
+			context.generateEpilogue = true;
 		}
 		else
 		{
@@ -1283,7 +1284,7 @@ class ReturnNode: Node
 					compiler.AddCode("ret\t$" + context.firstReturnRegister);
 				else
 				{
-					RegisterValue value = ([Node] values[0]).CompileExpression(compiler, freereg, freereg, 0, 0)
+					RegisterValue value = ([Node] values[0]).CompileExpression(compiler, freereg, freereg, 0, false)
 						.EnsureRegister(compiler, freereg);
 					compiler.AddCode("ret\t$" + value.regid);
 				}
@@ -1299,7 +1300,7 @@ class ReturnNode: Node
 					{
 						Node vnode = [Node] values[i];
 						Type type = compiler.ResolveType([TypeCache] compiler.CurrentMethod.returnTypes[i]);
-						vnode.CompileExpression(compiler, freereg + i, freereg + i, 0, 0)
+						vnode.CompileExpression(compiler, freereg + i, freereg + i, 0, false)
 							.ToTypedRegister(compiler, freereg + i, freereg + i, type);
 					}
 					compiler.AddCode("ret\t$" + freereg + ", $" + (freereg + values.Size - 1));
@@ -1457,7 +1458,7 @@ class ThrowNode: Node
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		RegisterValue value = exception.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
+		RegisterValue value = exception.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
 		compiler.AddCode("throw\t$" + value.regid);
 		return 1, freereg;
 	}
