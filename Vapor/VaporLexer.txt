@@ -258,19 +258,12 @@ class Lexer
 		else if (ch == ':')
 		{
 			NextChar();
-			if (ch == ':')
-			{
-				token = Token.DoubleColon;
-				NextChar();
-			}
-			else
-				token = Token.Colon;
+			token = Token.Colon;
 		}
 		else if (ch == '.')
 		{
-			/* HACK: Temporary workaround */
 			NextChar();
-			token = Token.DoubleColon;
+			token = Token.Dot;
 		}
 		else if (ch == ';')
 		{

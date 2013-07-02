@@ -103,7 +103,7 @@ class Parser
 				type = new ArrayTypeNode(location, type);
 			else if (lex.token == Token.Mul)
 				type = new PointerTypeNode(location, type);
-			else if (lex.token == Token.DoubleColon)
+			else if (lex.token == Token.Dot)
 			{
 				lex.CheckNext(Token.Ident);
 				type = new FieldNode(location, type, lex.ident);
@@ -136,9 +136,9 @@ class Parser
 			}
 			current = [Namespace] sp;
 			lex.Next();
-			if (lex.token != Token.DoubleColon)
+			if (lex.token != Token.Dot)
 				return current;
-			lex.Assert(Token.DoubleColon);
+			lex.Assert(Token.Dot);
 			lex.Next();
 		}
 	}
@@ -176,7 +176,7 @@ class Parser
 			String name = lex.ident;
 			lex.Next();
 			Namespace current = startNamespace;
-			while (lex.token == Token.DoubleColon)
+			while (lex.token == Token.Dot)
 			{
 				int32 found;
 				Object sp;
@@ -685,7 +685,7 @@ class Parser
 		int32 BREAK = 0;
 		while (BREAK == 0)
 		{
-			if (lex.token == Token.DoubleColon)
+			if (lex.token == Token.Dot)
 			{
 				lex.CheckNext(Token.Ident);
 

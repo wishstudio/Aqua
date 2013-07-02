@@ -16,7 +16,7 @@ class Token
 
 	/* Symbols */
 	public static int32 EOF, Number, Ident, String, Comma;
-	public static int32 Assign, Arrow, Colon, DoubleColon, Dot, Semicolon, Array;
+	public static int32 Assign, Arrow, Colon, Dot, Semicolon, Array;
 	public static int32 PLeft, PRight, SLeft, SRight, BLeft, BRight;
 
 	/* Reserved identifiers */
@@ -55,7 +55,7 @@ class Token
 
 		/* Symbols */
 		Token.EOF, Token.Number, Token.Ident, Token.String, Token.Comma = 30, 31, 32, 33, 34;
-		Token.Assign, Token.Arrow, Token.Colon, Token.DoubleColon, Token.Semicolon = 35, 36, 37, 38, 39;
+		Token.Assign, Token.Arrow, Token.Colon, Token.Dot, Token.Semicolon = 35, 36, 37, 38, 39;
 		Token.Array = 40;
 		Token.PLeft, Token.PRight, Token.SLeft, Token.SRight = 41, 42, 43, 44;
 		Token.BLeft, Token.BRight = 45, 46;
