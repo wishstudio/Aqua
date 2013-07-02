@@ -169,6 +169,10 @@ class Lexer
 				token = Token::Throw;
 			else if (ident::Equals("is") > 0)
 				token = Token::Is;
+			else if (ident::Equals("namespace") > 0)
+				token = Token::Namespace;
+			else if (ident::Equals("using") > 0)
+				token = Token::Using;
 		}
 		else if (ch == '-' || (ch >= '0' && ch <= '9'))
 		{

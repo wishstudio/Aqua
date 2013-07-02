@@ -121,12 +121,38 @@ class Parser
 
 	private ParseFile()
 	{
+		SourceFile sourceFile = new SourceFile(currentFileName, root);
+		while (lex::token == Token::Using)
+		{
+			lex::Next();
+			/* TODO: This should be a function */
+			Namespace current = root;
+			for (;;)
+			{
+				lex::Assert(Token::Ident);
+				int32 found;
+				Core.Object sp;
+				if ((found, sp = current::children::Contains(lex::ident)) == 0)
+				{
+					sp = new Namespace(lex::ident, current);
+					current::children::Add(lex::ident, sp);
+				}
+				current = [Namespace] sp;
+				lex::Next();
+				if (lex::token == Token::Semicolon)
+					break;
+				lex::Assert(Token::DoubleColon);
+				lex::Next();
+			}
+			sourceFile::namespaces::Add(current);
+			lex::Next();
+		}
 		while (lex::token == Token::Ident && lex::ident::Equals("class") > 0)
 		{
 			Class classObject = new Class(GetCurrentLocation());
+			classObject::sourceFile = sourceFile;
 			lex::CheckNext(Token::Ident);
-			/* HACK: Temporary workaround */
-			/* Concatenate fields into one unique name */
+			/* TODO: This should be a function */
 			Core.String name = lex::ident;
 			Core.String last = lex::ident;
 			lex::Next();

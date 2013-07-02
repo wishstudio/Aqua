@@ -51,6 +51,7 @@ class Compiler
 	public Vector code;
 	private int32 tab;
 	private Stack symbolTable; /* Stack of symbol hashes */
+	private SourceFile currentSourceFile;
 	private Class currentClass;
 	private Method currentMethod;
 	private int32 currentLabelId;
@@ -64,6 +65,11 @@ class Compiler
 	public Vector Classes
 	{
 		get { return classes; }
+	}
+
+	public SourceFile CurrentSourceFile
+	{
+		get { return currentSourceFile; }
 	}
 
 	public Class CurrentClass
@@ -197,17 +203,17 @@ class Compiler
 	public Compile()
 	{
 		/* Set class::baseClass */
-		/* HACK: iterator */
 		for (int32 i = 0; i < classes::Size; i = i + 1)
 		{
-			Class current = [Class] classes[i];
-			if (current::baseType != null)
+			currentClass = [Class] classes[i];
+			currentSourceFile = currentClass::sourceFile;
+			if (currentClass::baseType != null)
 			{
-				Type baseType = current::baseType::ToType(this);
+				Type baseType = currentClass::baseType::ToType(this);
 				if (baseType is ClassType)
-					current::baseClass = ([ClassType] baseType)::Class;
+					currentClass::baseClass = ([ClassType] baseType)::Class;
 				else
-					throw new CompilerException("Cannot inherit from \"" + baseType::ToString() + "\".", current::location);
+					throw new CompilerException("Cannot inherit from \"" + baseType::ToString() + "\".", currentClass::location);
 			}
 		}
 
@@ -217,6 +223,7 @@ class Compiler
 		for (int32 i = 0; i < classes::Size; i = i + 1)
 		{
 			currentClass = [Class] classes[i];
+			currentSourceFile = currentClass::sourceFile;
 			if (currentClass::baseClass == null)
 				AddCode(".class " + currentClass::name);
 			else

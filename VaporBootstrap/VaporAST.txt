@@ -167,13 +167,16 @@ class IdentNode: Node
 		this::ident = ident;
 	}
 
-	/* TODO */
 	public override ToTypeEntity(Compiler compiler) -> Core.Object
 	{
-		int32 found;
-		Core.Object object;
-		if ((found, object = compiler::Root::children::Contains(ident)) > 0)
-			return object;
+		Vector namespaces = compiler::CurrentSourceFile::namespaces;
+		for (int32 i = 0; i < namespaces::Size; i = i + 1)
+		{
+			int32 found;
+			Core.Object object;
+			if ((found, object = ([Namespace] namespaces[i])::children::Contains(ident)) > 0)
+				return object;
+		}
 
 		throw new CompilerException("Unknown identifier \"" + ident + "\".", location);
 	}
@@ -1515,6 +1518,7 @@ class Property
 
 class Class
 {
+	public SourceFile sourceFile;
 	public Core.String name;
 	public Node baseType;
 	public Class baseClass;
@@ -1544,6 +1548,19 @@ class Namespace
 		children = new Hash();
 		this::name = name;
 		this::base = base;
+	}
+}
+
+class SourceFile
+{
+	public Core.String fileName;
+	public Vector namespaces;
+
+	public (Core.String fileName, Namespace root)
+	{
+		this::fileName = fileName;
+		this::namespaces = new Vector();
+		this::namespaces::Add(root);
 	}
 }
 
