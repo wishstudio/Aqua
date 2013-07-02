@@ -1,12 +1,14 @@
-class Core.Native.Converter
+namespace Core.Native;
+
+class Converter
 {
 	static public ToWCharPtr(Core.String string) -> int
 	{
-		return string::RawData;
+		return string.RawData;
 	}
 }
 
-class Core.Native.Memory
+class Memory
 {
 	static public internal CopyMemory(int destination, int source, int32 size);
 	static public internal MoveMemory(int destination, int source, int32 size);
@@ -14,7 +16,7 @@ class Core.Native.Memory
 	static public internal FreeMemory(int data);
 }
 
-class Core.Native.Win32
+class Win32
 {
 	/* Debug helper */
 	public static native DebugBreak();

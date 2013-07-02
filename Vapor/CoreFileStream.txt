@@ -1,11 +1,15 @@
-class Core.FileStream
+namespace Core;
+
+using Core.Native;
+
+class FileStream
 {
 	private int fileHandle;
 	private int32 bufferSize, bufferPos;
 	private uint8[] buffer;
 	private int32 mode; /* 0: Read, 1: Write */
 
-	public (Core.String filename, int32 mode)
+	public (String filename, int32 mode)
 	{
 		int32 GENERIC_READ = -2147483647 - 1; /* 0x80000000 */
 		int32 GENERIC_WRITE = 1073741824; /* 0x40000000 */
@@ -15,26 +19,26 @@ class Core.FileStream
 		int32 OPEN_EXISTING = 3;
 		int32 FILE_ATTRIBUTE_NORMAL = 128;
 		if (mode == 0)
-			fileHandle = Core.Native.Win32::CreateFile(Core.Native.Converter::ToWCharPtr(filename),
+			fileHandle = Win32.CreateFile(Converter.ToWCharPtr(filename),
 				GENERIC_READ, FILE_SHARE_READ, null, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, null);
 		else if (mode == 1)
-			fileHandle = Core.Native.Win32::CreateFile(Core.Native.Converter::ToWCharPtr(filename),
+			fileHandle = Win32.CreateFile(Converter.ToWCharPtr(filename),
 				GENERIC_WRITE, 0, null, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, null);
 		else if (mode == 2)
-			fileHandle = Core.Native.Win32::GetStdHandle(-11); /* STD_OUTPUT_HANDLE */
+			fileHandle = Win32.GetStdHandle(-11); /* STD_OUTPUT_HANDLE */
 
 		bufferPos = bufferSize = 0;
 		buffer = new uint8[1024];
-		this::mode = mode;
+		this.mode = mode;
 	}
 
 	public ReadByte() -> int32
 	{
 		if (mode != 0)
-			throw new Core.InvalidOperationException();
+			throw new InvalidOperationException();
 		if (bufferPos == bufferSize)
 		{
-			Core.Native.Win32::ReadFile(fileHandle, &buffer[0], 1024, &bufferSize, null);
+			Win32.ReadFile(fileHandle, &buffer[0], 1024, &bufferSize, null);
 			bufferPos = 0;
 			if (bufferSize == 0)
 				return -1;
@@ -47,15 +51,15 @@ class Core.FileStream
 	public Write(uint8[] data, int32 length) -> int32
 	{
 		if (mode == 0)
-			throw new Core.InvalidOperationException();
+			throw new InvalidOperationException();
 		int32 written;
-		Core.Native.Win32::WriteFile(fileHandle, &data[0], length, &written, null);
+		Win32.WriteFile(fileHandle, &data[0], length, &written, null);
 		return written;
 	}
 
 	public Close()
 	{
-		Core.Native.Win32::CloseHandle(fileHandle);
+		Win32.CloseHandle(fileHandle);
 		fileHandle = null;
 	}
 }

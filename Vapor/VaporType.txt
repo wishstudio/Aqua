@@ -1,11 +1,13 @@
+using Core;
+
 class Type
 {
 	/* HACK: bool */
 	public abstract CanImplicitlyConvertTo(Type type) -> int32;
 
-	public abstract ToString() -> Core.String;
+	public abstract ToString() -> String;
 
-	public abstract Core.String Suffix { get; }
+	public abstract String Suffix { get; }
 
 	public virtual Type StackType
 	{
@@ -15,24 +17,24 @@ class Type
 	/* HACK: bool */
 	public Equals(Type type) -> int32
 	{
-		return ToString()::Equals(type::ToString());
+		return ToString().Equals(type.ToString());
 	}
 
 	public static Type Unit, UnitPointer, Bool, Int8, UInt8, Int16, UInt16, Char, Int32, UInt32, Int;
 
 	public static InitType()
 	{
-		Type::Unit = new UnitType();
-		Type::UnitPointer = new PointerType(Type::Unit);
-		Type::Bool = new BoolType();
-		Type::Int8 = new Int8Type();
-		Type::UInt8 = new UInt8Type();
-		Type::Int16 = new Int16Type();
-		Type::UInt16 = new UInt16Type();
-		Type::Char = new CharType();
-		Type::Int32 = new Int32Type();
-		Type::UInt32 = new UInt32Type();
-		Type::Int = new IntType();
+		Type.Unit = new UnitType();
+		Type.UnitPointer = new PointerType(Type.Unit);
+		Type.Bool = new BoolType();
+		Type.Int8 = new Int8Type();
+		Type.UInt8 = new UInt8Type();
+		Type.Int16 = new Int16Type();
+		Type.UInt16 = new UInt16Type();
+		Type.Char = new CharType();
+		Type.Int32 = new Int32Type();
+		Type.UInt32 = new UInt32Type();
+		Type.Int = new IntType();
 	}
 }
 
@@ -43,19 +45,19 @@ class UnitType: Type
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "unit";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
-		get { throw new Core.InvalidOperationException(); }
+		get { throw new InvalidOperationException(); }
 	}
 
 	public override Type StackType
 	{
-		get { throw new Core.InvalidOperationException(); }
+		get { throw new InvalidOperationException(); }
 	}
 }
 
@@ -72,19 +74,19 @@ class BoolType: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "bool";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "ub"; }
 	}
 
 	public override Type StackType
 	{
-		get { return Type::Int32; }
+		get { return Type.Int32; }
 	}
 }
 
@@ -97,19 +99,19 @@ class Int8Type: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "int8";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "b"; }
 	}
 
 	public override Type StackType
 	{
-		get { return Type::Int32; }
+		get { return Type.Int32; }
 	}
 }
 
@@ -122,19 +124,19 @@ class UInt8Type: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "uint8";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "ub"; }
 	}
 
 	public override Type StackType
 	{
-		get { return Type::UInt32; }
+		get { return Type.UInt32; }
 	}
 }
 
@@ -147,19 +149,19 @@ class Int16Type: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "int16";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "w"; }
 	}
 
 	public override Type StackType
 	{
-		get { return Type::Int32; }
+		get { return Type.Int32; }
 	}
 }
 
@@ -172,19 +174,19 @@ class UInt16Type: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "uint16";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "uw"; }
 	}
 
 	public override Type StackType
 	{
-		get { return Type::UInt32; }
+		get { return Type.UInt32; }
 	}
 }
 
@@ -197,19 +199,19 @@ class CharType: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "char";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "uw"; }
 	}
 
 	public override Type StackType
 	{
-		get { return Type::UInt32; }
+		get { return Type.UInt32; }
 	}
 }
 
@@ -222,12 +224,12 @@ class Int32Type: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "int32";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "i"; }
 	}
@@ -242,12 +244,12 @@ class UInt32Type: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "uint32";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "u"; }
 	}
@@ -263,12 +265,12 @@ class IntType: PrimitiveType
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
 		return "int";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "a"; }
 	}
@@ -280,13 +282,13 @@ class PointerType: Type
 
 	public (Type valueType)
 	{
-		this::valueType = valueType;
+		this.valueType = valueType;
 	}
 
 	public override CanImplicitlyConvertTo(Type type) -> int32
 	{
 		if (type is PointerType &&
-			([PointerType] type)::ValueType::Equals(valueType) > 0 || ([PointerType] type)::ValueType is UnitType)
+			([PointerType] type).ValueType.Equals(valueType) > 0 || ([PointerType] type).ValueType is UnitType)
 			return 1;
 		/* HACK: Temporary workaround */
 		if (type is IntType)
@@ -294,12 +296,12 @@ class PointerType: Type
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
-		return valueType::ToString() + "*";
+		return valueType.ToString() + "*";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "a"; }
 	}
@@ -316,22 +318,22 @@ class ArrayType: Type
 
 	public (Type elementType)
 	{
-		this::elementType = elementType;
+		this.elementType = elementType;
 	}
 
 	public override CanImplicitlyConvertTo(Type type) -> int32
 	{
-		if (type is ArrayType && ([ArrayType] type)::ElementType::Equals(elementType) > 0)
+		if (type is ArrayType && ([ArrayType] type).ElementType.Equals(elementType) > 0)
 			return 1;
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
-		return elementType::ToString() + "[]";
+		return elementType.ToString() + "[]";
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "a"; }
 	}
@@ -348,32 +350,32 @@ class ClassType: Type
 
 	public (Class classObject)
 	{
-		this::classObject = classObject;
+		this.classObject = classObject;
 	}
 
 	public override CanImplicitlyConvertTo(Type type) -> int32
 	{
 		if (type is ClassType)
 		{
-			Class dst = ([ClassType] type)::Class;
+			Class dst = ([ClassType] type).Class;
 			Class c = classObject;
 			while (c != null)
 			{
 				/* HACK: object pointer comparison */
-				if (c::name::Equals(dst::name) > 0)
+				if (c.name.Equals(dst.name) > 0)
 					return 1;
-				c = c::baseClass;
+				c = c.baseClass;
 			}
 		}
 		return 0;
 	}
 
-	public override ToString() -> Core.String
+	public override ToString() -> String
 	{
-		return classObject::name;
+		return classObject.name;
 	}
 
-	public override Core.String Suffix
+	public override String Suffix
 	{
 		get { return "a"; }
 	}

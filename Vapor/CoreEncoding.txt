@@ -1,4 +1,6 @@
-class Core.Encoding
+namespace Core;
+
+class Encoding
 {
 	private static native WideCharToMultiByte(
 		int32 CodePage,
@@ -16,13 +18,13 @@ class Core.Encoding
 
 	public (int32 codePage)
 	{
-		this::codePage = codePage;
+		this.codePage = codePage;
 	}
 
 	/* Only UTF-8 implemented now */
 	public ToBytes(char[] text, int32 length, uint8[] buffer) -> int32
 	{
-		return WideCharToMultiByte(codePage, 0, &text[0], length, &buffer[0], buffer::Length, null, null);
+		return WideCharToMultiByte(codePage, 0, &text[0], length, &buffer[0], buffer.Length, null, null);
 	}
 
 	public GetMaxByteLength(int32 maxCharLength) -> int32

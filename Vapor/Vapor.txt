@@ -1,48 +1,50 @@
+using Core;
+
 class Vapor
 {
 	public static InitVapor()
 	{
 		/* Initialize enumeration types */
-		Token::InitToken();
-		Modifier::InitModifier();
-		CallingConvention::InitCallingConvention();
-		Type::InitType();
-		Context::InitContext();
+		Token.InitToken();
+		Modifier.InitModifier();
+		CallingConvention.InitCallingConvention();
+		Type.InitType();
+		Context.InitContext();
 	}
 
-	public static Main(Core.String[] args)
+	public static Main(String[] args)
 	{
 		InitVapor();
 
 		Parser parser = new Parser();
-		for (int32 i = 0; i < args::Length - 1; i = i + 1)
+		for (int32 i = 0; i < args.Length - 1; i = i + 1)
 			try
-				parser::Parse(args[i]);
+				parser.Parse(args[i]);
 			catch (CompilerException e)
 			{
-				Core.Console::WriteLine(e::ToString());
+				Console.WriteLine(e.ToString());
 				return;
 			}
 
-		Compiler compiler = new Compiler(parser::root, parser::classes);
+		Compiler compiler = new Compiler(parser.root, parser.classes);
 		try
-			compiler::Compile();
+			compiler.Compile();
 		catch (CompilerException e)
 		{
-			Core.Console::WriteLine(e::ToString());
+			Console.WriteLine(e.ToString());
 			return;
 		}
 
-		Core.FileStream outFS = new Core.FileStream(args[args::Length - 1], 1);
-		Core.StreamWriter out = new Core.StreamWriter(
+		FileStream outFS = new FileStream(args[args.Length - 1], 1);
+		StreamWriter out = new StreamWriter(
 			outFS,
-			new Core.Encoding(65001)
+			new Encoding(65001)
 		);
-		for (int32 i = 0; i < compiler::code::Size; i = i + 1)
+		for (int32 i = 0; i < compiler.code.Size; i = i + 1)
 		{
-			out::Write([Core.String] compiler::code[i]);
-			out::Write("\r\n");
+			out.Write([String] compiler.code[i]);
+			out.Write("\r\n");
 		}
-		out::Dispose();
+		out.Dispose();
 	}
 }

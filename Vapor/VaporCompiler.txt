@@ -1,17 +1,19 @@
+using Core;
+
 class CompilerException
 {
-	public Core.String message;
+	public String message;
 	public Location location;
 
-	public (Core.String message, Location location)
+	public (String message, Location location)
 	{
-		this::message = message;
-		this::location = location;
+		this.message = message;
+		this.location = location;
 	}
 
-	public ToString() -> Core.String
+	public ToString() -> String
 	{
-		return location::ToString() + ": " + message;
+		return location.ToString() + ": " + message;
 	}
 }
 
@@ -40,7 +42,7 @@ class Context
 
 	public static InitContext()
 	{
-		Context::Loop, Context::TryCatch, Context::Finally = 1, 2, 3;
+		Context.Loop, Context.TryCatch, Context.Finally = 1, 2, 3;
 	}
 }
 
@@ -84,13 +86,13 @@ class Compiler
 
 	public (Namespace root, Vector classes)
 	{
-		this::root = root;
-		this::classes = classes;
+		this.root = root;
+		this.classes = classes;
 		code = new Vector();
 		symbolTable = new Stack();
 	}
 
-	private GetLabelName(int32 labelId) -> Core.String
+	private GetLabelName(int32 labelId) -> String
 	{
 		return "_L" + labelId;
 	}
@@ -101,22 +103,22 @@ class Compiler
 		return currentLabelId - 1;
 	}
 
-	private AddCode(Core.String line)
+	private AddCode(String line)
 	{
-		Core.String tabs = "";
+		String tabs = "";
 		for (int32 i = 0; i < tab; i = i + 1)
 			tabs = tabs + "\t";
-		code::Add([Core.Object] (tabs + line));
+		code.Add(tabs + line);
 	}
 
 	private AddLabel(int32 labelId)
 	{
-		code::Add([Core.Object] (GetLabelName(labelId) + ":"));
+		code.Add(GetLabelName(labelId) + ":");
 	}
 
-	private AddStringLabel(Core.String label)
+	private AddStringLabel(String label)
 	{
-		code::Add([Core.Object] (label + ":"));
+		code.Add(label + ":");
 	}
 
 	private Tab()
@@ -131,116 +133,116 @@ class Compiler
 
 	private PushSymbolStack()
 	{
-		symbolTable::Push([Core.Object] new Hash());
+		symbolTable.Push(new Hash());
 	}
 
 	private PopSymbolStack()
 	{
-		symbolTable::Pop();
+		symbolTable.Pop();
 	}
 
-	private FindSymbol(Core.String name) -> Variable, int32
+	private FindSymbol(String name) -> Variable, int32
 	{
-		for (int32 i = symbolTable::Size - 1; i >= 0; i = i - 1)
+		for (int32 i = symbolTable.Size - 1; i >= 0; i = i - 1)
 		{
 			int32 found;
-			Core.Object ret;
-			if ((found, ret = ([Hash] symbolTable::data[i])::Contains(name)) > 0)
+			Object ret;
+			if ((found, ret = ([Hash] symbolTable.data[i]).Contains(name)) > 0)
 				return [Variable] ret, 1;
 		}
 		return null, 0;
 	}
 
-	public static GetOperatorMethodName(int32 op) -> Core.String
+	public static GetOperatorMethodName(int32 op) -> String
 	{
-		if (op == Token::Add)
+		if (op == Token.Add)
 			return ".opAdd";
-		else if (op == Token::Sub)
+		else if (op == Token.Sub)
 			return ".opSub";
-		else if (op == Token::Mul)
+		else if (op == Token.Mul)
 			return ".opMul";
-		else if (op == Token::Div)
+		else if (op == Token.Div)
 			return ".opDiv";
-		else if (op == Token::Rem)
+		else if (op == Token.Rem)
 			return ".opRem";
-		else if (op == Token::LT)
+		else if (op == Token.LT)
 			return ".opLT";
-		else if (op == Token::LE)
+		else if (op == Token.LE)
 			return ".opLE";
-		else if (op == Token::GT)
+		else if (op == Token.GT)
 			return ".opGT";
-		else if (op == Token::GE)
+		else if (op == Token.GE)
 			return ".opGE";
-		else if (op == Token::EQ)
+		else if (op == Token.EQ)
 			return ".opEQ";
-		else if (op == Token::NEQ)
+		else if (op == Token.NEQ)
 			return ".opNEQ";
-		else if (op == Token::Array)
+		else if (op == Token.Array)
 			return ".opArrayElement";
 		else
 			return null;
 	}
 
-	public GetMethodSignature(Method method) -> Core.String
+	public GetMethodSignature(Method method) -> String
 	{
-		return method::classObject::name + "::" + method::name + ResolvePrototype(method);
+		return method.classObject.name + "::" + method.name + ResolvePrototype(method);
 	}
 	
 	private ToScalar(Vector values) -> Value
 	{
-		if (values::Size == 0)
-			throw new Core.Exception(); /* TODO */
+		if (values.Size == 0)
+			throw new Exception(); /* TODO */
 		return [Value] values[0];
 	}
 
 	private Scalar(Value value) -> Vector
 	{
 		Vector ret = new Vector();
-		ret::Add([Core.Object] value);
+		ret.Add(value);
 		return ret;
 	}
 
 	public Compile()
 	{
-		/* Set class::baseClass */
-		for (int32 i = 0; i < classes::Size; i = i + 1)
+		/* Set class.baseClass */
+		for (int32 i = 0; i < classes.Size; i = i + 1)
 		{
 			currentClass = [Class] classes[i];
-			currentSourceFile = currentClass::sourceFile;
-			if (currentClass::baseType != null)
+			currentSourceFile = currentClass.sourceFile;
+			if (currentClass.baseType != null)
 			{
-				Type baseType = currentClass::baseType::ToType(this);
+				Type baseType = currentClass.baseType.ToType(this);
 				if (baseType is ClassType)
-					currentClass::baseClass = ([ClassType] baseType)::Class;
+					currentClass.baseClass = ([ClassType] baseType).Class;
 				else
-					throw new CompilerException("Cannot inherit from \"" + baseType::ToString() + "\".", currentClass::location);
+					throw new CompilerException("Cannot inherit from \"" + baseType.ToString() + "\".", currentClass.location);
 			}
 		}
 
 		/* TODO: Check circular dependency */
 
 		tab = 0;
-		for (int32 i = 0; i < classes::Size; i = i + 1)
+		for (int32 i = 0; i < classes.Size; i = i + 1)
 		{
 			currentClass = [Class] classes[i];
-			currentSourceFile = currentClass::sourceFile;
-			if (currentClass::baseClass == null)
-				AddCode(".class " + currentClass::name);
+			currentSourceFile = currentClass.sourceFile;
+			if (currentClass.baseClass == null)
+				AddCode(".class " + currentClass.name);
 			else
-				AddCode(".class " + currentClass::name + ": " + currentClass::baseClass::name);
+				AddCode(".class " + currentClass.name + ": " + currentClass.baseClass.name);
 			AddCode("{");
 			Tab();
 
-			Vector fields = currentClass::fields::values;
-			for (int32 j = 0; j < fields::Size; j = j + 1)
+			Vector fields = currentClass.fields.values;
+			for (int32 j = 0; j < fields.Size; j = j + 1)
 				CompileField([Field] fields[j]);
 
-			Vector properties = currentClass::properties::values;
-			for (int32 j = 0; j < properties::Size; j = j + 1)
+			Vector properties = currentClass.properties.values;
+			for (int32 j = 0; j < properties.Size; j = j + 1)
 				CompileProperty([Property] properties[j]);
 
-			Vector methods = currentClass::methods::values;
-			for (int32 j = 0; j < methods::Size; j = j + 1)
+			Vector methods = currentClass.methods.values;
+			for (int32 j = 0; j < methods.Size; j = j + 1)
 				CompileMethod([Method] methods[j]);
 
 			Untab();
@@ -250,68 +252,68 @@ class Compiler
 
 	private CompileField(Field field)
 	{
-		Core.String modifier = Modifier::ToString(field::modifier);
-		if (modifier::Length > 0)
+		String modifier = Modifier.ToString(field.modifier);
+		if (modifier.Length > 0)
 			modifier = modifier + " ";
-		AddCode(".field " + modifier + ResolveType(field::type)::ToString() + " " + field::name);
+		AddCode(".field " + modifier + ResolveType(field.type).ToString() + " " + field.name);
 	}
 
 	private CompileProperty(Property property)
 	{
-		Core.String modifier = Modifier::ToString(property::modifier);
-		if (modifier::Length > 0)
+		String modifier = Modifier.ToString(property.modifier);
+		if (modifier.Length > 0)
 			modifier = modifier + " ";
-		AddCode(".property " + modifier + ResolveType(property::type)::ToString() + " " + property::name);
-		if (property::getter != null)
-			AddCode("\t.get " + GetMethodSignature(property::getter));
-		if (property::setter != null)
-			AddCode("\t.set " + GetMethodSignature(property::setter));
+		AddCode(".property " + modifier + ResolveType(property.type).ToString() + " " + property.name);
+		if (property.getter != null)
+			AddCode("\t.get " + GetMethodSignature(property.getter));
+		if (property.setter != null)
+			AddCode("\t.set " + GetMethodSignature(property.setter));
 	}
 
 	private CompileMethod(Method method)
 	{
-		Core.String modifier = Modifier::ToString(method::modifier);
-		if (modifier::Length > 0)
+		String modifier = Modifier.ToString(method.modifier);
+		if (modifier.Length > 0)
 			modifier = modifier + " ";
 
-		AddCode(".method " + modifier + "function " + method::name + ResolvePrototype(method));
+		AddCode(".method " + modifier + "function " + method.name + ResolvePrototype(method));
 
-		if (method::modifier & Modifier::Internal > 0 || method::modifier & Modifier::Abstract > 0)
+		if (method.modifier & Modifier.Internal > 0 || method.modifier & Modifier.Abstract > 0)
 		{
 			/* Do nothing */
 		}
-		else if (method::modifier & Modifier::Native > 0)
+		else if (method.modifier & Modifier.Native > 0)
 		{
-			AddCode("[" + CallingConvention::ToString(method::callingConvention) + ", \"" + method::libraryName
-				+ "\", \"" + method::originalName + "\"]");
+			AddCode("[" + CallingConvention.ToString(method.callingConvention) + ", \"" + method.libraryName
+				+ "\", \"" + method.originalName + "\"]");
 		}
 		else
 		{
 			/* Check for improper override */
-			if (method::modifier & Modifier::Override > 0)
+			if (method.modifier & Modifier.Override > 0)
 			{
 				/* Check if it actually overrides a method */
 				/* HACK: bool */
 				int32 ok = 0;
-				Class c = method::classObject;
-				while (c::baseClass != null)
+				Class c = method.classObject;
+				while (c.baseClass != null)
 				{
-					c = c::baseClass;
-					Vector methods = c::methods::FindAll(method::name);
+					c = c.baseClass;
+					Vector methods = c.methods.FindAll(method.name);
 					/* HACK: bool */
 					int32 done = 0;
-					for (int32 i = 0; i < methods::Size; i = i + 1)
+					for (int32 i = 0; i < methods.Size; i = i + 1)
 					{
 						Method another = [Method] methods[i];
-						if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
+						if (ResolvePrototype(method).Equals(ResolvePrototype(another)) > 0)
 						{
-							if (another::modifier & Modifier::Virtual > 0 || another::modifier & Modifier::Abstract > 0)
+							if (another.modifier & Modifier.Virtual > 0 || another.modifier & Modifier.Abstract > 0)
 							{
 								done = 1;
 								ok = 1;
 								break;
 							}
-							else if (another::modifier & Modifier::Override == 0)
+							else if (another.modifier & Modifier.Override == 0)
 							{
 								done = 1;
 								break;
@@ -322,8 +324,8 @@ class Compiler
 						break;
 				}
 				if (ok == 0)
-					throw new CompilerException("The method \"" + method::name
-						+ "\" makred with \"override\" does not override any methods.", method::location);
+					throw new CompilerException("The method \"" + method.name
+						+ "\" makred with \"override\" does not override any methods.", method.location);
 			}
 			else
 			{
@@ -336,50 +338,50 @@ class Compiler
 
 			Context context = new Context();
 			int32 freereg = 0;
-			if (method::modifier & Modifier::Static == 0)
+			if (method.modifier & Modifier.Static == 0)
 				freereg = freereg + 1;
 
-			for (int32 i = 0; i < method::paramNames::Size; i = i + 1)
+			for (int32 i = 0; i < method.paramNames.Size; i = i + 1)
 			{
-				Core.String name = [Core.String] method::paramNames[i];
-				if (name::Equals("") == 0)
+				String name = [String] method.paramNames[i];
+				if (name.Equals("") == 0)
 				{
 					Variable var = new Variable();
-					var::regid = freereg + i;
-					var::type = ResolveType([TypeCache] method::paramTypes[i]);
-					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
+					var.regid = freereg + i;
+					var.type = ResolveType([TypeCache] method.paramTypes[i]);
+					([Hash] symbolTable.Peek()).Add(name, var);
 				}
 			}
-			freereg = freereg + method::paramNames::Size;
-			context::firstReturnRegister = freereg;
-			for (int32 i = 0; i < method::returnNames::Size; i = i + 1)
+			freereg = freereg + method.paramNames.Size;
+			context.firstReturnRegister = freereg;
+			for (int32 i = 0; i < method.returnNames.Size; i = i + 1)
 			{
-				Core.String name = [Core.String] method::returnNames[i];
-				if (name::Equals("") == 0)
+				String name = [String] method.returnNames[i];
+				if (name.Equals("") == 0)
 				{
 					Variable var = new Variable();
-					var::regid = freereg + i;
-					var::type = ResolveType([TypeCache] method::returnTypes[i]);
-					([Hash] symbolTable::Peek())::Add(name, [Core.Object] var);
+					var.regid = freereg + i;
+					var.type = ResolveType([TypeCache] method.returnTypes[i]);
+					([Hash] symbolTable.Peek()).Add(name, var);
 				}
 			}
-			freereg = freereg + method::returnNames::Size;
+			freereg = freereg + method.returnNames.Size;
 
 			currentMethod = method;
 			currentLabelId = 1;
-			int32 closed = method::body::CompileStatement(this, freereg, context);
-			if (closed == 0 || context::generateEpilogue > 0)	
+			int32 closed = method.body.CompileStatement(this, freereg, context);
+			if (closed == 0 || context.generateEpilogue > 0)	
 			{
-				if (context::generateEpilogue > 0)
+				if (context.generateEpilogue > 0)
 					AddStringLabel("_Epilogue");
 				/* Unclosed statement block, insert return statement manually */
-				if (method::returnNames::Size == 0)
+				if (method.returnNames.Size == 0)
 					AddCode("ret");
-				else if (method::returnNames::Size == 1)
-					AddCode("ret\t$" + context::firstReturnRegister);
+				else if (method.returnNames.Size == 1)
+					AddCode("ret\t$" + context.firstReturnRegister);
 				else
-					AddCode("ret\t$" + context::firstReturnRegister + ", $"
-						+ (context::firstReturnRegister + method::returnTypes::Size));
+					AddCode("ret\t$" + context.firstReturnRegister + ", $"
+						+ (context.firstReturnRegister + method.returnTypes.Size));
 			}
 
 			PopSymbolStack();
@@ -405,23 +407,23 @@ class Compiler
 		/* TODO: Immediate value */
 		Type type;
 
-		if (left::CanImplicitlyConvertTo(Type::Int8) > 0 && right::CanImplicitlyConvertTo(Type::Int8) > 0)
-			type = Type::Int8;
-		else if (left::CanImplicitlyConvertTo(Type::UInt8) > 0 && right::CanImplicitlyConvertTo(Type::UInt8) > 0)
-			type = Type::UInt8;
-		else if (left::CanImplicitlyConvertTo(Type::Int16) > 0 && right::CanImplicitlyConvertTo(Type::Int16) > 0)
-			type = Type::Int16;
-		else if (left::CanImplicitlyConvertTo(Type::UInt16) > 0 && right::CanImplicitlyConvertTo(Type::UInt16) > 0)
-			type = Type::UInt16;
-		else if (left::CanImplicitlyConvertTo(Type::Int32) > 0 && right::CanImplicitlyConvertTo(Type::Int32) > 0)
-			type = Type::Int32;
-		else if (left::CanImplicitlyConvertTo(Type::UInt32) > 0 && right::CanImplicitlyConvertTo(Type::UInt32) > 0)
-			type = Type::UInt32;
+		if (left.CanImplicitlyConvertTo(Type.Int8) > 0 && right.CanImplicitlyConvertTo(Type.Int8) > 0)
+			type = Type.Int8;
+		else if (left.CanImplicitlyConvertTo(Type.UInt8) > 0 && right.CanImplicitlyConvertTo(Type.UInt8) > 0)
+			type = Type.UInt8;
+		else if (left.CanImplicitlyConvertTo(Type.Int16) > 0 && right.CanImplicitlyConvertTo(Type.Int16) > 0)
+			type = Type.Int16;
+		else if (left.CanImplicitlyConvertTo(Type.UInt16) > 0 && right.CanImplicitlyConvertTo(Type.UInt16) > 0)
+			type = Type.UInt16;
+		else if (left.CanImplicitlyConvertTo(Type.Int32) > 0 && right.CanImplicitlyConvertTo(Type.Int32) > 0)
+			type = Type.Int32;
+		else if (left.CanImplicitlyConvertTo(Type.UInt32) > 0 && right.CanImplicitlyConvertTo(Type.UInt32) > 0)
+			type = Type.UInt32;
 		else
-			throw new CompilerException("Uncompatible types.", node::location);
+			throw new CompilerException("Uncompatible types.", node.location);
 
-		Value l = left::ToTyped(this, leftreg, type);
-		Value r = right::ToTyped(this, rightreg, type);
+		Value l = left.ToTyped(this, leftreg, type);
+		Value r = right.ToTyped(this, rightreg, type);
 
 		return l, r;
 	}
@@ -430,13 +432,13 @@ class Compiler
 	private FixRawValue(RegisterValue value, int32 targetreg) -> RegisterValue
 	{
 		/* TODO: Immediate value */
-		Type stackType = value::type::StackType;
-		if (value::type::Equals(stackType) == 0)
+		Type stackType = value.type.StackType;
+		if (value.type.Equals(stackType) == 0)
 		{
-			RegisterValue ret = value::EnsureRegister(this, targetreg);
-			AddCode("conv\t" + value::type::ToString() + " $" + targetreg + ", "
-				+ stackType::ToString() + " $" + value::regid);
-			value::regid = targetreg;
+			RegisterValue ret = value.EnsureRegister(this, targetreg);
+			AddCode("conv\t" + value.type.ToString() + " $" + targetreg + ", "
+				+ stackType.ToString() + " $" + value.regid);
+			value.regid = targetreg;
 			return value;
 		}
 		else
@@ -445,98 +447,98 @@ class Compiler
 
 	private CompileCustomBinaryOperator(Node node, int32 op, Value left, Value right, int32 firstreg) -> Value
 	{
-		Value l = left::EnsureSingleSlot(this, firstreg);
-		Value r = right::EnsureSingleSlot(this, firstreg + 1);
+		Value l = left.EnsureSingleSlot(this, firstreg);
+		Value r = right.EnsureSingleSlot(this, firstreg + 1);
 
-		Core.String methodName = GetOperatorMethodName(op);
+		String methodName = GetOperatorMethodName(op);
 		if (methodName == null)
-			throw new CompilerException("Unsupported operator.", node::location);
+			throw new CompilerException("Unsupported operator.", node.location);
 
 		Vector methods = new Vector();
-		if (l::type is ClassType)
-			ResolveMethod(([ClassType] l::type)::Class, methodName, methods);
-		if (r::type is ClassType)
-			ResolveMethod(([ClassType] r::type)::Class, methodName, methods);
+		if (l.type is ClassType)
+			ResolveMethod(([ClassType] l.type).Class, methodName, methods);
+		if (r.type is ClassType)
+			ResolveMethod(([ClassType] r.type).Class, methodName, methods);
 
 		Vector values = new Vector();
-		values::Add(l);
-		values::Add(r);
+		values.Add(l);
+		values.Add(r);
 
 		Method method = PrepareCall(node, methods, values, firstreg);
 		AddCode("call\t$" + firstreg + ", " + GetMethodSignature(method));
-		return new RegisterValue(node::location, firstreg, ResolveType([TypeCache] method::returnTypes[0]));
+		return new RegisterValue(node.location, firstreg, ResolveType([TypeCache] method.returnTypes[0]));
 	}
 
 	private ResolveType(TypeCache type) -> Type
 	{
-		if (type::cache == null)
-			type::cache = type::type::ToType(this);
-		return type::cache;
+		if (type.cache == null)
+			type.cache = type.type.ToType(this);
+		return type.cache;
 	}
 
-	private ResolvePrototype(Method method) -> Core.String
+	private ResolvePrototype(Method method) -> String
 	{
-		if (method::prototype == null)
+		if (method.prototype == null)
 		{
 			/* Concatenate prototype string */
-			Core.String prototype = "(";
-			for (int32 i = 0; i < method::paramTypes::Size; i = i + 1)
+			String prototype = "(";
+			for (int32 i = 0; i < method.paramTypes.Size; i = i + 1)
 			{
 				if (i == 0)
-					prototype = prototype + ResolveType([TypeCache] method::paramTypes[i])::ToString();
+					prototype = prototype + ResolveType([TypeCache] method.paramTypes[i]).ToString();
 				else
-					prototype = prototype + ", " + ResolveType([TypeCache] method::paramTypes[i])::ToString();
+					prototype = prototype + ", " + ResolveType([TypeCache] method.paramTypes[i]).ToString();
 			}
 			prototype = prototype + ")";
-			if (method::returnTypes::Size > 0)
+			if (method.returnTypes.Size > 0)
 			{
 				prototype = prototype + " -> ";
-				for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
+				for (int32 i = 0; i < method.returnTypes.Size; i = i + 1)
 				{
 					if (i == 0)
-						prototype = prototype + ResolveType([TypeCache] method::returnTypes[i])::ToString();
+						prototype = prototype + ResolveType([TypeCache] method.returnTypes[i]).ToString();
 					else
-						prototype = prototype + ", " + ResolveType([TypeCache] method::returnTypes[i])::ToString();
+						prototype = prototype + ", " + ResolveType([TypeCache] method.returnTypes[i]).ToString();
 				}
 			}
-			method::prototype = prototype;
+			method.prototype = prototype;
 		}
-		return method::prototype;
+		return method.prototype;
 	}
 
 	/* Resolves a field, returns null if not found */
-	private ResolveField(Class startClass, Core.String name) -> Field
+	private ResolveField(Class startClass, String name) -> Field
 	{
 		Class c = startClass;
 		while (c != null)
 		{
-			Core.Object field;
+			Object field;
 			int32 found;
-			if ((found, field = c::fields::Contains(name)) > 0)
+			if ((found, field = c.fields.Contains(name)) > 0)
 				return [Field] field;
-			c = c::baseClass;
+			c = c.baseClass;
 		}
 		return null;
 	}
 
 	/* Resolves a property, returns null if not found */
-	private ResolveProperty(Class startClass, Core.String name) -> Property
+	private ResolveProperty(Class startClass, String name) -> Property
 	{
 		Class c = startClass;
 		while (c != null)
 		{
-			Core.Object property;
+			Object property;
 			int32 found;
-			if ((found, property = c::properties::Contains(name)) > 0
-				&& ([Property] property)::modifier & Modifier::Override == 0)
+			if ((found, property = c.properties.Contains(name)) > 0
+				&& ([Property] property).modifier & Modifier.Override == 0)
 					return [Property] property;
-			c = c::baseClass;
+			c = c.baseClass;
 		}
 		return null;
 	}
 
 	/* Resolves a method by name, append possible candidates to `methods` vector */
-	private ResolveMethod(Class startClass, Core.String name, Vector methods) -> Vector
+	private ResolveMethod(Class startClass, String name, Vector methods) -> Vector
 	{
 		if (methods == null)
 			methods = new Vector();
@@ -544,36 +546,36 @@ class Compiler
 		while (c != null)
 		{
 			ResolveMethodInClass(c, name, methods);
-			c = c::baseClass;
+			c = c.baseClass;
 		}
 		return methods;
 	}
 
 	/* Resolves a method in a single class */
-	private ResolveMethodInClass(Class classObject, Core.String name, Vector methods) -> Vector
+	private ResolveMethodInClass(Class classObject, String name, Vector methods) -> Vector
 	{
 		if (methods == null)
 			methods = new Vector();
-		Vector current = classObject::methods::FindAll(name);
-		for (int32 i = 0; i < current::Size; i = i + 1)
+		Vector current = classObject.methods.FindAll(name);
+		for (int32 i = 0; i < current.Size; i = i + 1)
 		{
 			Method method = [Method] current[i];
-			if (method::modifier & Modifier::Override == 0) /* Do not include overridden methods */
+			if (method.modifier & Modifier.Override == 0) /* Do not include overridden methods */
 			{
 				/* HACK: bool */
 				int32 ok = 1;
 				/* Make sure this method is not overridden by a subclass method */
-				for (int32 j = 0; j < methods::Size; j = j + 1)
+				for (int32 j = 0; j < methods.Size; j = j + 1)
 				{
 					Method another = [Method] methods[j];
-					if (ResolvePrototype(method)::Equals(ResolvePrototype(another)) > 0)
+					if (ResolvePrototype(method).Equals(ResolvePrototype(another)) > 0)
 					{
 						ok = 0;
 						break;
 					}
 				}
 				if (ok > 0)
-					methods::Add([Core.Object] method);
+					methods.Add(method);
 			}
 		}
 		return methods;
@@ -586,28 +588,28 @@ class Compiler
 	{
 		Vector candidates = new Vector();
 		/* Check valid candidates */
-		for (int32 i = 0; i < methods::Size; i = i + 1)
+		for (int32 i = 0; i < methods.Size; i = i + 1)
 		{
 			Method method = [Method] methods[i];
-			if (method::paramTypes::Size == values::Size)
+			if (method.paramTypes.Size == values.Size)
 			{
 				/* HACK: bool */
 				int32 ok = 1;
-				for (int32 j = 0; j < method::paramTypes::Size; j = j + 1)
-					if (([Value] values[j])::CanImplicitlyConvertTo(ResolveType([TypeCache] method::paramTypes[j])) == 0)
+				for (int32 j = 0; j < method.paramTypes.Size; j = j + 1)
+					if (([Value] values[j]).CanImplicitlyConvertTo(ResolveType([TypeCache] method.paramTypes[j])) == 0)
 					{
 						ok = 0;
 						break;
 					}
 				if (ok > 0)
-					candidates::Add([Core.Object] method);
+					candidates.Add(method);
 			}
 		}
 		Method method = ChooseBestMethod(node, candidates, values);
 		/* Prepare values */
-		for (int32 i = 0; i < values::Size; i = i + 1)
-			([Value] values[i])::ToTypedRegister(
-				this, firstreg + i, firstreg + i, ResolveType([TypeCache] method::paramTypes[i])
+		for (int32 i = 0; i < values.Size; i = i + 1)
+			([Value] values[i]).ToTypedRegister(
+				this, firstreg + i, firstreg + i, ResolveType([TypeCache] method.paramTypes[i])
 			);
 		return method;
 	}
@@ -624,38 +626,38 @@ class Compiler
 	 */
 	private ChooseBestMethod(Node node, Vector methods, Vector values) -> Method
 	{
-		if (methods::Size == 0)
-			throw new CompilerException("No method prototype match type of given parameters.", node::location);
-		for (int32 i = 0; i < methods::Size; i = i + 1)
+		if (methods.Size == 0)
+			throw new CompilerException("No method prototype match type of given parameters.", node.location);
+		for (int32 i = 0; i < methods.Size; i = i + 1)
 		{
 			Method current = [Method] methods[i];
 			/* HACK: bool */
 			int32 ok = 1;
-			for (int32 j = 0; j < methods::Size; j = j + 1)
+			for (int32 j = 0; j < methods.Size; j = j + 1)
 				if (i != j)
 				{
 					Method another = [Method] methods[j];
 					/* HACK: bool */
 					int32 better = 0;
-					for (int32 k = 0; k < values::Size; k = k + 1)
+					for (int32 k = 0; k < values.Size; k = k + 1)
 					{
-						Type S = ([Value] values[k])::type;
-						Type T1 = ResolveType([TypeCache] current::paramTypes[k]);
-						Type T2 = ResolveType([TypeCache] another::paramTypes[k]);
-						if (T1::Equals(T2) > 0)
+						Type S = ([Value] values[k]).type;
+						Type T1 = ResolveType([TypeCache] current.paramTypes[k]);
+						Type T2 = ResolveType([TypeCache] another.paramTypes[k]);
+						if (T1.Equals(T2) > 0)
 							continue;
-						if (S::Equals(T1) > 0)
+						if (S.Equals(T1) > 0)
 						{
 							better = 1;
 							continue;
 						}
-						if (S::Equals(T2) > 0)
+						if (S.Equals(T2) > 0)
 						{
 							better = 0;
 							break;
 						}
 						/* HACK: bool */
-						int32 c1 = T1::CanImplicitlyConvertTo(T2), c2 = T2::CanImplicitlyConvertTo(T1);
+						int32 c1 = T1.CanImplicitlyConvertTo(T2), c2 = T2.CanImplicitlyConvertTo(T1);
 						if (c1 > 0 && c2 == 0)
 							better = 1;
 						else if (c1 == 0 && c2 > 0)
@@ -674,6 +676,6 @@ class Compiler
 			if (ok > 0)
 				return current;
 		}
-		throw new CompilerException("Ambiguous function call.", node::location);
+		throw new CompilerException("Ambiguous function call.", node.location);
 	}
 }

@@ -1,3 +1,5 @@
+using Core;
+
 class Stack
 {
 	private Vector data;
@@ -9,27 +11,27 @@ class Stack
 		size = 0;
 	}
 
-	public Push(Core.Object item)
+	public Push(Object item)
 	{
-		if (size == data::Size)
-			data::Add(item);
+		if (size == data.Size)
+			data.Add(item);
 		else
-			data::Set(size, item);
+			data.Set(size, item);
 		size = size + 1;
 	}
 
-	public Pop() -> Core.Object
+	public Pop() -> Object
 	{
 		if (size == 0)
-			throw new Core.InvalidOperationException();
+			throw new InvalidOperationException();
 		size = size - 1;
 		return data[size];
 	}
 
-	public Peek() -> Core.Object
+	public Peek() -> Object
 	{
 		if (size == 0)
-			throw new Core.InvalidOperationException();
+			throw new InvalidOperationException();
 		return data[size - 1];
 	}
 

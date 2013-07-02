@@ -1,23 +1,27 @@
-class Core.Console
-{
-	private static Core.StreamWriter out;
+namespace Core;
 
-	public static SetConsoleTitle(Core.String title)
+using Core.Native;
+
+class Console
+{
+	private static StreamWriter out;
+
+	public static SetConsoleTitle(String title)
 	{
-		Core.Native.Win32::SetConsoleTitle(Core.Native.Converter::ToWCharPtr(title));
+		Win32.SetConsoleTitle(Converter.ToWCharPtr(title));
 	}
 
 	public static Write(Core.String text)
 	{
-		OutputStream::Write(text);
-		OutputStream::Flush();
+		OutputStream.Write(text);
+		OutputStream.Flush();
 	}
 
 	public static WriteLine(Core.String text)
 	{
-		OutputStream::Write(text);
-		OutputStream::Write("\n");
-		OutputStream::Flush();
+		OutputStream.Write(text);
+		OutputStream.Write("\n");
+		OutputStream.Flush();
 	}
 
 	private Core.StreamWriter OutputStream
@@ -25,9 +29,9 @@ class Core.Console
 		get
 		{
 			if (out == null)
-				out = new Core.StreamWriter(
-					new Core.FileStream("CONOUT$", 2),
-					new Core.Encoding(Core.Native.Win32::GetConsoleOutputCP())
+				out = new StreamWriter(
+					new FileStream("CONOUT$", 2),
+					new Encoding(Win32.GetConsoleOutputCP())
 				);
 			return out;
 		}

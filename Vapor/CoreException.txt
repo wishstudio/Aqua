@@ -1,23 +1,25 @@
-class Core.Exception
+namespace Core;
+
+class Exception
 {
 }
 
-class Core.InvalidOperationException: Core.Exception
+class InvalidOperationException: Exception
 {
 }
 
-class Core.InvalidCastException: Core.Exception
+class InvalidCastException: Exception
 {
 }
 
-class Core.FileNotFoundException: Core.Exception
+class FileNotFoundException: Exception
 {
 }
 
-class Core.KeyNotFoundException: Core.Exception
+class KeyNotFoundException: Exception
 {
 }
 
-class Core.IndexOutOfBoundException: Core.Exception
+class IndexOutOfBoundException: Exception
 {
 }

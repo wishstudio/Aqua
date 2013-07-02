@@ -1,4 +1,6 @@
-class Core.Math
+namespace Core;
+
+class Math
 {
 	public static Abs(int32 x) -> int32
 	{

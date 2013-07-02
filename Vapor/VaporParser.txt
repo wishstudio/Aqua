@@ -1,3 +1,5 @@
+using Core;
+
 /* Vapor Parser
  * Code -> AST
  */
@@ -7,7 +9,7 @@ class Parser
 	public Namespace root;
 
 	private Lexer lex;
-	private Core.String currentFileName;
+	private String currentFileName;
 
 	public ()
 	{
@@ -18,18 +20,18 @@ class Parser
 	public GetCurrentLocation() -> Location
 	{
 		Location location = new Location();
-		location::fileName = currentFileName;
-		location::lineNumber = lex::lineNumber;
+		location.fileName = currentFileName;
+		location.lineNumber = lex.lineNumber;
 		return location;
 	}
 
-	public Parse(Core.String fileName)
+	public Parse(String fileName)
 	{
 		try
 		{
 			currentFileName = fileName;
 			lex = new Lexer(fileName);
-			lex::Next();
+			lex.Next();
 			ParseFile();
 		}
 		catch (ParserException e)
@@ -37,29 +39,29 @@ class Parser
 		finally
 		{
 			if (lex != null)
-				lex::Dispose();
+				lex.Dispose();
 		}
 	}
 
 	private ParseModifier() -> int32
 	{
 		int32 modifier = 0;
-		while (lex::token == Token::Ident)
+		while (lex.token == Token.Ident)
 		{
-			int32 m = Modifier::Parse(lex::ident);
+			int32 m = Modifier.Parse(lex.ident);
 			if (m == 0)
 				return modifier;
 			modifier = modifier | m;
-			lex::Next();
+			lex.Next();
 		}
 		return modifier;
 	}
 
 	private ParseCallingConvention() -> int32
 	{
-		lex::Assert(Token::Ident);
-		int32 cc = CallingConvention::Parse(lex::ident);
-		lex::Next();
+		lex.Assert(Token.Ident);
+		int32 cc = CallingConvention.Parse(lex.ident);
+		lex.Next();
 		if (cc == 0)
 			throw new UnexpectedTokenException();
 		else
@@ -69,42 +71,42 @@ class Parser
 	private TryParseType() -> Node
 	{
 		Location location = GetCurrentLocation();
-		if (lex::token != Token::Ident)
+		if (lex.token != Token.Ident)
 			return null;
 
 		Node type;
-		if (lex::ident::Equals("bool") > 0)
-			type = new PrimitiveTypeNode(location, Type::Bool);
-		else if (lex::ident::Equals("int8") > 0)
-			type = new PrimitiveTypeNode(location, Type::Int8);
-		else if (lex::ident::Equals("uint8") > 0)
-			type = new PrimitiveTypeNode(location, Type::UInt8);
-		else if (lex::ident::Equals("int16") > 0)
-			type = new PrimitiveTypeNode(location, Type::Int16);
-		else if (lex::ident::Equals("uint16") > 0)
-			type = new PrimitiveTypeNode(location, Type::UInt16);
-		else if (lex::ident::Equals("int32") > 0)
-			type = new PrimitiveTypeNode(location, Type::Int32);
-		else if (lex::ident::Equals("uint32") > 0)
-			type = new PrimitiveTypeNode(location, Type::UInt32);
-		else if (lex::ident::Equals("char") > 0)
-			type = new PrimitiveTypeNode(location, Type::Char);
-		else if (lex::ident::Equals("int") > 0)
-			type = new PrimitiveTypeNode(location, Type::Int);
+		if (lex.ident.Equals("bool") > 0)
+			type = new PrimitiveTypeNode(location, Type.Bool);
+		else if (lex.ident.Equals("int8") > 0)
+			type = new PrimitiveTypeNode(location, Type.Int8);
+		else if (lex.ident.Equals("uint8") > 0)
+			type = new PrimitiveTypeNode(location, Type.UInt8);
+		else if (lex.ident.Equals("int16") > 0)
+			type = new PrimitiveTypeNode(location, Type.Int16);
+		else if (lex.ident.Equals("uint16") > 0)
+			type = new PrimitiveTypeNode(location, Type.UInt16);
+		else if (lex.ident.Equals("int32") > 0)
+			type = new PrimitiveTypeNode(location, Type.Int32);
+		else if (lex.ident.Equals("uint32") > 0)
+			type = new PrimitiveTypeNode(location, Type.UInt32);
+		else if (lex.ident.Equals("char") > 0)
+			type = new PrimitiveTypeNode(location, Type.Char);
+		else if (lex.ident.Equals("int") > 0)
+			type = new PrimitiveTypeNode(location, Type.Int);
 		else
-			type = new IdentNode(location, lex::ident);
+			type = new IdentNode(location, lex.ident);
 
 		for (;;)
 		{
-			lex::Next();
-			if (lex::token == Token::Array)
+			lex.Next();
+			if (lex.token == Token.Array)
 				type = new ArrayTypeNode(location, type);
-			else if (lex::token == Token::Mul)
+			else if (lex.token == Token.Mul)
 				type = new PointerTypeNode(location, type);
-			else if (lex::token == Token::DoubleColon)
+			else if (lex.token == Token.DoubleColon)
 			{
-				lex::CheckNext(Token::Ident);
-				type = new FieldNode(location, type, lex::ident);
+				lex.CheckNext(Token.Ident);
+				type = new FieldNode(location, type, lex.ident);
 			}
 			else
 				return type;
@@ -124,20 +126,20 @@ class Parser
 		Namespace current = root;
 		for (;;)
 		{
-			lex::Assert(Token::Ident);
+			lex.Assert(Token.Ident);
 			int32 found;
-			Core.Object sp;
-			if ((found, sp = current::children::Contains(lex::ident)) == 0)
+			Object sp;
+			if ((found, sp = current.children.Contains(lex.ident)) == 0)
 			{
-				sp = new Namespace(lex::ident, current);
-				current::children::Add(lex::ident, sp);
+				sp = new Namespace(lex.ident, current);
+				current.children.Add(lex.ident, sp);
 			}
 			current = [Namespace] sp;
-			lex::Next();
-			if (lex::token != Token::DoubleColon)
+			lex.Next();
+			if (lex.token != Token.DoubleColon)
 				return current;
-			lex::Assert(Token::DoubleColon);
-			lex::Next();
+			lex.Assert(Token.DoubleColon);
+			lex.Next();
 		}
 	}
 
@@ -145,440 +147,440 @@ class Parser
 	{
 		SourceFile sourceFile = new SourceFile(currentFileName, root);
 		Namespace startNamespace = root;
-		if (lex::token == Token::Namespace)
+		if (lex.token == Token.Namespace)
 		{
-			lex::Next();
+			lex.Next();
 			startNamespace = ParseNamespace();
-			lex::Assert(Token::Semicolon);
-			lex::Next();
-			sourceFile::namespaces::Add(startNamespace);
+			lex.Assert(Token.Semicolon);
+			lex.Next();
+			sourceFile.namespaces.Add(startNamespace);
 		}
-		while (lex::token == Token::Using)
+		while (lex.token == Token.Using)
 		{
-			lex::Next();
-			sourceFile::namespaces::Add(ParseNamespace());
-			lex::Assert(Token::Semicolon);
-			lex::Next();
+			lex.Next();
+			sourceFile.namespaces.Add(ParseNamespace());
+			lex.Assert(Token.Semicolon);
+			lex.Next();
 		}
-		while (lex::token == Token::Ident && lex::ident::Equals("class") > 0)
+		while (lex.token == Token.Ident && lex.ident.Equals("class") > 0)
 		{
 			Class classObject = new Class(GetCurrentLocation());
-			classObject::sourceFile = sourceFile;
-			lex::CheckNext(Token::Ident);
+			classObject.sourceFile = sourceFile;
+			lex.CheckNext(Token.Ident);
 			/* TODO: This should be a function */
-			Core.String fullName;
-			if (startNamespace::name::Equals("") > 0)
-				fullName = lex::ident;
+			String fullName;
+			if (startNamespace.name.Equals("") > 0)
+				fullName = lex.ident;
 			else
-				fullName = startNamespace::name + "." + lex::ident;
-			Core.String name = lex::ident;
-			lex::Next();
+				fullName = startNamespace.name + "." + lex.ident;
+			String name = lex.ident;
+			lex.Next();
 			Namespace current = startNamespace;
-			while (lex::token == Token::DoubleColon)
+			while (lex.token == Token.DoubleColon)
 			{
 				int32 found;
-				Core.Object sp;
-				if ((found, sp = current::children::Contains(name)) == 0)
+				Object sp;
+				if ((found, sp = current.children.Contains(name)) == 0)
 				{
 					sp = new Namespace(name, current);
-					current::children::Add(name, sp);
+					current.children.Add(name, sp);
 				}
 				current = [Namespace] sp;
 
-				lex::CheckNext(Token::Ident);
-				fullName = fullName + "." + lex::ident;
-				name = lex::ident;
-				lex::Next();
+				lex.CheckNext(Token.Ident);
+				fullName = fullName + "." + lex.ident;
+				name = lex.ident;
+				lex.Next();
 			}
-			current::children::Add(name, classObject);
-			classObject::name = fullName;
-			if (lex::token == Token::Colon)
+			current.children.Add(name, classObject);
+			classObject.name = fullName;
+			if (lex.token == Token.Colon)
 			{
-				lex::Next();
-				classObject::baseType = ParseType();
+				lex.Next();
+				classObject.baseType = ParseType();
 			}
-			else if (classObject::name::Equals("Core.Object") > 0)
-				classObject::baseType = null;
+			else if (classObject.name.Equals("Core.Object") > 0)
+				classObject.baseType = null;
 			else
 			{
 				Location location = GetCurrentLocation();
-				classObject::baseType = new FieldNode(location, new IdentNode(location, "Core"), "Object");
+				classObject.baseType = new FieldNode(location, new IdentNode(location, "Core"), "Object");
 			}
-			lex::Assert(Token::BLeft);
-			lex::Next();
-			while (lex::token != Token::BRight)
+			lex.Assert(Token.BLeft);
+			lex.Next();
+			while (lex.token != Token.BRight)
 			{
 				int32 modifier = ParseModifier();
-				lex::Checkpoint();
+				lex.Checkpoint();
 
 				Node type = TryParseType();
-				if (type == null || lex::token == Token::PLeft)
+				if (type == null || lex.token == Token.PLeft)
 				{
-					lex::RollbackCheckpoint();
+					lex.RollbackCheckpoint();
 
 					Method method = new Method(GetCurrentLocation());
-					method::classObject = classObject;
-					method::modifier = modifier;
-					if (lex::token == Token::PLeft)
-						method::name = ".ctor";
+					method.classObject = classObject;
+					method.modifier = modifier;
+					if (lex.token == Token.PLeft)
+						method.name = ".ctor";
 					else
 					{
-						if (lex::token == Token::Ident)
-							method::name = lex::ident;
+						if (lex.token == Token.Ident)
+							method.name = lex.ident;
 						else
 						{
-							if (method::modifier & Modifier::Static == 0)
-								throw new Core.Exception(); /* TODO */
-							method::name = Compiler::GetOperatorMethodName(lex::token);
+							if (method.modifier & Modifier.Static == 0)
+								throw new Exception(); /* TODO */
+							method.name = Compiler.GetOperatorMethodName(lex.token);
 						}
-						lex::CheckNext(Token::PLeft);
+						lex.CheckNext(Token.PLeft);
 					}
 
 					/* Get parameters */
-					lex::Next();
+					lex.Next();
 					/* HACK: break */
-					while (lex::token != Token::PRight)
+					while (lex.token != Token.PRight)
 					{
-						method::paramTypes::Add(new TypeCache(ParseType()));
-						if (lex::token == Token::Ident)
+						method.paramTypes.Add(new TypeCache(ParseType()));
+						if (lex.token == Token.Ident)
 						{
 							/* Named parameter */
-							method::paramNames::Add(lex::ident);
-							lex::Next();
+							method.paramNames.Add(lex.ident);
+							lex.Next();
 						}
 						else
 						{
 							/* Unnamed parameter */
-							method::paramNames::Add("");
+							method.paramNames.Add("");
 						}
-						if (lex::token != Token::PRight)
+						if (lex.token != Token.PRight)
 						{
-							lex::Assert(Token::Comma);
-							lex::Next();
+							lex.Assert(Token.Comma);
+							lex.Next();
 						}
 					}
-					lex::Next();
+					lex.Next();
 
 					/* Get returns */
-					if (lex::token == Token::Arrow)
+					if (lex.token == Token.Arrow)
 					{
-						lex::Next();
+						lex.Next();
 						/* HACK: break */
 						int32 BREAK = 0;
 						/* HACK: for (;;) */
 						while (BREAK == 0)
 						{
-							method::returnTypes::Add(new TypeCache(ParseType()));
-							if (lex::token == Token::Ident)
+							method.returnTypes.Add(new TypeCache(ParseType()));
+							if (lex.token == Token.Ident)
 							{
 								/* Named return */
-								method::returnNames::Add(lex::ident);
-								lex::Next();
+								method.returnNames.Add(lex.ident);
+								lex.Next();
 							}
 							else
 							{
 								/* Unnamed return */
-								method::returnNames::Add("");
+								method.returnNames.Add("");
 							}
-							if (lex::token == Token::Comma)
-								lex::Next();
+							if (lex.token == Token.Comma)
+								lex.Next();
 							else
 								BREAK = 1;
 						}
 					}
 
-					if (modifier & Modifier::Internal > 0 || modifier & Modifier::Abstract > 0)
+					if (modifier & Modifier.Internal > 0 || modifier & Modifier.Abstract > 0)
 					{
-						method::body = null;
-						lex::Assert(Token::Semicolon);
-						lex::Next();
+						method.body = null;
+						lex.Assert(Token.Semicolon);
+						lex.Next();
 					}
-					else if (modifier & Modifier::Native > 0)
+					else if (modifier & Modifier.Native > 0)
 					{
-						method::body = null;
-						lex::Assert(Token::Semicolon);
-						lex::CheckNext(Token::SLeft);
-						lex::Next();
-						method::callingConvention = ParseCallingConvention();
-						lex::Assert(Token::Comma);
-						lex::CheckNext(Token::String);
-						method::libraryName = lex::ident;
-						lex::CheckNext(Token::Comma);
-						lex::CheckNext(Token::String);
-						method::originalName = lex::ident;
-						lex::CheckNext(Token::SRight);
-						lex::Next();
+						method.body = null;
+						lex.Assert(Token.Semicolon);
+						lex.CheckNext(Token.SLeft);
+						lex.Next();
+						method.callingConvention = ParseCallingConvention();
+						lex.Assert(Token.Comma);
+						lex.CheckNext(Token.String);
+						method.libraryName = lex.ident;
+						lex.CheckNext(Token.Comma);
+						lex.CheckNext(Token.String);
+						method.originalName = lex.ident;
+						lex.CheckNext(Token.SRight);
+						lex.Next();
 					}
 					else
-						method::body = ParseStatement();
-					classObject::methods::Add(method::name, [Core.Object] method);
+						method.body = ParseStatement();
+					classObject.methods.Add(method.name, method);
 				}
 				else
 				{
-					lex::FinishCheckpoint();
+					lex.FinishCheckpoint();
 					for (bool first = true;; first = false)
 					{
-						lex::Assert(Token::Ident);
-						Core.String name = lex::ident;
-						lex::Next();
-						if (first && lex::token == Token::BLeft)
+						lex.Assert(Token.Ident);
+						String name = lex.ident;
+						lex.Next();
+						if (first && lex.token == Token.BLeft)
 						{
 							/* Property */
-							lex::Next();
+							lex.Next();
 							Property property = new Property(GetCurrentLocation());
-							property::classObject = classObject;
-							property::modifier = modifier;
-							property::type = new TypeCache(type);
-							property::name = name;
+							property.classObject = classObject;
+							property.modifier = modifier;
+							property.type = new TypeCache(type);
+							property.name = name;
 							for (;;)
 							{
-								if (lex::token == Token::Ident &&
-									(lex::ident::Equals("get") > 0 || lex::ident::Equals("set") > 0))
+								if (lex.token == Token.Ident &&
+									(lex.ident.Equals("get") > 0 || lex.ident.Equals("set") > 0))
 								{
 									Method method = new Method(GetCurrentLocation());
-									method::classObject = classObject;
-									method::modifier = modifier;
-									if (lex::ident::Equals("get") > 0)
+									method.classObject = classObject;
+									method.modifier = modifier;
+									if (lex.ident.Equals("get") > 0)
 									{
-										if (property::getter != null)
+										if (property.getter != null)
 											throw new ParserException();
-										property::getter = method;
-										method::name = ".get" + name;
-										method::returnTypes::Add(new TypeCache(type));
-										method::returnNames::Add("");
+										property.getter = method;
+										method.name = ".get" + name;
+										method.returnTypes.Add(new TypeCache(type));
+										method.returnNames.Add("");
 									}
 									else
 									{
-										if (property::setter != null)
+										if (property.setter != null)
 											throw new ParserException();
-										property::setter = method;
-										method::name = ".set" + name;
-										method::paramTypes::Add(new TypeCache(type));
-										method::paramNames::Add("value");
+										property.setter = method;
+										method.name = ".set" + name;
+										method.paramTypes.Add(new TypeCache(type));
+										method.paramNames.Add("value");
 									}
-									lex::Next();
-									if (method::modifier & Modifier::Abstract > 0)
+									lex.Next();
+									if (method.modifier & Modifier.Abstract > 0)
 									{
-										lex::Assert(Token::Semicolon);
-										lex::Next();
+										lex.Assert(Token.Semicolon);
+										lex.Next();
 									}
 									else
-										method::body = ParseStatement();
-									classObject::methods::Add(method::name, method);
+										method.body = ParseStatement();
+									classObject.methods.Add(method.name, method);
 								}
 								else
 									break;
 							}
-							lex::Assert(Token::BRight);
-							lex::Next();
-							classObject::properties::Add(property::name, property);
+							lex.Assert(Token.BRight);
+							lex.Next();
+							classObject.properties.Add(property.name, property);
 							break;
 						}
 						else
 						{
 							/* Field */
 							Field field = new Field(GetCurrentLocation());
-							field::classObject = classObject;
-							field::modifier = modifier;
-							field::type = new TypeCache(type);
-							field::name = name;
-							classObject::fields::Add(field::name, [Core.Object] field);
+							field.classObject = classObject;
+							field.modifier = modifier;
+							field.type = new TypeCache(type);
+							field.name = name;
+							classObject.fields.Add(field.name, field);
 
-							if (lex::token == Token::Semicolon)
+							if (lex.token == Token.Semicolon)
 							{
-								lex::Next();
+								lex.Next();
 								break;
 							}
 							else
 							{
-								lex::Assert(Token::Comma);
-								lex::Next();
+								lex.Assert(Token.Comma);
+								lex.Next();
 							}
 						}
 					}
 				}
 			}
-			lex::Next(); /* '}' */
+			lex.Next(); /* '}' */
 
 			/* Generate constructor if there isn't one */
-			if (classObject::methods::Contains(".ctor") == 0)
+			if (classObject.methods.Contains(".ctor") == 0)
 			{
 				ReturnNode body = new ReturnNode(GetCurrentLocation());
 
 				Method method = new Method(GetCurrentLocation());
-				method::classObject = classObject;
-				method::name = ".ctor";
-				method::modifier = Modifier::Public;
-				method::body = [Node] body;
-				classObject::methods::Add(".ctor", [Core.Object] method);
+				method.classObject = classObject;
+				method.name = ".ctor";
+				method.modifier = Modifier.Public;
+				method.body = [Node] body;
+				classObject.methods.Add(".ctor", method);
 			}
-			classes::Add(classObject);
+			classes.Add(classObject);
 		}
 	}
 
 	private ParseStatement() -> Node
 	{
-		if (lex::token == Token::BLeft)
+		if (lex.token == Token.BLeft)
 		{
 			MultipleNode node = new MultipleNode(GetCurrentLocation());
-			lex::Next();
+			lex.Next();
 			/* TODO: This cannot handle bugs */
-			while (lex::token != Token::BRight)
-				node::nodes::Add([Core.Object] ParseStatement());
-			lex::Next();
+			while (lex.token != Token.BRight)
+				node.nodes.Add(ParseStatement());
+			lex.Next();
 			return node;
 		}
-		else if (lex::token == Token::If)
+		else if (lex.token == Token.If)
 		{
 			IfNode node = new IfNode(GetCurrentLocation());
-			lex::CheckNext(Token::PLeft);
-			lex::Next();
-			node::condition = ParseList();
-			lex::Assert(Token::PRight);
-			lex::Next();
-			node::trueBody = ParseStatement();
-			if (lex::token == Token::Else)
+			lex.CheckNext(Token.PLeft);
+			lex.Next();
+			node.condition = ParseList();
+			lex.Assert(Token.PRight);
+			lex.Next();
+			node.trueBody = ParseStatement();
+			if (lex.token == Token.Else)
 			{
-				lex::Next();
-				node::falseBody = ParseStatement();
+				lex.Next();
+				node.falseBody = ParseStatement();
 			}
 			else
-				node::falseBody = null;
+				node.falseBody = null;
 			return node;
 		}
-		else if (lex::token == Token::For)
+		else if (lex.token == Token.For)
 		{
 			ForNode node = new ForNode(GetCurrentLocation());
-			lex::CheckNext(Token::PLeft);
-			lex::Next();
-			if (lex::token == Token::Semicolon)
-				node::init = null;
+			lex.CheckNext(Token.PLeft);
+			lex.Next();
+			if (lex.token == Token.Semicolon)
+				node.init = null;
 			else
 			{
-				node::init = ParseSingleStatement();
-				lex::Assert(Token::Semicolon);
+				node.init = ParseSingleStatement();
+				lex.Assert(Token.Semicolon);
 			}
-			lex::Next();
-			if (lex::token == Token::Semicolon)
-				node::condition = null;
+			lex.Next();
+			if (lex.token == Token.Semicolon)
+				node.condition = null;
 			else
 			{
-				node::condition = ParseList();
-				lex::Assert(Token::Semicolon);
+				node.condition = ParseList();
+				lex.Assert(Token.Semicolon);
 			}
-			lex::Next();
-			if (lex::token == Token::PRight)
-				node::update = null;
+			lex.Next();
+			if (lex.token == Token.PRight)
+				node.update = null;
 			else
 			{
-				node::update = ParseList();
-				lex::Assert(Token::PRight);
+				node.update = ParseList();
+				lex.Assert(Token.PRight);
 			}
-			lex::Next();
-			node::body = ParseStatement();
+			lex.Next();
+			node.body = ParseStatement();
 			return node;
 		}
-		else if (lex::token == Token::While)
+		else if (lex.token == Token.While)
 		{
 			WhileNode node = new WhileNode(GetCurrentLocation());
-			lex::CheckNext(Token::PLeft);
-			lex::Next();
-			node::condition = ParseList();
-			lex::Assert(Token::PRight);
-			lex::Next();
-			node::body = ParseStatement();
+			lex.CheckNext(Token.PLeft);
+			lex.Next();
+			node.condition = ParseList();
+			lex.Assert(Token.PRight);
+			lex.Next();
+			node.body = ParseStatement();
 			return node;
 		}
-		else if (lex::token == Token::Do)
+		else if (lex.token == Token.Do)
 		{
 			DoWhileNode node = new DoWhileNode(GetCurrentLocation());
-			lex::Next();
-			node::body = ParseStatement();
-			lex::Assert(Token::While);
-			lex::CheckNext(Token::PLeft);
-			lex::Next();
-			node::condition = ParseList();
-			lex::Assert(Token::PRight);
-			lex::CheckNext(Token::Semicolon);
-			lex::Next();
+			lex.Next();
+			node.body = ParseStatement();
+			lex.Assert(Token.While);
+			lex.CheckNext(Token.PLeft);
+			lex.Next();
+			node.condition = ParseList();
+			lex.Assert(Token.PRight);
+			lex.CheckNext(Token.Semicolon);
+			lex.Next();
 			return node;
 		}
-		else if (lex::token == Token::Return)
+		else if (lex.token == Token.Return)
 		{
-			lex::Next();
+			lex.Next();
 			ReturnNode node = new ReturnNode(GetCurrentLocation());
-			if (lex::token != Token::Semicolon)
+			if (lex.token != Token.Semicolon)
 			{
 				/* HACK: break */
 				int32 BREAK = 0;
 				while (BREAK == 0)
 				{
-					node::values::Add([Core.Object] ParseExpression(0));
-					if (lex::token == Token::Semicolon)
+					node.values.Add(ParseExpression(0));
+					if (lex.token == Token.Semicolon)
 						BREAK = 1;
 					else
 					{
-						lex::Assert(Token::Comma);
-						lex::Next();
+						lex.Assert(Token.Comma);
+						lex.Next();
 					}
 				}
 			}
-			lex::Next();
+			lex.Next();
 			return node;
 		}
-		else if (lex::token == Token::Continue)
+		else if (lex.token == Token.Continue)
 		{
-			lex::CheckNext(Token::Semicolon);
-			lex::Next();
+			lex.CheckNext(Token.Semicolon);
+			lex.Next();
 			return new ContinueNode(GetCurrentLocation());
 		}
-		else if (lex::token == Token::Break)
+		else if (lex.token == Token.Break)
 		{
-			lex::CheckNext(Token::Semicolon);
-			lex::Next();
+			lex.CheckNext(Token.Semicolon);
+			lex.Next();
 			return new BreakNode(GetCurrentLocation());
 		}
-		else if (lex::token == Token::Try)
+		else if (lex.token == Token.Try)
 		{
-			lex::Next();
+			lex.Next();
 			TryNode node = new TryNode(GetCurrentLocation());
-			node::body = ParseStatement();
-			while (lex::token == Token::Catch)
+			node.body = ParseStatement();
+			while (lex.token == Token.Catch)
 			{
 				CatchNode cnode = new CatchNode(GetCurrentLocation());
-				lex::CheckNext(Token::PLeft);
-				lex::Next();
-				cnode::type = ParseType();
-				lex::Assert(Token::Ident);
-				cnode::name = lex::ident;
-				lex::CheckNext(Token::PRight);
-				lex::Next();
-				cnode::body = ParseStatement();
-				node::catchNodes::Add([Core.Object] cnode);
+				lex.CheckNext(Token.PLeft);
+				lex.Next();
+				cnode.type = ParseType();
+				lex.Assert(Token.Ident);
+				cnode.name = lex.ident;
+				lex.CheckNext(Token.PRight);
+				lex.Next();
+				cnode.body = ParseStatement();
+				node.catchNodes.Add(cnode);
 			}
-			if (lex::token == Token::Finally)
+			if (lex.token == Token.Finally)
 			{
-				lex::Next();
-				node::finallyNode = ParseStatement();
+				lex.Next();
+				node.finallyNode = ParseStatement();
 			}
-			if (node::catchNodes::Size == 0 && node::finallyNode == null)
-				throw new Core.Exception(); /* TODO */
+			if (node.catchNodes.Size == 0 && node.finallyNode == null)
+				throw new Exception(); /* TODO */
 			return node;
 		}
-		else if (lex::token == Token::Throw)
+		else if (lex.token == Token.Throw)
 		{
-			lex::Next();
+			lex.Next();
 			ThrowNode node = new ThrowNode(GetCurrentLocation());
-			node::exception = ParseList();
-			lex::Assert(Token::Semicolon);
-			lex::Next();
+			node.exception = ParseList();
+			lex.Assert(Token.Semicolon);
+			lex.Next();
 			return node;
 		}
 		else
 		{
 			Node node = ParseSingleStatement();
-			lex::Assert(Token::Semicolon);
-			lex::Next();
+			lex.Assert(Token.Semicolon);
+			lex.Next();
 			return node;
 		}
 	}
@@ -586,36 +588,36 @@ class Parser
 	/* Parse a single statement (without semicolon) */
 	private ParseSingleStatement() -> Node
 	{
-		lex::Checkpoint();
+		lex.Checkpoint();
 		Node type = TryParseType();
-		if (type == null || lex::token != Token::Ident)
+		if (type == null || lex.token != Token.Ident)
 		{
-			lex::RollbackCheckpoint();
+			lex.RollbackCheckpoint();
 			return ParseList();
 		}
-		lex::FinishCheckpoint();
+		lex.FinishCheckpoint();
 
 		DefinitionNode node = new DefinitionNode(GetCurrentLocation());
-		node::type = type;
+		node.type = type;
 		/* HACK: for (;;) */
 		/* HACK: break */
 		int32 BREAK = 0;
 		while (BREAK == 0)
 		{
-			lex::Assert(Token::Ident);
-			node::names::Add([Core.Object] lex::ident);
-			lex::Next();
-			if (lex::token == Token::Assign)
+			lex.Assert(Token.Ident);
+			node.names.Add(lex.ident);
+			lex.Next();
+			if (lex.token == Token.Assign)
 			{
-				lex::Next();
-				node::values::Add([Core.Object] ParseExpression(0));
+				lex.Next();
+				node.values.Add(ParseExpression(0));
 			}
 			else
-				node::values::Add(null);
-			if (lex::token != Token::Comma)
+				node.values.Add(null);
+			if (lex.token != Token.Comma)
 				BREAK = 1;
 			else
-				lex::Next();
+				lex.Next();
 		}
 		return node;
 	}
@@ -624,24 +626,24 @@ class Parser
 	private ParseList() -> Node
 	{
 		Node node = ParseExpression(0);
-		if (lex::token == Token::Comma)
+		if (lex.token == Token.Comma)
 		{
 			ListNode ret = new ListNode(GetCurrentLocation());
-			ret::values::Add([Core.Object] node);
-			while (lex::token == Token::Comma)
+			ret.values.Add(node);
+			while (lex.token == Token.Comma)
 			{
-				lex::Next();
-				ret::values::Add([Core.Object] ParseExpression(0));
+				lex.Next();
+				ret.values.Add(ParseExpression(0));
 			}
 			node = [Node] ret;
 		}
 
-		if (lex::token == Token::Assign)
+		if (lex.token == Token.Assign)
 		{
-			lex::Next();
+			lex.Next();
 			AssignNode ret = new AssignNode(GetCurrentLocation());
-			ret::left = node;
-			ret::right = ParseList();
+			ret.left = node;
+			ret.right = ParseList();
 			return ret;
 		}
 		else
@@ -652,22 +654,22 @@ class Parser
 	private ParseExpression(int32 priority) -> Node
 	{
 		Node left = ParseObjectAccess();
-		while (lex::token <= Token::BinOp && Token::BinPriority[lex::token] > priority)
+		while (lex.token <= Token.BinOp && Token.BinPriority[lex.token] > priority)
 		{
 			BinNode node;
-			if (lex::token <= Token::BinArith)
+			if (lex.token <= Token.BinArith)
 				node = new BinArithNode(GetCurrentLocation());
-			else if (lex::token <= Token::BinComparison)
+			else if (lex.token <= Token.BinComparison)
 				node = new BinComparisonNode(GetCurrentLocation());
-			else if (lex::token <= Token::BinLogic)
+			else if (lex.token <= Token.BinLogic)
 				node = new BinLogicNode(GetCurrentLocation());
 			else
 				node = new BinNode(GetCurrentLocation());
-			node::op = lex::token;
-			node::left = left;
-			lex::Next();
+			node.op = lex.token;
+			node.left = left;
+			lex.Next();
 			/* Parse binary operations with higher priority */
-			node::right = ParseExpression(Token::BinPriority[node::op]);
+			node.right = ParseExpression(Token.BinPriority[node.op]);
 
 			left = node;
 		}
@@ -683,52 +685,52 @@ class Parser
 		int32 BREAK = 0;
 		while (BREAK == 0)
 		{
-			if (lex::token == Token::DoubleColon)
+			if (lex.token == Token.DoubleColon)
 			{
-				lex::CheckNext(Token::Ident);
+				lex.CheckNext(Token.Ident);
 
-				object = new FieldNode(GetCurrentLocation(), object, lex::ident);
-				lex::Next();
+				object = new FieldNode(GetCurrentLocation(), object, lex.ident);
+				lex.Next();
 			}
-			else if (lex::token == Token::PLeft)
+			else if (lex.token == Token.PLeft)
 			{
-				lex::Next();
+				lex.Next();
 
 				CallNode node = new CallNode(GetCurrentLocation());
-				node::method = object;
+				node.method = object;
 
-				if (lex::token != Token::PRight)
+				if (lex.token != Token.PRight)
 				{
 					/* HACK: for (;;) */
 					/* HACK: break */
 					int32 BREAK = 0;
 					while (BREAK == 0)
 					{
-						node::parameters::Add([Core.Object] ParseExpression(0));
-						if (lex::token == Token::PRight)
+						node.parameters.Add(ParseExpression(0));
+						if (lex.token == Token.PRight)
 							BREAK = 1;
 						else
 						{
-							lex::Assert(Token::Comma);
-							lex::Next();
+							lex.Assert(Token.Comma);
+							lex.Next();
 						}
 					}
 				}
-				lex::Next(); /* ')' */
+				lex.Next(); /* ')' */
 
 				object = [Node] node;
 			}
-			else if (lex::token == Token::SLeft)
+			else if (lex.token == Token.SLeft)
 			{
-				lex::Next();
+				lex.Next();
 
 				ArrayElementNode node = new ArrayElementNode(GetCurrentLocation());
-				node::array = object;
-				node::index = ParseList();
+				node.array = object;
+				node.index = ParseList();
 				object = [Node] node;
 
-				lex::Assert(Token::SRight);
-				lex::Next();
+				lex.Assert(Token.SRight);
+				lex.Next();
 			}
 			else
 				BREAK = 1;
@@ -739,126 +741,126 @@ class Parser
 	/* Parse unary operations */
 	private ParseUnary() -> Node
 	{
-		lex::FixUnary();
-		if (lex::token > Token::BinOp && lex::token <= Token::UnaryOp)
+		lex.FixUnary();
+		if (lex.token > Token.BinOp && lex.token <= Token.UnaryOp)
 		{
 			UnaryNode node = new UnaryNode(GetCurrentLocation());
-			node::op = lex::token;
-			lex::Next();
-			node::operand = ParseObjectAccess();
+			node.op = lex.token;
+			lex.Next();
+			node.operand = ParseObjectAccess();
 			return node;
 		}
-		else if (lex::token == Token::Star)
+		else if (lex.token == Token.Star)
 		{
 			DereferenceNode node = new DereferenceNode(GetCurrentLocation());
-			lex::Next();
-			node::operand = ParseObjectAccess();
+			lex.Next();
+			node.operand = ParseObjectAccess();
 			return node;
 		}
-		else if (lex::token == Token::AddressOf)
+		else if (lex.token == Token.AddressOf)
 		{
 			AddressOfNode node = new AddressOfNode(GetCurrentLocation());
-			lex::Next();
-			node::operand = ParseObjectAccess();
+			lex.Next();
+			node.operand = ParseObjectAccess();
 			return node;
 		}
-		else if (lex::token == Token::PLeft)
+		else if (lex.token == Token.PLeft)
 		{
-			lex::Next();
+			lex.Next();
 			Node node = ParseList();
-			lex::Assert(Token::PRight);
-			lex::Next();
+			lex.Assert(Token.PRight);
+			lex.Next();
 			return node;
 		}
-		else if (lex::token == Token::SLeft)
+		else if (lex.token == Token.SLeft)
 		{
-			lex::Next();
+			lex.Next();
 			TypeCastNode node = new TypeCastNode(GetCurrentLocation());
-			node::type = ParseType();
-			lex::Assert(Token::SRight);
-			lex::Next();
-			node::operand = ParseObjectAccess();
+			node.type = ParseType();
+			lex.Assert(Token.SRight);
+			lex.Next();
+			node.operand = ParseObjectAccess();
 			return node;
 		}
-		else if (lex::token == Token::New)
+		else if (lex.token == Token.New)
 		{
-			lex::Next();
+			lex.Next();
 			Node type = ParseType();
-			if (lex::token == Token::SLeft)
+			if (lex.token == Token.SLeft)
 			{
 				NewArrayNode node = new NewArrayNode(GetCurrentLocation());
-				node::type = type;
-				lex::Next();
-				node::parameter = ParseList();
-				lex::Assert(Token::SRight);
-				lex::Next();
+				node.type = type;
+				lex.Next();
+				node.parameter = ParseList();
+				lex.Assert(Token.SRight);
+				lex.Next();
 				return node;
 			}
 			else
 			{
 				NewNode node = new NewNode(GetCurrentLocation());
-				node::type = type;
-				lex::Assert(Token::PLeft);
-				lex::Next();
-				if (lex::token != Token::PRight)
+				node.type = type;
+				lex.Assert(Token.PLeft);
+				lex.Next();
+				if (lex.token != Token.PRight)
 				{
 					/* HACK: for (;;) */
 					int32 BREAK = 0;
 					while (BREAK == 0)
 					{
-						node::parameters::Add([Core.Object] ParseExpression(0));
-						if (lex::token == Token::PRight)
+						node.parameters.Add(ParseExpression(0));
+						if (lex.token == Token.PRight)
 							BREAK = 1;
 						else
 						{
-							lex::Assert(Token::Comma);
-							lex::Next();
+							lex.Assert(Token.Comma);
+							lex.Next();
 						}
 					}
 				}
-				lex::Next();
+				lex.Next();
 				return node;
 			}
 		}
-		else if (lex::token == Token::This)
+		else if (lex.token == Token.This)
 		{
-			lex::Next();
+			lex.Next();
 			return new ThisNode(GetCurrentLocation());
 		}
-		else if (lex::token == Token::Null)
+		else if (lex.token == Token.Null)
 		{
-			lex::Next();
+			lex.Next();
 			return new NullNode(GetCurrentLocation());
 		}
-		else if (lex::token == Token::True || lex::token == Token::False)
+		else if (lex.token == Token.True || lex.token == Token.False)
 		{
 			BoolNode node = new BoolNode(GetCurrentLocation());
 			/* HACK: bool */
-			if (lex::token == Token::True)
-				node::boolvalue = 1;
+			if (lex.token == Token.True)
+				node.boolvalue = 1;
 			else
-				node::boolvalue = 0;
-			lex::Next();
+				node.boolvalue = 0;
+			lex.Next();
 			return node;
 		}
-		else if (lex::token == Token::Number)
+		else if (lex.token == Token.Number)
 		{
 			IntegerNode node = new IntegerNode(GetCurrentLocation());
-			node::intvalue = lex::ident;
-			lex::Next();
+			node.intvalue = lex.ident;
+			lex.Next();
 			return node;
 		}
-		else if (lex::token == Token::String)
+		else if (lex.token == Token.String)
 		{
 			StringNode node = new StringNode(GetCurrentLocation());
-			node::stringvalue = lex::ident;
-			lex::Next();
+			node.stringvalue = lex.ident;
+			lex.Next();
 			return node;
 		}
-		else if (lex::token == Token::Ident)
+		else if (lex.token == Token.Ident)
 		{
-			IdentNode node = new IdentNode(GetCurrentLocation(), lex::ident);
-			lex::Next();
+			IdentNode node = new IdentNode(GetCurrentLocation(), lex.ident);
+			lex.Next();
 			return node;
 		}
 		else

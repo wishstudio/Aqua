@@ -1,3 +1,5 @@
+using Core;
+
 class Token
 {
 	/* Binary operations */
@@ -28,14 +30,14 @@ class Token
 	public static InitToken()
 	{
 		/* Binary operations */
-		Token::Add, Token::Sub, Token::Mul, Token::Div, Token::Rem = 0, 1, 2, 3, 4;
-		Token::BitAnd, Token::BitOr, Token::BitXor, Token::BinArith = 5, 6, 7, 7;
+		Token.Add, Token.Sub, Token.Mul, Token.Div, Token.Rem = 0, 1, 2, 3, 4;
+		Token.BitAnd, Token.BitOr, Token.BitXor, Token.BinArith = 5, 6, 7, 7;
 
-		Token::LT, Token::LE, Token::GT, Token::GE, Token::EQ, Token::NEQ, Token::Is = 8, 9, 10, 11, 12, 13, 14;
-		Token::BinComparison = 14;
+		Token.LT, Token.LE, Token.GT, Token.GE, Token.EQ, Token.NEQ, Token.Is = 8, 9, 10, 11, 12, 13, 14;
+		Token.BinComparison = 14;
 
-		Token::And, Token::Or, Token::BinLogic = 15, 16, 16;
-		Token::BinOp = 16;
+		Token.And, Token.Or, Token.BinLogic = 15, 16, 16;
+		Token.BinOp = 16;
 
 		int32[] priority = new int32[17];
 		priority[0], priority[1] = 10, 10; /* Add, Sub */
@@ -45,25 +47,25 @@ class Token
 		priority[14] = 4; /* Is */
 		priority[15] = 2; /* And */
 		priority[16] = 3; /* Or */
-		Token::BinPriority = priority;
+		Token.BinPriority = priority;
 
 		/* Unary operations */
-		Token::Not, Token::Neg, Token::BitNot, Token::UnaryOp = 20, 21, 22, 22;
-		Token::Star, Token::AddressOf = 23, 24;
+		Token.Not, Token.Neg, Token.BitNot, Token.UnaryOp = 20, 21, 22, 22;
+		Token.Star, Token.AddressOf = 23, 24;
 
 		/* Symbols */
-		Token::EOF, Token::Number, Token::Ident, Token::String, Token::Comma = 30, 31, 32, 33, 34;
-		Token::Assign, Token::Arrow, Token::Colon, Token::DoubleColon, Token::Semicolon = 35, 36, 37, 38, 39;
-		Token::Array = 40;
-		Token::PLeft, Token::PRight, Token::SLeft, Token::SRight = 41, 42, 43, 44;
-		Token::BLeft, Token::BRight = 45, 46;
+		Token.EOF, Token.Number, Token.Ident, Token.String, Token.Comma = 30, 31, 32, 33, 34;
+		Token.Assign, Token.Arrow, Token.Colon, Token.DoubleColon, Token.Semicolon = 35, 36, 37, 38, 39;
+		Token.Array = 40;
+		Token.PLeft, Token.PRight, Token.SLeft, Token.SRight = 41, 42, 43, 44;
+		Token.BLeft, Token.BRight = 45, 46;
 
 		/* Reserved identifiers */
-		Token::This, Token::Null, Token::True, Token::False = 50, 51, 52, 53;
-		Token::New, Token::NewArray = 54, 55;
-		Token::If, Token::Else, Token::For, Token::While, Token::Do, Token::Return = 58, 59, 60, 61, 62, 63;
-		Token::Continue, Token::Break = 64, 65;
-		Token::Try, Token::Catch, Token::Finally, Token::Throw = 66, 67, 68, 69;
-		Token::Namespace, Token::Using = 70, 71;
+		Token.This, Token.Null, Token.True, Token.False = 50, 51, 52, 53;
+		Token.New, Token.NewArray = 54, 55;
+		Token.If, Token.Else, Token.For, Token.While, Token.Do, Token.Return = 58, 59, 60, 61, 62, 63;
+		Token.Continue, Token.Break = 64, 65;
+		Token.Try, Token.Catch, Token.Finally, Token.Throw = 66, 67, 68, 69;
+		Token.Namespace, Token.Using = 70, 71;
 	}
 }

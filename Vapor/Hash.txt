@@ -1,3 +1,5 @@
+using Core;
+
 class Hash
 {
 	/* Simple multimap implementation */
@@ -9,40 +11,40 @@ class Hash
 		values = new Vector();
 	}
 
-	public Add(Core.String key, Core.Object value)
+	public Add(String key, Object value)
 	{
-		keys::Add([Core.Object] key);
-		values::Add(value);
+		keys.Add(key);
+		values.Add(value);
 	}
 
-	public Contains(Core.String key) -> int32 found, Core.Object value
+	public Contains(String key) -> int32 found, Object value
 	{
-		for (int32 i = 0; i < keys::size; i = i + 1)
-			if (([Core.String] keys[i])::Equals(key) > 0)
+		for (int32 i = 0; i < keys.size; i = i + 1)
+			if (([String] keys[i]).Equals(key) > 0)
 				return 1, values[i];
 		return 0, null;
 	}
 
-	public FindAll(Core.String key) -> Vector
+	public FindAll(String key) -> Vector
 	{
 		Vector ret = new Vector();
-		for (int32 i = 0; i < keys::size; i = i + 1)
-			if (([Core.String] keys[i])::Equals(key) > 0)
-				ret::Add(values[i]);
+		for (int32 i = 0; i < keys.size; i = i + 1)
+			if (([String] keys[i]).Equals(key) > 0)
+				ret.Add(values[i]);
 		return ret;
 	}
 
-	public static [] (Hash hash, Core.String key) -> Core.Object
+	public static [] (Hash hash, String key) -> Object
 	{
 		int32 found;
-		Core.Object value;
-		if ((found, value = hash::Contains(key)) > 0)
+		Object value;
+		if ((found, value = hash.Contains(key)) > 0)
 			return value;
-		throw new Core.KeyNotFoundException();
+		throw new KeyNotFoundException();
 	}
 
 	public int32 Size
 	{
-		get { return keys::Size; }
+		get { return keys.Size; }
 	}
 }

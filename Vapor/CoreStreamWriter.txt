@@ -1,19 +1,21 @@
-class Core.StreamWriter
+namespace Core;
+
+class StreamWriter
 {
-	private Core.FileStream stream;
-	private Core.Encoding encoding;
+	private FileStream stream;
+	private Encoding encoding;
 	private int32 bufferSize, currentBufferPos;
 	private char[] charBuffer;
 	private uint8[] byteBuffer;
 
-	public (Core.FileStream stream, Core.Encoding encoding)
+	public (FileStream stream, Encoding encoding)
 	{
-		this::stream = stream;
-		this::encoding = encoding;
+		this.stream = stream;
+		this.encoding = encoding;
 
 		bufferSize = 1024;
 		charBuffer = new char[bufferSize];
-		byteBuffer = new uint8[encoding::GetMaxByteLength(bufferSize)];
+		byteBuffer = new uint8[encoding.GetMaxByteLength(bufferSize)];
 
 		currentBufferPos = 0;
 	}
@@ -21,16 +23,16 @@ class Core.StreamWriter
 	public Dispose()
 	{
 		Flush();
-		stream::Close();
+		stream.Close();
 	}
 
-	public Write(Core.String string)
+	public Write(String string)
 	{
-		int32 current = 0, length = string::Length;
+		int32 current = 0, length = string.Length;
 		while (current < length)
 		{
-			int32 count = Core.Math::Min(length - current, bufferSize - currentBufferPos);
-			string::CopyTo(current, charBuffer, currentBufferPos, count);
+			int32 count = Math.Min(length - current, bufferSize - currentBufferPos);
+			string.CopyTo(current, charBuffer, currentBufferPos, count);
 			current = current + count;
 			currentBufferPos = currentBufferPos + count;
 
@@ -41,8 +43,8 @@ class Core.StreamWriter
 
 	public Flush()
 	{
-		int32 byteCount = encoding::ToBytes(charBuffer, currentBufferPos, byteBuffer);
+		int32 byteCount = encoding.ToBytes(charBuffer, currentBufferPos, byteBuffer);
 		currentBufferPos = 0;
-		stream::Write(byteBuffer, byteCount);
+		stream.Write(byteBuffer, byteCount);
 	}
 }

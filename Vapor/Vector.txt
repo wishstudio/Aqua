@@ -1,38 +1,41 @@
+using Core;
+using Core.Native;
+
 class Vector
 {
 	private int32 capacity, size;
-	private Core.Object[] elements;
+	private Object[] elements;
 
 	public ()
 	{
 		capacity = 4;
 		size = 0;
-		elements = new Core.Object[capacity];
+		elements = new Object[capacity];
 	}
 
 	private Grow()
 	{
 		capacity = capacity * 2;
-		Core.Object[] e = new Core.Object[capacity];
-		Core.Native.Memory::CopyMemory(&e[0], &elements[0], size * 4); /* HACK: sizeof(Core.Object) */
+		Object[] e = new Object[capacity];
+		Memory.CopyMemory(&e[0], &elements[0], size * 4); /* HACK: sizeof(Object) */
 		elements = e;
 	}
 
-	public static [] (Vector vector, int32 index) -> Core.Object
+	public static [] (Vector vector, int32 index) -> Object
 	{
 		if (index < 0 || index >= size)
-			throw new Core.IndexOutOfBoundException();
-		return vector::elements[index];
+			throw new IndexOutOfBoundException();
+		return vector.elements[index];
 	}
 
-	public Set(int32 index, Core.Object object)
+	public Set(int32 index, Object object)
 	{
 		if (index < 0 || index >= size)
-			throw new Core.IndexOutOfBoundException();
+			throw new IndexOutOfBoundException();
 		elements[index] = object;
 	}
 
-	public Add(Core.Object object)
+	public Add(Object object)
 	{
 		if (size == capacity)
 			Grow();

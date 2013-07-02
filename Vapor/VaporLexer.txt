@@ -1,4 +1,6 @@
-class ParserException: Core.Exception
+using Core;
+
+class ParserException: Exception
 {
 }
 
@@ -12,11 +14,11 @@ class UnexpectedCharacterException: ParserException
 
 class Lexer
 {
-	private Core.FileStream file;
+	private FileStream file;
 	private int32 ch;
 
 	public int32 token;
-	public Core.String ident;
+	public String ident;
 	public int32 lineNumber;
 
 	public Vector rollbackToken;
@@ -25,9 +27,9 @@ class Lexer
 	int32 recording;
 	int32 currentPosition, recordPosition;
 
-	public (Core.String fileName)
+	public (String fileName)
 	{
-		file = new Core.FileStream(fileName, 0);
+		file = new FileStream(fileName, 0);
 		lineNumber = 1;
 		NextChar();
 		recording = 0;
@@ -38,12 +40,12 @@ class Lexer
 
 	public Dispose()
 	{
-		file::Close();
+		file.Close();
 	}
 
 	public NextChar()
 	{
-		ch = file::ReadByte();
+		ch = file.ReadByte();
 		if (ch == '\n')
 			lineNumber = lineNumber + 1;
 	}
@@ -52,7 +54,7 @@ class Lexer
 	public Checkpoint()
 	{
 		if (recording > 0)
-			throw new Core.InvalidOperationException();
+			throw new InvalidOperationException();
 		recording = 1;
 		recordPosition = 0;
 	}
@@ -80,17 +82,17 @@ class Lexer
 	/* Record current token */
 	public RecordToken()
 	{
-		if (recordPosition < rollbackToken::Size)
+		if (recordPosition < rollbackToken.Size)
 		{
-			rollbackToken::Set(recordPosition, [Core.Object] Core.Int32::ToString(token));
-			rollbackIdent::Set(recordPosition, [Core.Object] ident);
-			rollbackLineNumber::Set(recordPosition, [Core.Object] Core.Int32::ToString(lineNumber));
+			rollbackToken.Set(recordPosition, Int32.ToString(token));
+			rollbackIdent.Set(recordPosition, ident);
+			rollbackLineNumber.Set(recordPosition, Int32.ToString(lineNumber));
 		}
 		else
 		{
-			rollbackToken::Add([Core.Object] Core.Int32::ToString(token));
-			rollbackIdent::Add([Core.Object] ident);
-			rollbackLineNumber::Add([Core.Object] Core.Int32::ToString(lineNumber));
+			rollbackToken.Add(Int32.ToString(token));
+			rollbackIdent.Add(ident);
+			rollbackLineNumber.Add(Int32.ToString(lineNumber));
 		}
 		recordPosition = recordPosition + 1;
 	}
@@ -113,9 +115,9 @@ class Lexer
 	{
 		if (recording == 0 && currentPosition < recordPosition)
 		{
-			token = Core.Int32::Parse([Core.String] rollbackToken[currentPosition]);
-			ident = [Core.String] rollbackIdent[currentPosition];
-			lineNumber = Core.Int32::Parse([Core.String] rollbackLineNumber[currentPosition]);
+			token = Int32.Parse([String] rollbackToken[currentPosition]);
+			ident = [String] rollbackIdent[currentPosition];
+			lineNumber = Int32.Parse([String] rollbackLineNumber[currentPosition]);
 			currentPosition = currentPosition + 1;
 			return;
 		}
@@ -127,90 +129,90 @@ class Lexer
 		if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_')
 		{
 			ident = "";
-			token = Token::Ident;
+			token = Token.Ident;
 			while ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
 			{
-				ident = ident::AppendChar([char] ch);
+				ident = ident.AppendChar([char] ch);
 				NextChar();
 			}
-			if (ident::Equals("this") > 0)
-				token = Token::This;
-			else if (ident::Equals("null") > 0)
-				token = Token::Null;
-			else if (ident::Equals("true") > 0)
-				token = Token::True;
-			else if (ident::Equals("false") > 0)
-				token = Token::False;
-			else if (ident::Equals("new") > 0)
-				token = Token::New;
-			else if (ident::Equals("if") > 0)
-				token = Token::If;
-			else if (ident::Equals("else") > 0)
-				token = Token::Else;
-			else if (ident::Equals("for") > 0)
-				token = Token::For;
-			else if (ident::Equals("while") > 0)
-				token = Token::While;
-			else if (ident::Equals("do") > 0)
-				token = Token::Do;
-			else if (ident::Equals("return") > 0)
-				token = Token::Return;
-			else if (ident::Equals("continue") > 0)
-				token = Token::Continue;
-			else if (ident::Equals("break") > 0)
-				token = Token::Break;
-			else if (ident::Equals("try") > 0)
-				token = Token::Try;
-			else if (ident::Equals("catch") > 0)
-				token = Token::Catch;
-			else if (ident::Equals("finally") > 0)
-				token = Token::Finally;
-			else if (ident::Equals("throw") > 0)
-				token = Token::Throw;
-			else if (ident::Equals("is") > 0)
-				token = Token::Is;
-			else if (ident::Equals("namespace") > 0)
-				token = Token::Namespace;
-			else if (ident::Equals("using") > 0)
-				token = Token::Using;
+			if (ident.Equals("this") > 0)
+				token = Token.This;
+			else if (ident.Equals("null") > 0)
+				token = Token.Null;
+			else if (ident.Equals("true") > 0)
+				token = Token.True;
+			else if (ident.Equals("false") > 0)
+				token = Token.False;
+			else if (ident.Equals("new") > 0)
+				token = Token.New;
+			else if (ident.Equals("if") > 0)
+				token = Token.If;
+			else if (ident.Equals("else") > 0)
+				token = Token.Else;
+			else if (ident.Equals("for") > 0)
+				token = Token.For;
+			else if (ident.Equals("while") > 0)
+				token = Token.While;
+			else if (ident.Equals("do") > 0)
+				token = Token.Do;
+			else if (ident.Equals("return") > 0)
+				token = Token.Return;
+			else if (ident.Equals("continue") > 0)
+				token = Token.Continue;
+			else if (ident.Equals("break") > 0)
+				token = Token.Break;
+			else if (ident.Equals("try") > 0)
+				token = Token.Try;
+			else if (ident.Equals("catch") > 0)
+				token = Token.Catch;
+			else if (ident.Equals("finally") > 0)
+				token = Token.Finally;
+			else if (ident.Equals("throw") > 0)
+				token = Token.Throw;
+			else if (ident.Equals("is") > 0)
+				token = Token.Is;
+			else if (ident.Equals("namespace") > 0)
+				token = Token.Namespace;
+			else if (ident.Equals("using") > 0)
+				token = Token.Using;
 		}
 		else if (ch == '-' || (ch >= '0' && ch <= '9'))
 		{
 			ident = "";
-			ident = ident::AppendChar([char] ch);
+			ident = ident.AppendChar([char] ch);
 			NextChar();
-			if (ident::Equals("-") > 0 && (ch < '0' || ch > '9'))
+			if (ident.Equals("-") > 0 && (ch < '0' || ch > '9'))
 			{
 				if (ch == '>')
 				{
-					token = Token::Arrow;
+					token = Token.Arrow;
 					NextChar();
 					return;
 				}
-				token = Token::Sub;
+				token = Token.Sub;
 			}
 			else
 			{
-				token = Token::Number;
+				token = Token.Number;
 				while (ch >= '0' && ch <= '9')
 				{
-					ident = ident::AppendChar([char] ch);
+					ident = ident.AppendChar([char] ch);
 					NextChar();
 				}
 			}
 		}
 		else if (ch == '"')
 		{
-			token = Token::String;
+			token = Token.String;
 			ident = "";
 			NextChar();
 			while (ch != '"')
 			{
-				ident = ident::AppendChar([char] ch);
+				ident = ident.AppendChar([char] ch);
 				if (ch == '\\')
 				{
 					NextChar();
-					ident = ident::AppendChar([char] ch);
+					ident = ident.AppendChar([char] ch);
 				}
 				NextChar();
 			}
@@ -219,25 +221,25 @@ class Lexer
 		else if (ch == '\'')
 		{
 			NextChar();
-			token = Token::Number;
+			token = Token.Number;
 			if (ch == '\\')
 			{
 				NextChar();
 				if (ch == 'n')
-					ident = Core.Int32::ToString('\n');
+					ident = Int32.ToString('\n');
 				else if (ch == 'r')
-					ident = Core.Int32::ToString('\r');
+					ident = Int32.ToString('\r');
 				else if (ch == 't')
-					ident = Core.Int32::ToString('\t');
+					ident = Int32.ToString('\t');
 				else if (ch == '\\')
-					ident = Core.Int32::ToString('\\');
+					ident = Int32.ToString('\\');
 				else if (ch == '\'')
-					ident = Core.Int32::ToString('\'');
+					ident = Int32.ToString('\'');
 				else
 					throw new UnexpectedCharacterException();
 			}
 			else
-				ident = Core.Int32::ToString(ch);
+				ident = Int32.ToString(ch);
 			NextChar();
 			if (ch != '\'')
 				throw new UnexpectedCharacterException();
@@ -246,121 +248,121 @@ class Lexer
 		else if (ch == -1)
 		{
 			NextChar();
-			token = Token::EOF;
+			token = Token.EOF;
 		}
 		else if (ch == ',')
 		{
 			NextChar();
-			token = Token::Comma;
+			token = Token.Comma;
 		}
 		else if (ch == ':')
 		{
 			NextChar();
 			if (ch == ':')
 			{
-				token = Token::DoubleColon;
+				token = Token.DoubleColon;
 				NextChar();
 			}
 			else
-				token = Token::Colon;
+				token = Token.Colon;
 		}
 		else if (ch == '.')
 		{
 			/* HACK: Temporary workaround */
 			NextChar();
-			token = Token::DoubleColon;
+			token = Token.DoubleColon;
 		}
 		else if (ch == ';')
 		{
 			NextChar();
-			token = Token::Semicolon;
+			token = Token.Semicolon;
 		}
 		else if (ch == '&')
 		{
 			NextChar();
 			if (ch == '&')
 			{
-				token = Token::And;
+				token = Token.And;
 				NextChar();
 			}
 			else
-				token = Token::BitAnd;
+				token = Token.BitAnd;
 		}
 		else if (ch == '|')
 		{
 			NextChar();
 			if (ch == '|')
 			{
-				token = Token::Or;
+				token = Token.Or;
 				NextChar();
 			}
 			else
-				token = Token::BitOr;
+				token = Token.BitOr;
 		}
 		else if (ch == '!')
 		{
 			NextChar();
 			if (ch == '=')
 			{
-				token = Token::NEQ;
+				token = Token.NEQ;
 				NextChar();
 			}
 			else
-				token = Token::Not;
+				token = Token.Not;
 		}
 		else if (ch == '~')
 		{
 			NextChar();
-			token = Token::BitNot;
+			token = Token.BitNot;
 		}
 		else if (ch == '^')
 		{
 			NextChar();
-			token = Token::BitXor;
+			token = Token.BitXor;
 		}
 		else if (ch == '<')
 		{
 			NextChar();
 			if (ch == '=')
 			{
-				token = Token::LE;
+				token = Token.LE;
 				NextChar();
 			}
 			else
-				token = Token::LT;
+				token = Token.LT;
 		}
 		else if (ch == '>')
 		{
 			NextChar();
 			if (ch == '=')
 			{
-				token = Token::GE;
+				token = Token.GE;
 				NextChar();
 			}
 			else
-				token = Token::GT;
+				token = Token.GT;
 		}
 		else if (ch == '=')
 		{
 			NextChar();
 			if (ch == '=')
 			{
-				token = Token::EQ;
+				token = Token.EQ;
 				NextChar();
 			}
 			else
-				token = Token::Assign;
+				token = Token.Assign;
 		}
 		else if (ch == '+')
 		{
 			NextChar();
-			token = Token::Add;
+			token = Token.Add;
 		}
 		/* Subtract operator '-' is handled as a case in numbers */
 		else if (ch == '*')
 		{
 			NextChar();
-			token = Token::Mul;
+			token = Token.Mul;
 		}
 		else if (ch == '/')
 		{
@@ -385,48 +387,48 @@ class Lexer
 				Next();
 			}
 			else
-				token = Token::Div;
+				token = Token.Div;
 		}
 		else if (ch == '%')
 		{
 			NextChar();
-			token = Token::Rem;
+			token = Token.Rem;
 		}
 		else if (ch == '(')
 		{
 			NextChar();
-			token = Token::PLeft;
+			token = Token.PLeft;
 		}
 		else if (ch == ')')
 		{
 			NextChar();
-			token = Token::PRight;
+			token = Token.PRight;
 		}
 		else if (ch == '[')
 		{
 			NextChar();
 			if (ch == ']')
 			{
-				token = Token::Array;
+				token = Token.Array;
 				NextChar();
 			}
 			else
-				token = Token::SLeft;
+				token = Token.SLeft;
 		}
 		else if (ch == ']')
 		{
 			NextChar();
-			token = Token::SRight;
+			token = Token.SRight;
 		}
 		else if (ch == '{')
 		{
 			NextChar();
-			token = Token::BLeft;
+			token = Token.BLeft;
 		}
 		else if (ch == '}')
 		{
 			NextChar();
-			token = Token::BRight;
+			token = Token.BRight;
 		}
 		else
 			throw new UnexpectedCharacterException();
@@ -435,11 +437,11 @@ class Lexer
 	/* Fix token to an unary operation */
 	public FixUnary()
 	{
-		if (token == Token::Mul)
-			token = Token::Star;
-		else if (token == Token::Sub)
-			token = Token::Neg;
-		else if (token == Token::BitAnd)
-			token = Token::AddressOf;
+		if (token == Token.Mul)
+			token = Token.Star;
+		else if (token == Token.Sub)
+			token = Token.Neg;
+		else if (token == Token.BitAnd)
+			token = Token.AddressOf;
 	}
 }

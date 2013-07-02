@@ -1,9 +1,11 @@
+using Core;
+
 class Location
 {
-	public Core.String fileName;
+	public String fileName;
 	public int32 lineNumber;
 
-	public ToString() -> Core.String
+	public ToString() -> String
 	{
 		return fileName + ":" + lineNumber;
 	}
@@ -16,7 +18,7 @@ class TypeCache
 
 	public (Node type)
 	{
-		this::type = type;
+		this.type = type;
 	}
 }
 
@@ -26,12 +28,12 @@ class Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public ToType(Compiler compiler) -> Type
 	{
-		Core.Object type = ToTypeEntity(compiler);
+		Object type = ToTypeEntity(compiler);
 		if (type is Type)
 			return [Type] type;
 		if (type is Class)
@@ -39,7 +41,7 @@ class Node
 		throw new CompilerException("Type expected.", location);
 	}
 
-	public virtual ToTypeEntity(Compiler compiler) -> Core.Object
+	public virtual ToTypeEntity(Compiler compiler) -> Object
 	{
 		throw new CompilerException("Type expected.", location);
 	}
@@ -50,7 +52,7 @@ class Node
 	}
 
 	/* Returns 'Value' or 'Type' */
-	public virtual ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	public virtual ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Object
 	{
 		return CompileExpression(compiler, freereg, targetreg, 0, 0);
 	}
@@ -65,9 +67,9 @@ class Node
 	public virtual CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
 		if (lastreg != -1)
-			return compiler::Scalar(CompileExpression(compiler, freereg, lastreg, 0, 0));
+			return compiler.Scalar(CompileExpression(compiler, freereg, lastreg, 0, 0));
 		else
-			return compiler::Scalar(CompileExpression(compiler, freereg, freereg, 0, 0));
+			return compiler.Scalar(CompileExpression(compiler, freereg, freereg, 0, 0));
 	}
 
 	/* Returns whether the statement block is fully closed (has return statements in all possible control flows) */
@@ -83,7 +85,7 @@ class NullNode: Node
 {
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
@@ -99,7 +101,7 @@ class BoolNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
@@ -110,11 +112,11 @@ class BoolNode: Node
 
 class IntegerNode: Node
 {
-	public Core.String intvalue;
+	public String intvalue;
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
@@ -125,19 +127,19 @@ class IntegerNode: Node
 
 class StringNode: Node
 {
-	public Core.String stringvalue;
+	public String stringvalue;
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
 		/* TODO: StringValue */
-		compiler::AddCode("ldstr\t$" + targetreg + ", \"" + stringvalue + "\"");
+		compiler.AddCode("ldstr\t$" + targetreg + ", \"" + stringvalue + "\"");
 		/* TODO */
-		Class stringClass = [Class] ([Namespace] compiler::Root::children["Core"])::children["String"];
+		Class stringClass = [Class] ([Namespace] compiler.Root.children["Core"]).children["String"];
 		return new RegisterValue(location, targetreg, new ClassType(stringClass));
 	}
 }
@@ -146,56 +148,56 @@ class ThisNode: Node
 {
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		if (compiler::CurrentMethod::modifier & Modifier::Static > 0)
+		if (compiler.CurrentMethod.modifier & Modifier.Static > 0)
 			throw new CompilerException("'this' cannot be used in a static method.", location);
-		return new RegisterValue(location, 0, new ClassType(compiler::CurrentClass));
+		return new RegisterValue(location, 0, new ClassType(compiler.CurrentClass));
 	}
 }
 
 class IdentNode: Node
 {
-	private Core.String ident;
+	private String ident;
 
-	public (Location location, Core.String ident)
+	public (Location location, String ident)
 	{
-		this::location = location;
-		this::ident = ident;
+		this.location = location;
+		this.ident = ident;
 	}
 
-	public override ToTypeEntity(Compiler compiler) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Object
 	{
-		Vector namespaces = compiler::CurrentSourceFile::namespaces;
-		for (int32 i = 0; i < namespaces::Size; i = i + 1)
+		Vector namespaces = compiler.CurrentSourceFile.namespaces;
+		for (int32 i = 0; i < namespaces.Size; i = i + 1)
 		{
 			int32 found;
-			Core.Object object;
-			if ((found, object = ([Namespace] namespaces[i])::children::Contains(ident)) > 0)
+			Object object;
+			if ((found, object = ([Namespace] namespaces[i]).children.Contains(ident)) > 0)
 				return object;
 		}
 
 		throw new CompilerException("Unknown identifier \"" + ident + "\".", location);
 	}
 
-	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Object
 	{
 		Variable variable;
 		int32 found;
-		variable, found = compiler::FindSymbol(ident);
+		variable, found = compiler.FindSymbol(ident);
 		if (found > 0)
-			return new VariableValue(location, variable::regid, variable::type);
+			return new VariableValue(location, variable.regid, variable.type);
 
-		Field field = compiler::ResolveField(compiler::CurrentClass, ident);
+		Field field = compiler.ResolveField(compiler.CurrentClass, ident);
 		if (field != null)
-			return new FieldValue(location, 0, field, compiler::ResolveType(field::type));
+			return new FieldValue(location, 0, field, compiler.ResolveType(field.type));
 
-		Property property = compiler::ResolveProperty(compiler::CurrentClass, ident);
+		Property property = compiler.ResolveProperty(compiler.CurrentClass, ident);
 		if (property != null)
-			return new PropertyValue(location, 0, property, compiler::ResolveType(property::type));
+			return new PropertyValue(location, 0, property, compiler.ResolveType(property.type));
 
 		return ToTypeEntity(compiler);
 	}
@@ -204,8 +206,8 @@ class IdentNode: Node
 	{
 		/* HACK */
 		Vector methods = new Vector();
-		compiler::ResolveMethod(compiler::CurrentClass, ident, methods);
-		if (methods::Size > 0)
+		compiler.ResolveMethod(compiler.CurrentClass, ident, methods);
+		if (methods.Size > 0)
 			return new MethodReference(location, 0, methods);
 
 		throw new CompilerException("Method expected.", location);
@@ -213,7 +215,7 @@ class IdentNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		Core.Object value = ToEntity(compiler, freereg, targetreg);
+		Object value = ToEntity(compiler, freereg, targetreg);
 		if (value is Value)
 			return [Value] value;
 
@@ -224,16 +226,16 @@ class IdentNode: Node
 class FieldNode: Node
 {
 	private Node object;
-	private Core.String field;
+	private String field;
 
-	public (Location location, Node object, Core.String field)
+	public (Location location, Node object, String field)
 	{
-		this::location = location;
-		this::object = object;
-		this::field = field;
+		this.location = location;
+		this.object = object;
+		this.field = field;
 	}
 
-	private ResolveObject(Compiler compiler, int32 freereg, Core.Object object) -> Class, int32
+	private ResolveObject(Compiler compiler, int32 freereg, Object object) -> Class, int32
 	{
 		int32 regid;
 		Class classObject = null;
@@ -241,42 +243,42 @@ class FieldNode: Node
 			classObject = [Class] object;
 		else if (object is Value)
 		{
-			RegisterValue v = ([Value] object)::EnsureRegister(compiler, freereg);
-			Type type = ([Value] object)::type;
-			regid = v::regid;
+			RegisterValue v = ([Value] object).EnsureRegister(compiler, freereg);
+			Type type = ([Value] object).type;
+			regid = v.regid;
 			if (type is ClassType)
-				classObject = ([ClassType] type)::Class;
+				classObject = ([ClassType] type).Class;
 		}
 		return classObject, regid;
 	}
 
-	public ToTypeEntityInternal(Compiler compiler, Core.Object objectEntity) -> Core.Object
+	public ToTypeEntityInternal(Compiler compiler, Object objectEntity) -> Object
 	{
 		int32 found;
-		Core.Object object;
+		Object object;
 		if (objectEntity is Namespace)
-			if ((found, object = ([Namespace] objectEntity)::children::Contains(field)) > 0)
+			if ((found, object = ([Namespace] objectEntity).children.Contains(field)) > 0)
 				return object;
-		throw new CompilerException("Unknown field member \"" + this::field + "\".", location);
+		throw new CompilerException("Unknown field member \"" + this.field + "\".", location);
 	}
 
-	public override ToTypeEntity(Compiler compiler) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Object
 	{
-		return ToTypeEntityInternal(compiler, object::ToTypeEntity(compiler));
+		return ToTypeEntityInternal(compiler, object.ToTypeEntity(compiler));
 	}
 
-	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Core.Object
+	public override ToEntity(Compiler compiler, int32 freereg, int32 targetreg) -> Object
 	{
-		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
+		Object object = this.object.ToEntity(compiler, freereg, freereg);
 
 		/* TODO */
-		if (object is Value && ([Value] object)::type is ArrayType)
+		if (object is Value && ([Value] object).type is ArrayType)
 		{
-			if (field::Equals("Length") == 0)
+			if (field.Equals("Length") == 0)
 				throw new CompilerException("Unknown field.", location);
-			RegisterValue v = ([Value] object)::EnsureRegister(compiler, freereg);
-			compiler::AddCode("ldlen\t$" + targetreg + ", $" + v::regid);
-			return new RegisterValue(location, targetreg, Type::Int32);
+			RegisterValue v = ([Value] object).EnsureRegister(compiler, freereg);
+			compiler.AddCode("ldlen\t$" + targetreg + ", $" + v.regid);
+			return new RegisterValue(location, targetreg, Type.Int32);
 		}
 
 		Class classObject;
@@ -285,13 +287,13 @@ class FieldNode: Node
 
 		if (classObject != null)
 		{
-			Field field = compiler::ResolveField(classObject, this::field);
+			Field field = compiler.ResolveField(classObject, this.field);
 			if (field != null)
-				return new FieldValue(location, regid, field, compiler::ResolveType(field::type));
+				return new FieldValue(location, regid, field, compiler.ResolveType(field.type));
 
-			Property property = compiler::ResolveProperty(classObject, this::field);
+			Property property = compiler.ResolveProperty(classObject, this.field);
 			if (property != null)
-				return new PropertyValue(location, regid, property, compiler::ResolveType(property::type));
+				return new PropertyValue(location, regid, property, compiler.ResolveType(property.type));
 		}
 
 		return ToTypeEntityInternal(compiler, object);
@@ -299,7 +301,7 @@ class FieldNode: Node
 
 	public override ToMethod(Compiler compiler, int32 freereg) -> MethodReference
 	{
-		Core.Object object = this::object::ToEntity(compiler, freereg, freereg);
+		Object object = this.object.ToEntity(compiler, freereg, freereg);
 
 		Class classObject;
 		int32 regid;
@@ -309,8 +311,8 @@ class FieldNode: Node
 		{
 			/* HACK */
 			Vector methods = new Vector();
-			compiler::ResolveMethod(classObject, this::field, methods);
-			if (methods::Size > 0)
+			compiler.ResolveMethod(classObject, this.field, methods);
+			if (methods.Size > 0)
 				return new MethodReference(location, regid, methods);
 		}
 
@@ -319,7 +321,7 @@ class FieldNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		Core.Object value = ToEntity(compiler, freereg, targetreg);
+		Object value = ToEntity(compiler, freereg, targetreg);
 		if (value is Value)
 			return [Value] value;
 
@@ -333,13 +335,13 @@ class ArrayTypeNode: Node
 
 	public (Location location, Node object)
 	{
-		this::location = location;
-		this::object = object;
+		this.location = location;
+		this.object = object;
 	}
 
-	public override ToTypeEntity(Compiler compiler) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Object
 	{
-		Type elementType = object::ToType(compiler);
+		Type elementType = object.ToType(compiler);
 		return new ArrayType(elementType);
 	}
 }
@@ -350,13 +352,13 @@ class PointerTypeNode: Node
 
 	public (Location location, Node object)
 	{
-		this::location = location;
-		this::object = object;
+		this.location = location;
+		this.object = object;
 	}
 
-	public override ToTypeEntity(Compiler compiler) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Object
 	{
-		Type valueType = object::ToType(compiler);
+		Type valueType = object.ToType(compiler);
 		return new PointerType(valueType);
 	}
 }
@@ -367,11 +369,11 @@ class PrimitiveTypeNode: Node
 
 	public (Location location, Type type)
 	{
-		this::location = location;
-		this::type = type;
+		this.location = location;
+		this.type = type;
 	}
 
-	public override ToTypeEntity(Compiler compiler) -> Core.Object
+	public override ToTypeEntity(Compiler compiler) -> Object
 	{
 		return type;
 	}
@@ -384,24 +386,24 @@ class ArrayElementNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue array = this::array::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
-		if (array::type is ArrayType)
+		RegisterValue array = this.array.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
+		if (array.type is ArrayType)
 		{
-			freereg = array::GetNextFreeRegister(freereg);
-			RegisterValue index = this::index::CompileExpression(compiler, freereg, freereg, 0, 0)
-				::EnsureRegister(compiler, freereg);
-			return new ArrayElementValue(location, array::regid, index::regid, ([ArrayType] array::type)::ElementType);
+			freereg = array.GetNextFreeRegister(freereg);
+			RegisterValue index = this.index.CompileExpression(compiler, freereg, freereg, 0, 0)
+				.EnsureRegister(compiler, freereg);
+			return new ArrayElementValue(location, array.regid, index.regid, ([ArrayType] array.type).ElementType);
 		}
 		else
 		{
-			RegisterValue index = this::index::CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0)
-				::EnsureRegister(compiler, freereg + 1);
-			return compiler::CompileCustomBinaryOperator(this, Token::Array, array, index, freereg);
+			RegisterValue index = this.index.CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0)
+				.EnsureRegister(compiler, freereg + 1);
+			return compiler.CompileCustomBinaryOperator(this, Token.Array, array, index, freereg);
 		}
 	}
 }
@@ -413,30 +415,30 @@ class TypeCastNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = operand::CompileExpression(compiler, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
-		Type type = this::type::ToType(compiler);
+		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, 0).EnsureRegister(compiler, targetreg);
+		Type type = this.type.ToType(compiler);
 		/* HACK: Workaround */
-		if (value::type is PointerType && type is IntType)
+		if (value.type is PointerType && type is IntType)
 		{
-			value::type = Type::Int;
+			value.type = Type.Int;
 			return value;
 		}
-		else if (value::type is PointerType && type is PointerType)
+		else if (value.type is PointerType && type is PointerType)
 		{
-			value::type = type;
+			value.type = type;
 			return value;
 		}
-		else if (value::type is PrimitiveType)
+		else if (value.type is PrimitiveType)
 		{
 			/* No boxing/unboxing now */
 			if (type is PrimitiveType)
 			{
-				value::type = type;
+				value.type = type;
 				return value;
 			}
 			else
@@ -444,7 +446,7 @@ class TypeCastNode: Node
 		}
 		else
 		{
-			compiler::AddCode("cast\t$" + targetreg + ", $" + value::regid + ", " + type::ToString());
+			compiler.AddCode("cast\t$" + targetreg + ", $" + value.regid + ", " + type.ToString());
 			return new RegisterValue(location, targetreg, type);
 		}
 	}
@@ -456,17 +458,17 @@ class DereferenceNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = operand::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		RegisterValue value = operand.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
 		/* HACK: Temporary workaround */
-		if (value::type is IntType)
-			return new DerefValue(location, value::regid, Type::Char);
-		else if (value::type is PointerType)
-			return new DerefValue(location, value::regid, ([PointerType] value::type)::ValueType);
+		if (value.type is IntType)
+			return new DerefValue(location, value.regid, Type.Char);
+		else if (value.type is PointerType)
+			return new DerefValue(location, value.regid, ([PointerType] value.type).ValueType);
 		else
 			throw new CompilerException("Not a pointer.", location);
 	}
@@ -478,35 +480,35 @@ class AddressOfNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		Value value = operand::CompileExpression(compiler, freereg, freereg, 0, 0);
+		Value value = operand.CompileExpression(compiler, freereg, freereg, 0, 0);
 		/* TODO */
 		Type type;
 		if (value is VariableValue)
 		{
 			VariableValue v = [VariableValue] value;
-			compiler::AddCode("lar\t$" + targetreg + ", $" + v::regid);
-			type = v::type;
+			compiler.AddCode("lar\t$" + targetreg + ", $" + v.regid);
+			type = v.type;
 		}
 		else if (value is FieldValue)
 		{
 			FieldValue v = [FieldValue] value;
-			Field field = v::field;
-			if (field::modifier & Modifier::Static > 0)
-				compiler::AddCode("las\t$" + targetreg + ", " + field::classObject::name + "::" + field::name);
+			Field field = v.field;
+			if (field.modifier & Modifier.Static > 0)
+				compiler.AddCode("las\t$" + targetreg + ", " + field.classObject.name + "::" + field.name);
 			else
-				compiler::AddCode("laf\t$" + targetreg + ", $" + v::regid + ", " + field::classObject::name + "::" + field::name);
-			type = v::type;
+				compiler.AddCode("laf\t$" + targetreg + ", $" + v.regid + ", " + field.classObject.name + "::" + field.name);
+			type = v.type;
 		}
 		else if (value is ArrayElementValue)
 		{
 			ArrayElementValue v = [ArrayElementValue] value;
-			compiler::AddCode("lae\t$" + targetreg + ", $" + v::regid + "($" + v::regid2 + ")");
-			type = v::type;
+			compiler.AddCode("lae\t$" + targetreg + ", $" + v.regid + "($" + v.regid2 + ")");
+			type = v.type;
 		}
 		else
 			throw new CompilerException("LValue expected.", location);
@@ -521,24 +523,24 @@ class UnaryNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = operand::CompileExpression(compiler, freereg, targetreg, 0, 0)::EnsureRegister(compiler, targetreg);
+		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, 0).EnsureRegister(compiler, targetreg);
 		/* HACK: not */
-		if (value::type is Int32Type)
+		if (value.type is Int32Type)
 		{
-			Core.String inst;
-			if (op == Token::Neg)
+			String inst;
+			if (op == Token.Neg)
 				inst = "negi";
-			else if (op == Token::BitNot)
+			else if (op == Token.BitNot)
 				inst = "noti";
 			else
 				throw new CompilerException("Unsupported unary operatior.", location);
-			compiler::AddCode(inst + "\t$" + targetreg + ", $" + value::regid);
-			return new RegisterValue(location, targetreg, value::type);
+			compiler.AddCode(inst + "\t$" + targetreg + ", $" + value.regid);
+			return new RegisterValue(location, targetreg, value.type);
 		}
 		else
 			throw new CompilerException("Int32 expected.", location); /* TODO */
@@ -552,7 +554,7 @@ class BinNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 }
 
@@ -560,75 +562,75 @@ class BinArithNode: BinNode
 {
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue left = this::left::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
-		Value right = this::right::CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
-		Core.String inst;
+		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
+		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
+		String inst;
 
 		/* TODO */
-		if ((left::type is IntType || left::type is PointerType) && (right is IntegerValue || right::type is Int32Type))
+		if ((left.type is IntType || left.type is PointerType) && (right is IntegerValue || right.type is Int32Type))
 		{
-			right = right::EnsureRegister(compiler, freereg + 1);
-			if (left::type is PointerType)
+			right = right.EnsureRegister(compiler, freereg + 1);
+			if (left.type is PointerType)
 			{
-				Type valueType = ([PointerType] left::type)::ValueType;
+				Type valueType = ([PointerType] left.type).ValueType;
 
-				RegisterValue ret = new RegisterValue(location, targetreg, left::type);
-				compiler::AddCode("addp\t$" + targetreg + ", $" + left::regid + ", $" + ([RegisterValue] right)::regid
-					+ ", " + valueType::ToString());
+				RegisterValue ret = new RegisterValue(location, targetreg, left.type);
+				compiler.AddCode("addp\t$" + targetreg + ", $" + left.regid + ", $" + ([RegisterValue] right).regid
+					+ ", " + valueType.ToString());
 				return ret;
 			}
-			if (op == Token::Add)
+			if (op == Token.Add)
 				inst = "addni";
-			else if (op == Token::Sub)
+			else if (op == Token.Sub)
 				inst = "subni";
 			else
 				throw new CompilerException("Unsupported binary operatior.", location);
 		}
 		/* HACK: not */
 		/* TODO */
-		else if (left::type is PrimitiveType && (right is ImmediateValue || right::type is PrimitiveType))
+		else if (left.type is PrimitiveType && (right is ImmediateValue || right.type is PrimitiveType))
 		{
-			if (op == Token::Add)
+			if (op == Token.Add)
 				inst = "add";
-			else if (op == Token::Sub)
+			else if (op == Token.Sub)
 				inst = "sub";
-			else if (op == Token::Mul)
+			else if (op == Token.Mul)
 				inst = "mul";
-			else if (op == Token::Div)
+			else if (op == Token.Div)
 				inst = "div";
-			else if (op == Token::Rem)
+			else if (op == Token.Rem)
 				inst = "rem";
-			else if (op == Token::BitAnd)
+			else if (op == Token.BitAnd)
 				inst = "and";
-			else if (op == Token::BitOr)
+			else if (op == Token.BitOr)
 				inst = "or";
-			else if (op == Token::BitXor)
+			else if (op == Token.BitXor)
 				inst = "xor";
 			else
 				throw new CompilerException("Unsupported binary operatior.", location);
 			Value l;
-			l, right = compiler::UnifyTypes(this, left, right, freereg, freereg + 1);
-			left = l::EnsureRegister(compiler, freereg);
-			inst = inst + left::type::StackType::Suffix;
+			l, right = compiler.UnifyTypes(this, left, right, freereg, freereg + 1);
+			left = l.EnsureRegister(compiler, freereg);
+			inst = inst + left.type.StackType.Suffix;
 		}
 		else
-			return compiler::CompileCustomBinaryOperator(this, op, left, right, freereg);
+			return compiler.CompileCustomBinaryOperator(this, op, left, right, freereg);
 
-		RegisterValue ret = new RegisterValue(location, targetreg, left::type);
+		RegisterValue ret = new RegisterValue(location, targetreg, left.type);
 	
 		/* TODO */
-		if (right is IntegerValue && left::type is Int32Type)
-			compiler::AddCode(inst + "\t$" + targetreg + ", $" + left::regid + ", " + ([IntegerValue] right)::value);
+		if (right is IntegerValue && left.type is Int32Type)
+			compiler.AddCode(inst + "\t$" + targetreg + ", $" + left.regid + ", " + ([IntegerValue] right).value);
 		else
 		{
-			compiler::AddCode(inst + "\t$" + targetreg + ", $" + left::regid + ", $"
-				+ right::EnsureRegister(compiler, freereg + 1)::regid);
-			ret = compiler::FixRawValue(ret, targetreg);
+			compiler.AddCode(inst + "\t$" + targetreg + ", $" + left.regid + ", $"
+				+ right.EnsureRegister(compiler, freereg + 1).regid);
+			ret = compiler.FixRawValue(ret, targetreg);
 		}
 		return ret;
 	}
@@ -638,97 +640,97 @@ class BinComparisonNode: BinNode
 {
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		jtarget = compiler::FixJumpTarget(jtarget);
+		jtarget = compiler.FixJumpTarget(jtarget);
 
-		RegisterValue left = this::left::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
+		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
 
 		/* HACK: Temporary workaround */
-		if (op == Token::Is)
+		if (op == Token.Is)
 		{
-			Type type = right::ToType(compiler);
-			Core.String inst;
+			Type type = right.ToType(compiler);
+			String inst;
 			if (jtrue > 0) /* jump on true */
 				inst = "jinst";
 			else /* jump on false */
 				inst = "jninst";
-			compiler::AddCode(inst + "\t$" + left::regid + ", " + type::ToString() + ", " + compiler::GetLabelName(jtarget));
+			compiler.AddCode(inst + "\t$" + left.regid + ", " + type.ToString() + ", " + compiler.GetLabelName(jtarget));
 
 			return new JumpTargetValue(location, jtarget);
 		}
 
-		Value right = this::right::CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
-		Core.String inst;
+		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, 0);
+		String inst;
 		/* TODO */
-		if ((left::type is Int32Type || left::type is CharType)
-			&& (right is IntegerValue || left::type::Equals(right::type) > 0))
+		if ((left.type is Int32Type || left.type is CharType)
+			&& (right is IntegerValue || left.type.Equals(right.type) > 0))
 		{
 			if (jtrue > 0) /* jump on true */
 			{
-				if (op == Token::LT)
+				if (op == Token.LT)
 					inst = "lt";
-				else if (op == Token::LE)
+				else if (op == Token.LE)
 					inst = "le";
-				else if (op == Token::GT)
+				else if (op == Token.GT)
 					inst = "gt";
-				else if (op == Token::GE)
+				else if (op == Token.GE)
 					inst = "ge";
-				else if (op == Token::EQ)
+				else if (op == Token.EQ)
 					inst = "eq";
-				else if (op == Token::NEQ)
+				else if (op == Token.NEQ)
 					inst = "neq";
 				else
 					throw new CompilerException("Unsupported comparison operatior.", location);
 			}
 			else /* jump on false */
 			{
-				if (op == Token::LT)
+				if (op == Token.LT)
 					inst = "ge";
-				else if (op == Token::LE)
+				else if (op == Token.LE)
 					inst = "gt";
-				else if (op == Token::GT)
+				else if (op == Token.GT)
 					inst = "le";
-				else if (op == Token::GE)
+				else if (op == Token.GE)
 					inst = "lt";
-				else if (op == Token::EQ)
+				else if (op == Token.EQ)
 					inst = "neq";
-				else if (op == Token::NEQ)
+				else if (op == Token.NEQ)
 					inst = "eq";
 				else
 					throw new CompilerException("Unsupported comparison operatior.", location);
 			}
-			if (right is IntegerValue && ([IntegerValue] right)::value::Equals("0") > 0)
-				compiler::AddCode("j" + inst + "zi\t$" + left::regid + ", " + compiler::GetLabelName(jtarget));
+			if (right is IntegerValue && ([IntegerValue] right).value.Equals("0") > 0)
+				compiler.AddCode("j" + inst + "zi\t$" + left.regid + ", " + compiler.GetLabelName(jtarget));
 			else
 			{
-				RegisterValue r = right::EnsureRegister(compiler, freereg + 1);
-				compiler::AddCode("j" + inst + "i\t$" + left::regid + ", $" + r::regid + ", " + compiler::GetLabelName(jtarget));
+				RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+				compiler.AddCode("j" + inst + "i\t$" + left.regid + ", $" + r.regid + ", " + compiler.GetLabelName(jtarget));
 			}
 		}
 		/* HACK: not */
 		/* HACK: null */
-		else if ((left::type is IntType || left::type is ArrayType || left::type is ClassType)
+		else if ((left.type is IntType || left.type is ArrayType || left.type is ClassType)
 			&& right is NullValue)
 		{
 			if (jtrue > 0) /* jump on true */
-				if (op == Token::EQ)
+				if (op == Token.EQ)
 					inst = "jn";
-				else if (op == Token::NEQ)
+				else if (op == Token.NEQ)
 					inst = "jnn";
 				else
 					throw new CompilerException("Unsupported comparison operatior.", location);
 			else /* jump on false */
-				if (op == Token::EQ)
+				if (op == Token.EQ)
 					inst = "jnn";
-				else if (op == Token::NEQ)
+				else if (op == Token.NEQ)
 					inst = "jn";
 				else
 					throw new CompilerException("Unsupported comparison operatior.", location);
-			compiler::AddCode(inst + "\t$" + left::regid + ", " + compiler::GetLabelName(jtarget));
+			compiler.AddCode(inst + "\t$" + left.regid + ", " + compiler.GetLabelName(jtarget));
 		}
 		else
 			throw new CompilerException("Unhandled jcc case.", location);
@@ -740,22 +742,22 @@ class BinLogicNode: BinNode
 {
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		jtarget = compiler::FixJumpTarget(jtarget);
+		jtarget = compiler.FixJumpTarget(jtarget);
 
 		int32 leftjtrue, rightjtrue;
 		int32 leftjtarget, rightjtarget;
 		/* Calculate jump target of left/right */
-		if (op == Token::And)
+		if (op == Token.And)
 		{
 			if (jtrue > 0)
 			{
 				leftjtrue = 0;
-				leftjtarget = compiler::GetNextLabelId();
+				leftjtarget = compiler.GetNextLabelId();
 				rightjtrue = 1;
 				rightjtarget = jtarget;
 			}
@@ -766,7 +768,7 @@ class BinLogicNode: BinNode
 				leftjtarget = rightjtarget = jtarget;
 			}
 		}
-		else if (op == Token::Or)
+		else if (op == Token.Or)
 		{
 			if (jtrue > 0)
 			{
@@ -777,19 +779,19 @@ class BinLogicNode: BinNode
 			else
 			{
 				leftjtrue = 1;
-				leftjtarget = compiler::GetNextLabelId();
+				leftjtarget = compiler.GetNextLabelId();
 				rightjtrue = 0;
 				rightjtarget = jtarget;
 			}
 		}
 		else
-			throw new Core.InvalidOperationException();
-		left::CompileExpression(compiler, freereg, freereg, leftjtarget, leftjtrue)
-			::ToJumpTarget(compiler, freereg, leftjtarget, leftjtrue);
-		right::CompileExpression(compiler, freereg, freereg, rightjtarget, rightjtrue)
-			::ToJumpTarget(compiler, freereg, rightjtarget, rightjtrue);
+			throw new InvalidOperationException();
+		left.CompileExpression(compiler, freereg, freereg, leftjtarget, leftjtrue)
+			.ToJumpTarget(compiler, freereg, leftjtarget, leftjtrue);
+		right.CompileExpression(compiler, freereg, freereg, rightjtarget, rightjtrue)
+			.ToJumpTarget(compiler, freereg, rightjtarget, rightjtrue);
 		if (leftjtarget != jtarget)
-			compiler::AddLabel(leftjtarget);
+			compiler.AddLabel(leftjtarget);
 
 		return new JumpTargetValue(location, jtarget);
 	}
@@ -802,30 +804,30 @@ class NewNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 		parameters = new Vector();
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		Type t = type::ToType(compiler);
+		Type t = type.ToType(compiler);
 		/* HACK: not */
 		if (t is ClassType)
 		{}
 		else
 			throw new CompilerException("Not a class type", location);
 		ClassType type = [ClassType] t;
-		Class classObject = type::Class;
+		Class classObject = type.Class;
 		/* HACK */
-		Vector methods = compiler::ResolveMethodInClass(classObject, ".ctor", null);
+		Vector methods = compiler.ResolveMethodInClass(classObject, ".ctor", null);
 		Vector values = new Vector();
-		for (int32 i = 0; i < parameters::Size; i = i + 1)
+		for (int32 i = 0; i < parameters.Size; i = i + 1)
 		{
-			Value value = ([Node] parameters[i])::CompileExpression(compiler, freereg + 2 + i, freereg + 2 + i, 0, 0);
-			values::Add(value::EnsureSingleSlot(compiler, freereg + 2 + i));
+			Value value = ([Node] parameters[i]).CompileExpression(compiler, freereg + 2 + i, freereg + 2 + i, 0, 0);
+			values.Add(value.EnsureSingleSlot(compiler, freereg + 2 + i));
 		}
-		Method method = compiler::PrepareCall(this, methods, values, freereg + 2);
-		compiler::AddCode("new\t$" + freereg + ", " + compiler::GetMethodSignature(method));
+		Method method = compiler.PrepareCall(this, methods, values, freereg + 2);
+		compiler.AddCode("new\t$" + freereg + ", " + compiler.GetMethodSignature(method));
 		return new RegisterValue(location, freereg, type);
 	}
 }
@@ -837,14 +839,14 @@ class NewArrayNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		RegisterValue value = parameter::CompileExpression(compiler, freereg, freereg, 0, 0)::ToFreeRegister(compiler, freereg);
-		Type elementType = type::ToType(compiler);
-		compiler::AddCode("newarr\t$" + targetreg + ", " + elementType::ToString() + "($" + value::regid + ")");
+		RegisterValue value = parameter.CompileExpression(compiler, freereg, freereg, 0, 0).ToFreeRegister(compiler, freereg);
+		Type elementType = type.ToType(compiler);
+		compiler.AddCode("newarr\t$" + targetreg + ", " + elementType.ToString() + "($" + value.regid + ")");
 		return new RegisterValue(location, targetreg, new ArrayType(elementType));
 	}
 }
@@ -855,33 +857,33 @@ class ListNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 		values = new Vector();
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, int32 jtrue) -> Value
 	{
-		return compiler::ToScalar(CompileList(compiler, freereg, -1));
+		return compiler.ToScalar(CompileList(compiler, freereg, -1));
 	}
 
 	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
 		Vector ret = new Vector();
-		for (int32 i = 0; i < values::Size; i = i + 1)
+		for (int32 i = 0; i < values.Size; i = i + 1)
 		{
 			Node node = [Node] values[i];
-			int32 reg = freereg + ret::Size;
+			int32 reg = freereg + ret.Size;
 			/* TODO */
 			if (node is CallNode)
 			{
-				Vector r = node::CompileList(compiler, reg, -1);
-				for (int32 j = 0; j < r::Size; j = j + 1)
-					ret::Add(r[j]);
+				Vector r = node.CompileList(compiler, reg, -1);
+				for (int32 j = 0; j < r.Size; j = j + 1)
+					ret.Add(r[j]);
 			}
-			else if (lastreg != -1 && i + 1 == values::Size) /* Last scalar */
-				ret::Add([Core.Object] node::CompileExpression(compiler, reg, lastreg, 0, 0)::EnsureRegister(compiler, lastreg));
+			else if (lastreg != -1 && i + 1 == values.Size) /* Last scalar */
+				ret.Add(node.CompileExpression(compiler, reg, lastreg, 0, 0).EnsureRegister(compiler, lastreg));
 			else /* Ensure value is a register at stack position */
-				ret::Add([Core.Object] node::CompileExpression(compiler, reg, reg, 0, 0)::ToFreeRegister(compiler, reg));
+				ret.Add(node.CompileExpression(compiler, reg, reg, 0, 0).ToFreeRegister(compiler, reg));
 		}
 		return ret;
 	}
@@ -893,59 +895,59 @@ class AssignNode: ListNode
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
-		if (this::left is ListNode)
+		if (this.left is ListNode)
 		{
 			Vector left = new Vector();
-			ListNode lnode = [ListNode] this::left;
-			for (int32 i = 0; i < lnode::values::Size; i = i + 1)
+			ListNode lnode = [ListNode] this.left;
+			for (int32 i = 0; i < lnode.values.Size; i = i + 1)
 			{
-				Value value = ([Node] lnode::values[i])::CompileExpression(compiler, freereg, freereg, 0, 0);
-				freereg = value::GetNextFreeRegister(freereg);
+				Value value = ([Node] lnode.values[i]).CompileExpression(compiler, freereg, freereg, 0, 0);
+				freereg = value.GetNextFreeRegister(freereg);
 				/* HACK: not */
 				if (value is LValue)
 				{}
 				else
-					throw new CompilerException("Lvalue expected.", lnode::location);
-				left::Add([Core.Object] value);
+					throw new CompilerException("Lvalue expected.", lnode.location);
+				left.Add(value);
 			}
 
 			/* Optimize: if last element of 'left' is a variable,
 			   directly store corresponding result in 'right' to that register */
-			if (left[left::Size - 1] is VariableValue)
-				lastreg = ([VariableValue] left[left::Size - 1])::regid;
+			if (left[left.Size - 1] is VariableValue)
+				lastreg = ([VariableValue] left[left.Size - 1]).regid;
 			else
 				lastreg = -1;
-			Vector right = this::right::CompileList(compiler, freereg, lastreg);
-			if (left::Size != right::Size)
+			Vector right = this.right.CompileList(compiler, freereg, lastreg);
+			if (left.Size != right.Size)
 				throw new CompilerException("List size unmatch.", location);
 			/* Move results to left, note the last one must be copied first, due to the optimization above */
-			for (int32 i = left::Size - 1; i >= 0; i = i - 1)
-				([Value] right[i])::ToLValue(compiler, [LValue] left[i], freereg);
+			for (int32 i = left.Size - 1; i >= 0; i = i - 1)
+				([Value] right[i]).ToLValue(compiler, [LValue] left[i], freereg);
 			return left;
 		}
 		else
 		{
 			/* Single operand assign */
-			Value l = this::left::CompileExpression(compiler, freereg, freereg, 0, 0);
+			Value l = this.left.CompileExpression(compiler, freereg, freereg, 0, 0);
 			/* HACK: not */
 			if (l is LValue)
 			{}
 			else
-				throw new CompilerException("Lvalue expected.", this::left::location);
+				throw new CompilerException("Lvalue expected.", this.left.location);
 
 			LValue left = [LValue] l;
-			freereg = l::GetNextFreeRegister(freereg);
+			freereg = l.GetNextFreeRegister(freereg);
 			int32 targetreg = freereg;
 			if (left is VariableValue)
-				targetreg = ([VariableValue] left)::regid;
-			Value right = this::right::CompileExpression(compiler, freereg, targetreg, 0, 0);
-			right::ToLValue(compiler, left, freereg);
-			return compiler::Scalar(left);
+				targetreg = ([VariableValue] left).regid;
+			Value right = this.right.CompileExpression(compiler, freereg, targetreg, 0, 0);
+			right.ToLValue(compiler, left, freereg);
+			return compiler.Scalar(left);
 		}
 	}
 }
@@ -957,51 +959,51 @@ class CallNode: ListNode
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 		parameters = new Vector();
 	}
 
 	public override CompileList(Compiler compiler, int32 freereg, int32 lastreg) -> Vector
 	{
-		MethodReference methodReference = method::ToMethod(compiler, freereg);
-		Vector methods = ([MethodReference] methodReference)::methods;
-		Class classObject = ([Method] methods[0])::classObject;
+		MethodReference methodReference = method.ToMethod(compiler, freereg);
+		Vector methods = ([MethodReference] methodReference).methods;
+		Class classObject = ([Method] methods[0]).classObject;
 
 		/* Push 'this' if necessary */
 		/* TODO: We do not allow overload mixed static/unstatic methods */
 		int32 firstreg = freereg;
-		if (([Method] methods[0])::modifier & Modifier::Static > 0)
+		if (([Method] methods[0]).modifier & Modifier.Static > 0)
 			firstreg = freereg;
 		else
 		{
-			(new RegisterValue(methodReference::location, ([MethodReference] methodReference)::regid, new ClassType(classObject)))
-				::ToFreeRegister(compiler, freereg);
+			(new RegisterValue(methodReference.location, ([MethodReference] methodReference).regid, new ClassType(classObject)))
+				.ToFreeRegister(compiler, freereg);
 			firstreg = firstreg + 1;
 		}
 
 		/* Evaluate parameters */
 		Vector values = new Vector();
-		for (int32 i = 0; i < parameters::Size; i = i + 1)
+		for (int32 i = 0; i < parameters.Size; i = i + 1)
 		{
-			Value value = ([Node] parameters[i])::CompileExpression(compiler, firstreg + i, firstreg + i, 0, 0);
-			values::Add([Core.Object] value::EnsureSingleSlot(compiler, firstreg + i));
+			Value value = ([Node] parameters[i]).CompileExpression(compiler, firstreg + i, firstreg + i, 0, 0);
+			values.Add(value.EnsureSingleSlot(compiler, firstreg + i));
 		}
 
-		Method method = compiler::PrepareCall(this, methods, values, firstreg);
+		Method method = compiler.PrepareCall(this, methods, values, firstreg);
 
 		/* Call function */
-		Core.String inst;
-		if (method::modifier & Modifier::Virtual > 0 || method::modifier & Modifier::Abstract > 0)
+		String inst;
+		if (method.modifier & Modifier.Virtual > 0 || method.modifier & Modifier.Abstract > 0)
 			inst = "callv";
 		else
 			inst = "call";
-		compiler::AddCode(inst + "\t$" + freereg + ", " + compiler::GetMethodSignature(method));
+		compiler.AddCode(inst + "\t$" + freereg + ", " + compiler.GetMethodSignature(method));
 
 		/* Return value */
 		Vector ret = new Vector();
-		for (int32 i = 0; i < method::returnTypes::Size; i = i + 1)
-			ret::Add([Core.Object] new RegisterValue(location, freereg + i,
-				compiler::ResolveType([TypeCache] method::returnTypes[i])));
+		for (int32 i = 0; i < method.returnTypes.Size; i = i + 1)
+			ret.Add(new RegisterValue(location, freereg + i,
+				compiler.ResolveType([TypeCache] method.returnTypes[i])));
 		return ret;
 	}
 }
@@ -1012,17 +1014,17 @@ class MultipleNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 		nodes = new Vector();
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		compiler::PushSymbolStack();
+		compiler.PushSymbolStack();
 		int32 closed = 0, _freereg = freereg;
-		for (int32 i = 0; i < nodes::Size; i = i + 1)
-			closed, _freereg = ([Node] nodes[i])::CompileStatement(compiler, _freereg, context);
-		compiler::PopSymbolStack();
+		for (int32 i = 0; i < nodes.Size; i = i + 1)
+			closed, _freereg = ([Node] nodes[i]).CompileStatement(compiler, _freereg, context);
+		compiler.PopSymbolStack();
 		return closed, freereg;
 	}
 }
@@ -1035,29 +1037,29 @@ class DefinitionNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 		names = new Vector();
 		values = new Vector();
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		Type type = this::type::ToType(compiler);
-		for (int32 i = 0; i < names::Size; i = i + 1)
+		Type type = this.type.ToType(compiler);
+		for (int32 i = 0; i < names.Size; i = i + 1)
 		{
 			Variable variable = new Variable();
-			variable::regid = freereg;
-			variable::type = type;
+			variable.regid = freereg;
+			variable.type = type;
 
 			/* TODO */
-			([Hash] compiler::symbolTable::Peek())::Add([Core.String] names[i], variable);
+			([Hash] compiler.symbolTable.Peek()).Add([String] names[i], variable);
 
-			Core.Object vn = values[i];
+			Object vn = values[i];
 			if (vn != null)
 			{
 				Node vnode = [Node] vn;
 				LValue value = new VariableValue(location, freereg, type);
-				vnode::CompileExpression(compiler, freereg, freereg, 0, 0)::ToLValue(compiler, value, freereg);
+				vnode.CompileExpression(compiler, freereg, freereg, 0, 0).ToLValue(compiler, value, freereg);
 			}
 			freereg = freereg + 1;
 		}
@@ -1072,7 +1074,7 @@ class IfNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
@@ -1080,26 +1082,26 @@ class IfNode: Node
 		if (falseBody == null)
 		{
 			/* If - Then */
-			int32 falseTarget = compiler::GetNextLabelId();
-			condition::CompileExpression(compiler, freereg, freereg, falseTarget, 0)::ToJumpTarget(compiler, freereg, falseTarget, 0);
-			trueBody::CompileStatement(compiler, freereg, context);
-			compiler::AddLabel(falseTarget);
+			int32 falseTarget = compiler.GetNextLabelId();
+			condition.CompileExpression(compiler, freereg, freereg, falseTarget, 0).ToJumpTarget(compiler, freereg, falseTarget, 0);
+			trueBody.CompileStatement(compiler, freereg, context);
+			compiler.AddLabel(falseTarget);
 			return 0, freereg;
 		}
 		else
 		{
 			/* If - Then - Else */
-			int32 falseTarget = compiler::GetNextLabelId();
-			int32 endTarget = compiler::GetNextLabelId();
-			condition::CompileExpression(compiler, freereg, freereg, falseTarget, 0)::ToJumpTarget(compiler, freereg, falseTarget, 0);
+			int32 falseTarget = compiler.GetNextLabelId();
+			int32 endTarget = compiler.GetNextLabelId();
+			condition.CompileExpression(compiler, freereg, freereg, falseTarget, 0).ToJumpTarget(compiler, freereg, falseTarget, 0);
 			int32 thenClosed, elseClosed;
-			thenClosed = trueBody::CompileStatement(compiler, freereg, context);
+			thenClosed = trueBody.CompileStatement(compiler, freereg, context);
 			if (thenClosed == 0)
-				compiler::AddCode("jmp\t" + compiler::GetLabelName(endTarget));
-			compiler::AddLabel(falseTarget);
-			elseClosed = falseBody::CompileStatement(compiler, freereg, context);
+				compiler.AddCode("jmp\t" + compiler.GetLabelName(endTarget));
+			compiler.AddLabel(falseTarget);
+			elseClosed = falseBody.CompileStatement(compiler, freereg, context);
 			if (thenClosed == 0)
-				compiler::AddLabel(endTarget);
+				compiler.AddLabel(endTarget);
 			return thenClosed & elseClosed, freereg;
 		}
 	}
@@ -1112,53 +1114,53 @@ class ForNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		compiler::PushSymbolStack();
-		context::loopLevel = context::loopLevel + 1;
-		int32 backupContinueLabelId = context::continueLabelId;
-		int32 backupBreakLabelId = context::breakLabelId;
-		context::contextType::Push(Core.Int32::ToString(Context::Loop));
+		compiler.PushSymbolStack();
+		context.loopLevel = context.loopLevel + 1;
+		int32 backupContinueLabelId = context.continueLabelId;
+		int32 backupBreakLabelId = context.breakLabelId;
+		context.contextType.Push(Int32.ToString(Context.Loop));
 
-		int32 bodyTarget = compiler::GetNextLabelId();
+		int32 bodyTarget = compiler.GetNextLabelId();
 		int32 conditionTarget;
 		if (condition != null)
-			conditionTarget = compiler::GetNextLabelId();
+			conditionTarget = compiler.GetNextLabelId();
 		int32 closed, _freereg = freereg;
 
-		context::continueLabelId = 0;
-		context::breakLabelId = 0;
+		context.continueLabelId = 0;
+		context.breakLabelId = 0;
 		if (condition == null && update == null)
-			context::continueLabelId = bodyTarget;
+			context.continueLabelId = bodyTarget;
 
 		if (init != null)
-			closed, _freereg = init::CompileStatement(compiler, freereg, context);
+			closed, _freereg = init.CompileStatement(compiler, freereg, context);
 		if (condition != null)
-			compiler::AddCode("jmp\t" + compiler::GetLabelName(conditionTarget));
-		compiler::AddLabel(bodyTarget);
-		body::CompileStatement(compiler, _freereg, context);
-		if ((condition != null || update != null) && context::continueLabelId > 0)
-			compiler::AddLabel(context::continueLabelId);
+			compiler.AddCode("jmp\t" + compiler.GetLabelName(conditionTarget));
+		compiler.AddLabel(bodyTarget);
+		body.CompileStatement(compiler, _freereg, context);
+		if ((condition != null || update != null) && context.continueLabelId > 0)
+			compiler.AddLabel(context.continueLabelId);
 		if (update != null)
-			update::CompileList(compiler, _freereg, -1);
+			update.CompileList(compiler, _freereg, -1);
 		if (condition == null)
-			compiler::AddCode("jmp\t" + compiler::GetLabelName(bodyTarget));
+			compiler.AddCode("jmp\t" + compiler.GetLabelName(bodyTarget));
 		else
 		{
-			compiler::AddLabel(conditionTarget);
-			condition::CompileExpression(compiler, _freereg, _freereg, bodyTarget, 1)::ToJumpTarget(compiler, _freereg, bodyTarget, 1);
+			compiler.AddLabel(conditionTarget);
+			condition.CompileExpression(compiler, _freereg, _freereg, bodyTarget, 1).ToJumpTarget(compiler, _freereg, bodyTarget, 1);
 		}
 
-		if (context::breakLabelId > 0)
-			compiler::AddLabel(context::breakLabelId);
-		context::contextType::Pop();
-		context::continueLabelId = backupContinueLabelId;
-		context::breakLabelId = backupBreakLabelId;
-		context::loopLevel = context::loopLevel - 1;
-		compiler::PopSymbolStack();
+		if (context.breakLabelId > 0)
+			compiler.AddLabel(context.breakLabelId);
+		context.contextType.Pop();
+		context.continueLabelId = backupContinueLabelId;
+		context.breakLabelId = backupBreakLabelId;
+		context.loopLevel = context.loopLevel - 1;
+		compiler.PopSymbolStack();
 		return 0, freereg;
 	}
 }
@@ -1170,33 +1172,33 @@ class WhileNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		context::loopLevel = context::loopLevel + 1;
-		int32 backupContinueLabelId = context::continueLabelId;
-		int32 backupBreakLabelId = context::breakLabelId;
-		context::contextType::Push(Core.Int32::ToString(Context::Loop));
+		context.loopLevel = context.loopLevel + 1;
+		int32 backupContinueLabelId = context.continueLabelId;
+		int32 backupBreakLabelId = context.breakLabelId;
+		context.contextType.Push(Int32.ToString(Context.Loop));
 
-		int32 bodyTarget = compiler::GetNextLabelId();
-		int32 conditionTarget = compiler::GetNextLabelId();
+		int32 bodyTarget = compiler.GetNextLabelId();
+		int32 conditionTarget = compiler.GetNextLabelId();
 
-		context::continueLabelId = conditionTarget;
-		context::breakLabelId = 0;
-		compiler::AddCode("jmp\t" + compiler::GetLabelName(conditionTarget));
-		compiler::AddLabel(bodyTarget);
-		body::CompileStatement(compiler, freereg, context);
-		compiler::AddLabel(conditionTarget);
-		condition::CompileExpression(compiler, freereg, freereg, bodyTarget, 1)::ToJumpTarget(compiler, freereg, bodyTarget, 1);
+		context.continueLabelId = conditionTarget;
+		context.breakLabelId = 0;
+		compiler.AddCode("jmp\t" + compiler.GetLabelName(conditionTarget));
+		compiler.AddLabel(bodyTarget);
+		body.CompileStatement(compiler, freereg, context);
+		compiler.AddLabel(conditionTarget);
+		condition.CompileExpression(compiler, freereg, freereg, bodyTarget, 1).ToJumpTarget(compiler, freereg, bodyTarget, 1);
 
-		if (context::breakLabelId > 0)
-			compiler::AddLabel(context::breakLabelId);
-		context::contextType::Pop();
-		context::continueLabelId = backupContinueLabelId;
-		context::breakLabelId = backupBreakLabelId;
-		context::loopLevel = context::loopLevel - 1;
+		if (context.breakLabelId > 0)
+			compiler.AddLabel(context.breakLabelId);
+		context.contextType.Pop();
+		context.continueLabelId = backupContinueLabelId;
+		context.breakLabelId = backupBreakLabelId;
+		context.loopLevel = context.loopLevel - 1;
 		return 0, freereg;
 	}
 }
@@ -1208,32 +1210,32 @@ class DoWhileNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		context::loopLevel = context::loopLevel + 1;
-		int32 backupContinueLabelId = context::continueLabelId;
-		int32 backupBreakLabelId = context::breakLabelId;
-		context::contextType::Push(Core.Int32::ToString(Context::Loop));
+		context.loopLevel = context.loopLevel + 1;
+		int32 backupContinueLabelId = context.continueLabelId;
+		int32 backupBreakLabelId = context.breakLabelId;
+		context.contextType.Push(Int32.ToString(Context.Loop));
 
-		int32 bodyTarget = compiler::GetNextLabelId();
+		int32 bodyTarget = compiler.GetNextLabelId();
 
-		context::continueLabelId = 0;
-		context::breakLabelId = 0;
-		compiler::AddLabel(bodyTarget);
-		body::CompileStatement(compiler, freereg, context);
-		if (context::continueLabelId > 0)
-			compiler::AddLabel(context::continueLabelId);
-		condition::CompileExpression(compiler, freereg, freereg, bodyTarget, 1)::ToJumpTarget(compiler, freereg, bodyTarget, 1);
+		context.continueLabelId = 0;
+		context.breakLabelId = 0;
+		compiler.AddLabel(bodyTarget);
+		body.CompileStatement(compiler, freereg, context);
+		if (context.continueLabelId > 0)
+			compiler.AddLabel(context.continueLabelId);
+		condition.CompileExpression(compiler, freereg, freereg, bodyTarget, 1).ToJumpTarget(compiler, freereg, bodyTarget, 1);
 
-		if (context::breakLabelId > 0)
-			compiler::AddLabel(context::breakLabelId);
-		context::contextType::Pop();
-		context::continueLabelId = backupContinueLabelId;
-		context::breakLabelId = backupBreakLabelId;
-		context::loopLevel = context::loopLevel - 1;
+		if (context.breakLabelId > 0)
+			compiler.AddLabel(context.breakLabelId);
+		context.contextType.Pop();
+		context.continueLabelId = backupContinueLabelId;
+		context.breakLabelId = backupBreakLabelId;
+		context.loopLevel = context.loopLevel - 1;
 		return 0, freereg;
 	}
 }
@@ -1244,63 +1246,63 @@ class ReturnNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 		values = new Vector();
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		if (values::Size != compiler::CurrentMethod::returnTypes::Size && values::Size != 0)
+		if (values.Size != compiler.CurrentMethod.returnTypes.Size && values.Size != 0)
 			throw new CompilerException("Unmatched number of return values.", location);
-		if (context::finallyLevel > 0)
+		if (context.finallyLevel > 0)
 			throw new CompilerException("Control cannot go out of the finally block.", location);
-		if (context::tryCatchLevel > 0)
+		if (context.tryCatchLevel > 0)
 		{
 			/* We are inside a try finally block */
 			/* First, save supplied return values into return registers */
-			for (int32 i = 0; i < values::Size; i = i + 1)
+			for (int32 i = 0; i < values.Size; i = i + 1)
 			{
 				Node vnode = [Node] values[i];
-				Type type = compiler::ResolveType([TypeCache] compiler::CurrentMethod::returnTypes[i]);
-				vnode::CompileExpression(compiler, freereg, context::firstReturnRegister + i, 0, 0)
-					::ToTypedRegister(compiler, context::firstReturnRegister + 1, context::firstReturnRegister + 1, type);
+				Type type = compiler.ResolveType([TypeCache] compiler.CurrentMethod.returnTypes[i]);
+				vnode.CompileExpression(compiler, freereg, context.firstReturnRegister + i, 0, 0)
+					.ToTypedRegister(compiler, context.firstReturnRegister + 1, context.firstReturnRegister + 1, type);
 			}
 			/* Second, add leave instruction */
-			compiler::AddCode("leave\t_Epilogue");
+			compiler.AddCode("leave\t_Epilogue");
 			/* Last, tell CompileMethod() that we need an epilogue */
-			context::generateEpilogue = 1;
+			context.generateEpilogue = 1;
 		}
 		else
 		{
 			/* Normal return */
-			if (compiler::CurrentMethod::returnTypes::Size == 0)
-				compiler::AddCode("ret");
-			else if (compiler::CurrentMethod::returnTypes::Size == 1)
+			if (compiler.CurrentMethod.returnTypes.Size == 0)
+				compiler.AddCode("ret");
+			else if (compiler.CurrentMethod.returnTypes.Size == 1)
 			{
-				if (values::Size == 0)
-					compiler::AddCode("ret\t$" + context::firstReturnRegister);
+				if (values.Size == 0)
+					compiler.AddCode("ret\t$" + context.firstReturnRegister);
 				else
 				{
-					RegisterValue value = ([Node] values[0])::CompileExpression(compiler, freereg, freereg, 0, 0)
-						::EnsureRegister(compiler, freereg);
-					compiler::AddCode("ret\t$" + value::regid);
+					RegisterValue value = ([Node] values[0]).CompileExpression(compiler, freereg, freereg, 0, 0)
+						.EnsureRegister(compiler, freereg);
+					compiler.AddCode("ret\t$" + value.regid);
 				}
 			}
 			else
 			{
-				if (values::Size == 0)
-					compiler::AddCode("ret\t$" + context::firstReturnRegister + ", $"
-						+ (context::firstReturnRegister + compiler::CurrentMethod::returnTypes::Size - 1));
+				if (values.Size == 0)
+					compiler.AddCode("ret\t$" + context.firstReturnRegister + ", $"
+						+ (context.firstReturnRegister + compiler.CurrentMethod.returnTypes.Size - 1));
 				else
 				{
-					for (int32 i = 0; i < values::Size; i = i + 1)
+					for (int32 i = 0; i < values.Size; i = i + 1)
 					{
 						Node vnode = [Node] values[i];
-						Type type = compiler::ResolveType([TypeCache] compiler::CurrentMethod::returnTypes[i]);
-						vnode::CompileExpression(compiler, freereg + i, freereg + i, 0, 0)
-							::ToTypedRegister(compiler, freereg + i, freereg + i, type);
+						Type type = compiler.ResolveType([TypeCache] compiler.CurrentMethod.returnTypes[i]);
+						vnode.CompileExpression(compiler, freereg + i, freereg + i, 0, 0)
+							.ToTypedRegister(compiler, freereg + i, freereg + i, type);
 					}
-					compiler::AddCode("ret\t$" + freereg + ", $" + (freereg + values::Size - 1));
+					compiler.AddCode("ret\t$" + freereg + ", $" + (freereg + values.Size - 1));
 				}
 			}
 		}
@@ -1312,22 +1314,22 @@ class ContinueNode: Node
 {
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		if (context::loopLevel == 0)
+		if (context.loopLevel == 0)
 			throw new CompilerException("Not in a loop.", location);
-		int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
-		if (ctx == Context::Finally)
+		int32 ctx = Int32.Parse([String] context.contextType.Peek());
+		if (ctx == Context.Finally)
 			throw new CompilerException("Control cannot go out of the finally block.", location);
 
-		context::continueLabelId = compiler::FixJumpTarget(context::continueLabelId);
-		if (ctx == Context::TryCatch)
-			compiler::AddCode("leave\t" + compiler::GetLabelName(context::continueLabelId));
+		context.continueLabelId = compiler.FixJumpTarget(context.continueLabelId);
+		if (ctx == Context.TryCatch)
+			compiler.AddCode("leave\t" + compiler.GetLabelName(context.continueLabelId));
 		else
-			compiler::AddCode("jmp\t" + compiler::GetLabelName(context::continueLabelId));
+			compiler.AddCode("jmp\t" + compiler.GetLabelName(context.continueLabelId));
 		return 1, freereg;
 	}
 }
@@ -1336,22 +1338,22 @@ class BreakNode: Node
 {
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		if (context::loopLevel == 0)
+		if (context.loopLevel == 0)
 			throw new CompilerException("Not in a loop.", location);
-		int32 ctx = Core.Int32::Parse([Core.String] context::contextType::Peek());
-		if (ctx == Context::Finally)
+		int32 ctx = Int32.Parse([String] context.contextType.Peek());
+		if (ctx == Context.Finally)
 			throw new CompilerException("Control cannot go out of the finally block.", location);
 
-		context::breakLabelId = compiler::FixJumpTarget(context::breakLabelId);
-		if (ctx == Context::TryCatch)
-			compiler::AddCode("leave\t" + compiler::GetLabelName(context::breakLabelId));
+		context.breakLabelId = compiler.FixJumpTarget(context.breakLabelId);
+		if (ctx == Context.TryCatch)
+			compiler.AddCode("leave\t" + compiler.GetLabelName(context.breakLabelId));
 		else
-			compiler::AddCode("jmp\t" + compiler::GetLabelName(context::breakLabelId));
+			compiler.AddCode("jmp\t" + compiler.GetLabelName(context.breakLabelId));
 		return 1, freereg;
 	}
 }
@@ -1364,70 +1366,70 @@ class TryNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 		catchNodes = new Vector();
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		int32 endTarget = compiler::GetNextLabelId();
+		int32 endTarget = compiler.GetNextLabelId();
 
 		if (finallyNode != null)
 		{
-			context::tryCatchLevel = context::tryCatchLevel + 1;
-			context::contextType::Push(Core.Int32::ToString(Context::TryCatch));
+			context.tryCatchLevel = context.tryCatchLevel + 1;
+			context.contextType.Push(Int32.ToString(Context.TryCatch));
 		}
 
-		compiler::AddCode(".try {");
-		compiler::Tab();
-		int32 closed = body::CompileStatement(compiler, freereg, context);
+		compiler.AddCode(".try {");
+		compiler.Tab();
+		int32 closed = body.CompileStatement(compiler, freereg, context);
 		if (closed == 0)
 			if (finallyNode == null)
-				compiler::AddCode("jmp\t" + compiler::GetLabelName(endTarget));
+				compiler.AddCode("jmp\t" + compiler.GetLabelName(endTarget));
 			else
-				compiler::AddCode("leave\t" + compiler::GetLabelName(endTarget));
-		compiler::Untab();
-		compiler::AddCode("}");
-		for (int32 i = 0; i < catchNodes::Size; i = i + 1)
+				compiler.AddCode("leave\t" + compiler.GetLabelName(endTarget));
+		compiler.Untab();
+		compiler.AddCode("}");
+		for (int32 i = 0; i < catchNodes.Size; i = i + 1)
 		{
 			CatchNode cnode = [CatchNode] catchNodes[i];
-			Type catchType = cnode::type::ToType(compiler);
-			compiler::AddCode(".catch(" + catchType::ToString() + " $" + freereg + ") {");
-			compiler::PushSymbolStack();
+			Type catchType = cnode.type.ToType(compiler);
+			compiler.AddCode(".catch(" + catchType.ToString() + " $" + freereg + ") {");
+			compiler.PushSymbolStack();
 			Variable var = new Variable();
-			var::regid = freereg;
-			var::type = catchType;
+			var.regid = freereg;
+			var.type = catchType;
 			/* TODO */
-			([Hash] compiler::symbolTable::Peek())::Add(cnode::name, var);
-			compiler::Tab();
-			int32 closed = cnode::body::CompileStatement(compiler, freereg + 1, context);
+			([Hash] compiler.symbolTable.Peek()).Add(cnode.name, var);
+			compiler.Tab();
+			int32 closed = cnode.body.CompileStatement(compiler, freereg + 1, context);
 			if (closed == 0)
 				if (finallyNode == null)
-					compiler::AddCode("jmp\t" + compiler::GetLabelName(endTarget));
+					compiler.AddCode("jmp\t" + compiler.GetLabelName(endTarget));
 				else
-					compiler::AddCode("leave\t" + compiler::GetLabelName(endTarget));
-			compiler::Untab();
-			compiler::AddCode("}");
-			compiler::PopSymbolStack(); 
+					compiler.AddCode("leave\t" + compiler.GetLabelName(endTarget));
+			compiler.Untab();
+			compiler.AddCode("}");
+			compiler.PopSymbolStack(); 
 		}
 		if (finallyNode != null)
 		{
-			context::tryCatchLevel = context::tryCatchLevel - 1;
-			context::contextType::Pop();
-			context::finallyLevel = context::finallyLevel + 1;
-			context::contextType::Push([Core.Object] Core.Int32::ToString(Context::Finally));
+			context.tryCatchLevel = context.tryCatchLevel - 1;
+			context.contextType.Pop();
+			context.finallyLevel = context.finallyLevel + 1;
+			context.contextType.Push(Int32.ToString(Context.Finally));
 
-			compiler::AddCode(".finally {");
-			compiler::Tab();
-			finallyNode::CompileStatement(compiler, freereg, context);
-			compiler::AddCode("endfinally");
-			compiler::Untab();
-			compiler::AddCode("}");
+			compiler.AddCode(".finally {");
+			compiler.Tab();
+			finallyNode.CompileStatement(compiler, freereg, context);
+			compiler.AddCode("endfinally");
+			compiler.Untab();
+			compiler.AddCode("}");
 
-			context::contextType::Pop();
-			context::finallyLevel = context::finallyLevel - 1;
+			context.contextType.Pop();
+			context.finallyLevel = context.finallyLevel - 1;
 		}
-		compiler::AddLabel(endTarget);
+		compiler.AddLabel(endTarget);
 		return 0, freereg;
 	}
 }
@@ -1435,12 +1437,12 @@ class TryNode: Node
 class CatchNode: Node
 {
 	public Node type;
-	public Core.String name;
+	public String name;
 	public Node body;
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 }
 
@@ -1450,13 +1452,13 @@ class ThrowNode: Node
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 
 	public override CompileStatement(Compiler compiler, int32 freereg, Context context) -> int32, int32
 	{
-		RegisterValue value = exception::CompileExpression(compiler, freereg, freereg, 0, 0)::EnsureRegister(compiler, freereg);
-		compiler::AddCode("throw\t$" + value::regid);
+		RegisterValue value = exception.CompileExpression(compiler, freereg, freereg, 0, 0).EnsureRegister(compiler, freereg);
+		compiler.AddCode("throw\t$" + value.regid);
 		return 1, freereg;
 	}
 }
@@ -1465,13 +1467,13 @@ class Field
 {
 	public Class classObject;
 	public int32 modifier;
-	public Core.String name;
+	public String name;
 	public TypeCache type;
 	public Location location;
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 }
 
@@ -1479,20 +1481,20 @@ class Method
 {
 	public Class classObject;
 	public int32 modifier;
-	public Core.String name;
-	public Core.String prototype;
+	public String name;
+	public String prototype;
 	public Vector paramTypes;
 	public Vector paramNames;
 	public Vector returnTypes;
 	public Vector returnNames;
 	public int32 callingConvention;
-	public Core.String libraryName, originalName;
+	public String libraryName, originalName;
 	public Node body;
 	public Location location;
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 
 		paramTypes = new Vector();
 		paramNames = new Vector();
@@ -1505,7 +1507,7 @@ class Property
 {
 	public Class classObject;
 	public int32 modifier;
-	public Core.String name;
+	public String name;
 	public TypeCache type;
 	public Method getter;
 	public Method setter;
@@ -1513,7 +1515,7 @@ class Property
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 	}
 }
 
@@ -1521,7 +1523,7 @@ class Class
 {
 	public SourceFile sourceFile;
 	public Namespace baseNamespace;
-	public Core.String name;
+	public String name;
 	public Node baseType;
 	public Class baseClass;
 	public Hash methods;
@@ -1531,7 +1533,7 @@ class Class
 
 	public (Location location)
 	{
-		this::location = location;
+		this.location = location;
 
 		methods = new Hash();
 		fields = new Hash();
@@ -1541,31 +1543,31 @@ class Class
 
 class Namespace
 {
-	public Core.String name;
+	public String name;
 	public Namespace base;
 	Hash children;
 
-	public (Core.String name, Namespace base)
+	public (String name, Namespace base)
 	{
 		children = new Hash();
-		this::base = base;
-		if (base != null && base::name::Equals("") == 0)
-			this::name = base::name + "." + name;
+		this.base = base;
+		if (base != null && base.name.Equals("") == 0)
+			this.name = base.name + "." + name;
 		else
-			this::name = name;
+			this.name = name;
 	}
 }
 
 class SourceFile
 {
-	public Core.String fileName;
+	public String fileName;
 	public Vector namespaces;
 
-	public (Core.String fileName, Namespace root)
+	public (String fileName, Namespace root)
 	{
-		this::fileName = fileName;
-		this::namespaces = new Vector();
-		this::namespaces::Add(root);
+		this.fileName = fileName;
+		this.namespaces = new Vector();
+		this.namespaces.Add(root);
 	}
 }
 
@@ -1576,47 +1578,47 @@ class Modifier
 	public static int32 Internal, Native, Interface;
 	public static Hash hash;
 
-	public static Parse(Core.String string) -> int32
+	public static Parse(String string) -> int32
 	{
 		/* HACK: int -> int32 */
 		int32 found;
-		Core.Object value;
-		if ((found, value = hash::Contains(string)) > 0)
-			return Core.Int32::Parse([Core.String] value);
+		Object value;
+		if ((found, value = hash.Contains(string)) > 0)
+			return Int32.Parse([String] value);
 		else
 			return 0;
 	}
 
-	public static ToString(int32 modifier) -> Core.String
+	public static ToString(int32 modifier) -> String
 	{
 		/* FIXME: Accessing private members */
-		Core.String ret = "";
-		for (int32 i = 0; i < hash::Size; i = i + 1)
-			if (modifier & Core.Int32::Parse([Core.String] hash::values[i]) > 0)
-				if (ret::Equals("") > 0)
-					ret = ret + [Core.String] hash::keys[i];
+		String ret = "";
+		for (int32 i = 0; i < hash.Size; i = i + 1)
+			if (modifier & Int32.Parse([String] hash.values[i]) > 0)
+				if (ret.Equals("") > 0)
+					ret = ret + [String] hash.keys[i];
 				else
-					ret = ret + " " + [Core.String] hash::keys[i];
+					ret = ret + " " + [String] hash.keys[i];
 		return ret;
 	}
 
 	public static InitModifier()
 	{
-		Modifier::Public, Modifier::Private, Modifier::Protected = 1, 2, 4;
-		Modifier::Static, Modifier::Virtual, Modifier::Override, Modifier::Abstract = 8, 16, 32, 64;
-		Modifier::Internal, Modifier::Native, Modifier::Interface = 128, 256, 512;
+		Modifier.Public, Modifier.Private, Modifier.Protected = 1, 2, 4;
+		Modifier.Static, Modifier.Virtual, Modifier.Override, Modifier.Abstract = 8, 16, 32, 64;
+		Modifier.Internal, Modifier.Native, Modifier.Interface = 128, 256, 512;
 
 		hash = new Hash();
-		hash::Add("public", [Core.Object] Core.Int32::ToString(Modifier::Public));
-		hash::Add("private", [Core.Object] Core.Int32::ToString(Modifier::Private));
-		hash::Add("protected", [Core.Object] Core.Int32::ToString(Modifier::Protected));
-		hash::Add("static", [Core.Object] Core.Int32::ToString(Modifier::Static));
-		hash::Add("virtual", [Core.Object] Core.Int32::ToString(Modifier::Virtual));
-		hash::Add("override", [Core.Object] Core.Int32::ToString(Modifier::Override));
-		hash::Add("abstract", [Core.Object] Core.Int32::ToString(Modifier::Abstract));
-		hash::Add("internal", [Core.Object] Core.Int32::ToString(Modifier::Internal));
-		hash::Add("native", [Core.Object] Core.Int32::ToString(Modifier::Native));
-		hash::Add("interface", [Core.Object] Core.Int32::ToString(Modifier::Interface));
+		hash.Add("public", Int32.ToString(Modifier.Public));
+		hash.Add("private", Int32.ToString(Modifier.Private));
+		hash.Add("protected", Int32.ToString(Modifier.Protected));
+		hash.Add("static", Int32.ToString(Modifier.Static));
+		hash.Add("virtual", Int32.ToString(Modifier.Virtual));
+		hash.Add("override", Int32.ToString(Modifier.Override));
+		hash.Add("abstract", Int32.ToString(Modifier.Abstract));
+		hash.Add("internal", Int32.ToString(Modifier.Internal));
+		hash.Add("native", Int32.ToString(Modifier.Native));
+		hash.Add("interface", Int32.ToString(Modifier.Interface));
 	}
 }
 
@@ -1624,27 +1626,27 @@ class CallingConvention
 {
 	public static int32 Unknown, Stdcall;
 
-	public static ToString(int32 cc) -> Core.String
+	public static ToString(int32 cc) -> String
 	{
-		if (cc == CallingConvention::Unknown)
+		if (cc == CallingConvention.Unknown)
 			return "unknown";
-		else if (cc == CallingConvention::Stdcall)
+		else if (cc == CallingConvention.Stdcall)
 			return "stdcall";
 		return "";
 	}
 
-	public static Parse(Core.String cc) -> int32
+	public static Parse(String cc) -> int32
 	{
-		if (cc::Equals("unknown") > 0)
-			return CallingConvention::Unknown;
-		else if (cc::Equals("stdcall") > 0)
-			return CallingConvention::Stdcall;
+		if (cc.Equals("unknown") > 0)
+			return CallingConvention.Unknown;
+		else if (cc.Equals("stdcall") > 0)
+			return CallingConvention.Stdcall;
 		else
 			return 0;
 	}
 
 	public static InitCallingConvention()
 	{
-		CallingConvention::Unknown, CallingConvention::Stdcall = 1, 2;
+		CallingConvention.Unknown, CallingConvention.Stdcall = 1, 2;
 	}
 }

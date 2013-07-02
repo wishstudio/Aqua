@@ -1,3 +1,5 @@
-class Core.Object
+namespace Core;
+
+class Object
 {
 }
