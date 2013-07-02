@@ -1396,7 +1396,7 @@ class TryNode: Node
 			/* TODO */
 			([Hash] compiler::symbolTable::Peek())::Add(cnode::name, var);
 			compiler::Tab();
-			int32 closed = body::CompileStatement(compiler, freereg + 1, context);
+			int32 closed = cnode::body::CompileStatement(compiler, freereg + 1, context);
 			if (closed == 0)
 				if (finallyNode == null)
 					compiler::AddCode("jmp\t" + compiler::GetLabelName(endTarget));
