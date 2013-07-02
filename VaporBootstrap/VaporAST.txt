@@ -1519,6 +1519,7 @@ class Property
 class Class
 {
 	public SourceFile sourceFile;
+	public Namespace baseNamespace;
 	public Core.String name;
 	public Node baseType;
 	public Class baseClass;
@@ -1546,8 +1547,11 @@ class Namespace
 	public (Core.String name, Namespace base)
 	{
 		children = new Hash();
-		this::name = name;
 		this::base = base;
+		if (base != null && base::name::Equals("") == 0)
+			this::name = base::name + "." + name;
+		else
+			this::name = name;
 	}
 }
 

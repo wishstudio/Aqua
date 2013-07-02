@@ -119,32 +119,45 @@ class Parser
 		return type;
 	}
 
+	private ParseNamespace() -> Namespace
+	{
+		Namespace current = root;
+		for (;;)
+		{
+			lex::Assert(Token::Ident);
+			int32 found;
+			Core.Object sp;
+			if ((found, sp = current::children::Contains(lex::ident)) == 0)
+			{
+				sp = new Namespace(lex::ident, current);
+				current::children::Add(lex::ident, sp);
+			}
+			current = [Namespace] sp;
+			lex::Next();
+			if (lex::token != Token::DoubleColon)
+				return current;
+			lex::Assert(Token::DoubleColon);
+			lex::Next();
+		}
+	}
+
 	private ParseFile()
 	{
 		SourceFile sourceFile = new SourceFile(currentFileName, root);
+		Namespace startNamespace = root;
+		if (lex::token == Token::Namespace)
+		{
+			lex::Next();
+			startNamespace = ParseNamespace();
+			lex::Assert(Token::Semicolon);
+			lex::Next();
+			sourceFile::namespaces::Add(startNamespace);
+		}
 		while (lex::token == Token::Using)
 		{
 			lex::Next();
-			/* TODO: This should be a function */
-			Namespace current = root;
-			for (;;)
-			{
-				lex::Assert(Token::Ident);
-				int32 found;
-				Core.Object sp;
-				if ((found, sp = current::children::Contains(lex::ident)) == 0)
-				{
-					sp = new Namespace(lex::ident, current);
-					current::children::Add(lex::ident, sp);
-				}
-				current = [Namespace] sp;
-				lex::Next();
-				if (lex::token == Token::Semicolon)
-					break;
-				lex::Assert(Token::DoubleColon);
-				lex::Next();
-			}
-			sourceFile::namespaces::Add(current);
+			sourceFile::namespaces::Add(ParseNamespace());
+			lex::Assert(Token::Semicolon);
 			lex::Next();
 		}
 		while (lex::token == Token::Ident && lex::ident::Equals("class") > 0)
@@ -153,28 +166,32 @@ class Parser
 			classObject::sourceFile = sourceFile;
 			lex::CheckNext(Token::Ident);
 			/* TODO: This should be a function */
+			Core.String fullName;
+			if (startNamespace::name::Equals("") > 0)
+				fullName = lex::ident;
+			else
+				fullName = startNamespace::name + "." + lex::ident;
 			Core.String name = lex::ident;
-			Core.String last = lex::ident;
 			lex::Next();
-			Namespace current = root;
+			Namespace current = startNamespace;
 			while (lex::token == Token::DoubleColon)
 			{
 				int32 found;
 				Core.Object sp;
-				if ((found, sp = current::children::Contains(last)) == 0)
+				if ((found, sp = current::children::Contains(name)) == 0)
 				{
-					sp = new Namespace(last, current);
-					current::children::Add(last, sp);
+					sp = new Namespace(name, current);
+					current::children::Add(name, sp);
 				}
 				current = [Namespace] sp;
 
 				lex::CheckNext(Token::Ident);
-				name = name + "." + lex::ident;
-				last = lex::ident;
+				fullName = fullName + "." + lex::ident;
+				name = lex::ident;
 				lex::Next();
 			}
-			current::children::Add(last, classObject);
-			classObject::name = name;
+			current::children::Add(name, classObject);
+			classObject::name = fullName;
 			if (lex::token == Token::Colon)
 			{
 				lex::Next();
