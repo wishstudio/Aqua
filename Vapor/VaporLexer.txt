@@ -363,17 +363,17 @@ class Lexer
 			if (ch == '*')
 			{
 				/* Block comment */
-				/* HACK: for (;;) */
-				/* HACK: break */
-				int32 BREAK = 0;
-				while (BREAK == 0)
+				for (;;)
 				{
 					NextChar();
 					if (ch == '*')
 					{
 						NextChar();
 						if (ch == '/')
-							BREAK = 1;
+						{
+							NextChar();
+							break;
+						}
 						NextChar();
 					}
 				}

@@ -238,37 +238,33 @@ class Parser
 
 					/* Get parameters */
 					lex.Next();
-					/* HACK: break */
-					while (lex.token != Token.PRight)
-					{
-						method.paramTypes.Add(new TypeCache(ParseType()));
-						if (lex.token == Token.Ident)
+					if (lex.token != Token.PRight)
+						for (;;)
 						{
-							/* Named parameter */
-							method.paramNames.Add(lex.ident);
-							lex.Next();
-						}
-						else
-						{
-							/* Unnamed parameter */
-							method.paramNames.Add("");
-						}
-						if (lex.token != Token.PRight)
-						{
+							method.paramTypes.Add(new TypeCache(ParseType()));
+							if (lex.token == Token.Ident)
+							{
+								/* Named parameter */
+								method.paramNames.Add(lex.ident);
+								lex.Next();
+							}
+							else
+							{
+								/* Unnamed parameter */
+								method.paramNames.Add("");
+							}
+							if (lex.token == Token.PRight)
+								break;
 							lex.Assert(Token.Comma);
 							lex.Next();
 						}
-					}
 					lex.Next();
 
 					/* Get returns */
 					if (lex.token == Token.Arrow)
 					{
 						lex.Next();
-						/* HACK: break */
-						int32 BREAK = 0;
-						/* HACK: for (;;) */
-						while (BREAK == 0)
+						for (;;)
 						{
 							method.returnTypes.Add(new TypeCache(ParseType()));
 							if (lex.token == Token.Ident)
@@ -285,7 +281,7 @@ class Parser
 							if (lex.token == Token.Comma)
 								lex.Next();
 							else
-								BREAK = 1;
+								break;
 						}
 					}
 
@@ -511,18 +507,13 @@ class Parser
 			ReturnNode node = new ReturnNode(GetCurrentLocation());
 			if (lex.token != Token.Semicolon)
 			{
-				/* HACK: break */
-				int32 BREAK = 0;
-				while (BREAK == 0)
+				for (;;)
 				{
 					node.values.Add(ParseExpression(0));
 					if (lex.token == Token.Semicolon)
-						BREAK = 1;
-					else
-					{
-						lex.Assert(Token.Comma);
-						lex.Next();
-					}
+						break;
+					lex.Assert(Token.Comma);
+					lex.Next();
 				}
 			}
 			lex.Next();
@@ -599,10 +590,7 @@ class Parser
 
 		DefinitionNode node = new DefinitionNode(GetCurrentLocation());
 		node.type = type;
-		/* HACK: for (;;) */
-		/* HACK: break */
-		int32 BREAK = 0;
-		while (BREAK == 0)
+		for (;;)
 		{
 			lex.Assert(Token.Ident);
 			node.names.Add(lex.ident);
@@ -615,9 +603,8 @@ class Parser
 			else
 				node.values.Add(null);
 			if (lex.token != Token.Comma)
-				BREAK = 1;
-			else
-				lex.Next();
+				break;
+			lex.Next();
 		}
 		return node;
 	}
@@ -680,10 +667,7 @@ class Parser
 	private ParseObjectAccess() -> Node
 	{
 		Node object = ParseUnary();
-		/* HACK: for (;;) */
-		/* HACK: break */
-		int32 BREAK = 0;
-		while (BREAK == 0)
+		for (;;)
 		{
 			if (lex.token == Token.Dot)
 			{
@@ -701,19 +685,13 @@ class Parser
 
 				if (lex.token != Token.PRight)
 				{
-					/* HACK: for (;;) */
-					/* HACK: break */
-					int32 BREAK = 0;
-					while (BREAK == 0)
+					for (;;)
 					{
 						node.parameters.Add(ParseExpression(0));
 						if (lex.token == Token.PRight)
-							BREAK = 1;
-						else
-						{
-							lex.Assert(Token.Comma);
-							lex.Next();
-						}
+							break;
+						lex.Assert(Token.Comma);
+						lex.Next();
 					}
 				}
 				lex.Next(); /* ')' */
@@ -733,7 +711,7 @@ class Parser
 				lex.Next();
 			}
 			else
-				BREAK = 1;
+				break;
 		}
 		return object;
 	}
@@ -804,18 +782,13 @@ class Parser
 				lex.Next();
 				if (lex.token != Token.PRight)
 				{
-					/* HACK: for (;;) */
-					int32 BREAK = 0;
-					while (BREAK == 0)
+					for (;;)
 					{
 						node.parameters.Add(ParseExpression(0));
 						if (lex.token == Token.PRight)
-							BREAK = 1;
-						else
-						{
-							lex.Assert(Token.Comma);
-							lex.Next();
-						}
+							break;
+						lex.Assert(Token.Comma);
+						lex.Next();
 					}
 				}
 				lex.Next();
