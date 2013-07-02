@@ -201,16 +201,17 @@ class Compiler
 		for (int32 i = 0; i < classes::Size; i = i + 1)
 		{
 			Class current = [Class] classes::values[i];
-			if (current::baseName::Equals("") == 0)
+			if (current::baseType != null)
 			{
-				Core.Object baseClass;
-				int32 found;
-				found, baseClass = classes::Contains(current::baseName);
-				if (found == 0)
-					throw new CompilerException("Unknown base class \"" + current::baseName + "\".", current::location);
-				current::baseClass = [Class] baseClass;
+				Type baseType = current::baseType::ToType(this);
+				if (baseType is ClassType)
+					current::baseClass = ([ClassType] baseType)::Class;
+				else
+					throw new CompilerException("Cannot inherit from \"" + baseType::ToString() + "\".", current::location);
 			}
 		}
+
+		/* TODO: Check circular dependency */
 
 		tab = 0;
 		Vector classes = this::classes::values;

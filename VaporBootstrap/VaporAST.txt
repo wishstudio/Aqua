@@ -1516,7 +1516,8 @@ class Property
 
 class Class
 {
-	public Core.String name, baseName;
+	public Core.String name;
+	public Node baseType;
 	public Class baseClass;
 	public Hash methods;
 	public Hash fields;

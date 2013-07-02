@@ -151,25 +151,16 @@ class Parser
 			classObject::name = name;
 			if (lex::token == Token::Colon)
 			{
-				lex::CheckNext(Token::Ident);
-
-				/* HACK: Temporary workaround */
-				/* Concatenate fields into one unique name */
-				Core.String baseName = lex::ident;
 				lex::Next();
-				while (lex::token == Token::DoubleColon)
-				{
-					lex::CheckNext(Token::Ident);
-					baseName = baseName + "." + lex::ident;
-					lex::Next();
-				}
-
-				classObject::baseName = baseName;
+				classObject::baseType = ParseType();
 			}
 			else if (classObject::name::Equals("Core.Object") > 0)
-				classObject::baseName = "";
+				classObject::baseType = null;
 			else
-				classObject::baseName = "Core.Object";
+			{
+				Location location = GetCurrentLocation();
+				classObject::baseType = new FieldNode(location, new IdentNode(location, "Core"), "Object");
+			}
 			lex::Assert(Token::BLeft);
 			lex::Next();
 			while (lex::token != Token::BRight)
