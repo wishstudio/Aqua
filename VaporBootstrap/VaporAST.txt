@@ -1261,9 +1261,9 @@ class ReturnNode: Node
 			for (int32 i = 0; i < values::Size; i = i + 1)
 			{
 				Node vnode = [Node] values[i];
-				/* TODO: Type */
+				Type type = compiler::ResolveType([TypeCache] compiler::CurrentMethod::returnTypes[i]);
 				vnode::CompileExpression(compiler, freereg, context::firstReturnRegister + i, 0, 0)
-					::ToFreeRegister(compiler, context::firstReturnRegister + 1);
+					::ToTypedRegister(compiler, context::firstReturnRegister + 1, context::firstReturnRegister + 1, type);
 			}
 			/* Second, add leave instruction */
 			compiler::AddCode("leave\t_Epilogue");
@@ -1296,8 +1296,9 @@ class ReturnNode: Node
 					for (int32 i = 0; i < values::Size; i = i + 1)
 					{
 						Node vnode = [Node] values[i];
-						/* TODO: Type */
-						vnode::CompileExpression(compiler, freereg + i, freereg + i, 0, 0)::ToFreeRegister(compiler, freereg + i);
+						Type type = compiler::ResolveType([TypeCache] compiler::CurrentMethod::returnTypes[i]);
+						vnode::CompileExpression(compiler, freereg + i, freereg + i, 0, 0)
+							::ToTypedRegister(compiler, freereg + i, freereg + i, type);
 					}
 					compiler::AddCode("ret\t$" + freereg + ", $" + (freereg + values::Size - 1));
 				}
