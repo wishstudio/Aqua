@@ -1536,14 +1536,14 @@ class Class
 class Namespace
 {
 	public Core.String name;
-	public Namespace parent;
+	public Namespace base;
 	Hash children;
 
-	public (Core.String name, Namespace parent)
+	public (Core.String name, Namespace base)
 	{
 		children = new Hash();
 		this::name = name;
-		this::parent = parent;
+		this::base = base;
 	}
 }
 
