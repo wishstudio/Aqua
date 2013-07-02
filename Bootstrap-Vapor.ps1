@@ -5,7 +5,7 @@ Set-Location $PSScriptRoot
 
 $params = New-Object System.Collections.Generic.List[System.String]
 
-$list = Get-ChildItem "VaporBootstrap" -Filter "*.txt" -Recurse
+$list = Get-ChildItem "Vapor" -Filter "*.txt" -Recurse
 
 foreach ($file in $list)
 {
