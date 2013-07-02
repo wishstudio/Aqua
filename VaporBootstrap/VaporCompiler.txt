@@ -46,7 +46,7 @@ class Context
 
 class Compiler
 {
-	private Hash classes;
+	private Vector classes;
 
 	public Vector code;
 	private int32 tab;
@@ -61,7 +61,7 @@ class Compiler
 		get { return root; }
 	}
 
-	public Hash Classes
+	public Vector Classes
 	{
 		get { return classes; }
 	}
@@ -76,7 +76,7 @@ class Compiler
 		get { return currentMethod; }
 	}
 
-	public (Namespace root, Hash classes)
+	public (Namespace root, Vector classes)
 	{
 		this::root = root;
 		this::classes = classes;
@@ -200,7 +200,7 @@ class Compiler
 		/* HACK: iterator */
 		for (int32 i = 0; i < classes::Size; i = i + 1)
 		{
-			Class current = [Class] classes::values[i];
+			Class current = [Class] classes[i];
 			if (current::baseType != null)
 			{
 				Type baseType = current::baseType::ToType(this);
@@ -214,7 +214,6 @@ class Compiler
 		/* TODO: Check circular dependency */
 
 		tab = 0;
-		Vector classes = this::classes::values;
 		for (int32 i = 0; i < classes::Size; i = i + 1)
 		{
 			currentClass = [Class] classes[i];

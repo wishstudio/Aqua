@@ -136,7 +136,9 @@ class StringNode: Node
 	{
 		/* TODO: StringValue */
 		compiler::AddCode("ldstr\t$" + targetreg + ", \"" + stringvalue + "\"");
-		return new RegisterValue(location, targetreg, new ClassType([Class] compiler::Classes["Core.String"]));
+		/* TODO */
+		Class stringClass = [Class] ([Namespace] compiler::Root::children["Core"])::children["String"];
+		return new RegisterValue(location, targetreg, new ClassType(stringClass));
 	}
 }
 
@@ -170,9 +172,6 @@ class IdentNode: Node
 	{
 		int32 found;
 		Core.Object object;
-		if ((found, object = compiler::Classes::Contains(ident)) > 0)
-			return object;
-
 		if ((found, object = compiler::Root::children::Contains(ident)) > 0)
 			return object;
 

@@ -3,7 +3,7 @@
  */
 class Parser
 {
-	public Hash classes;
+	public Vector classes;
 	public Namespace root;
 
 	private Lexer lex;
@@ -11,7 +11,7 @@ class Parser
 
 	public ()
 	{
-		classes = new Hash();
+		classes = new Vector();
 		root = new Namespace("", null);
 	}
 
@@ -369,7 +369,7 @@ class Parser
 				method::body = [Node] body;
 				classObject::methods::Add(".ctor", [Core.Object] method);
 			}
-			classes::Add(classObject::name, [Core.Object] classObject);
+			classes::Add(classObject);
 		}
 	}
 
