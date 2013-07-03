@@ -643,22 +643,34 @@ class Parser
 		Node left = ParseObjectAccess();
 		while (lex.token <= Token.BinOp && Token.BinPriority[lex.token] > priority)
 		{
-			BinNode node;
-			if (lex.token <= Token.BinArith)
-				node = new BinArithNode(GetCurrentLocation());
-			else if (lex.token <= Token.BinComparison)
-				node = new BinComparisonNode(GetCurrentLocation());
-			else if (lex.token <= Token.BinLogic)
-				node = new BinLogicNode(GetCurrentLocation());
+			/* TODO: This 'if's are really messy */
+			if (lex.token == Token.Is)
+			{
+				lex.Next();
+				IsNode node = new IsNode(GetCurrentLocation());
+				node.value = left;
+				node.type = ParseType();
+				left = node;
+			}
 			else
-				node = new BinNode(GetCurrentLocation());
-			node.op = lex.token;
-			node.left = left;
-			lex.Next();
-			/* Parse binary operations with higher priority */
-			node.right = ParseExpression(Token.BinPriority[node.op]);
+			{
+				BinNode node;
+				if (lex.token <= Token.BinArith)
+					node = new BinArithNode(GetCurrentLocation());
+				else if (lex.token <= Token.BinComparison)
+					node = new BinComparisonNode(GetCurrentLocation());
+				else if (lex.token <= Token.BinLogic)
+					node = new BinLogicNode(GetCurrentLocation());
+				else
+					node = new BinNode(GetCurrentLocation());
+				node.op = lex.token;
+				node.left = left;
+				lex.Next();
+				/* Parse binary operations with higher priority */
+				node.right = ParseExpression(Token.BinPriority[node.op]);
 
-			left = node;
+				left = node;
+			}
 		}
 		return left;
 	}

@@ -648,20 +648,6 @@ class BinComparisonNode: BinNode
 
 		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
 
-		/* HACK: Temporary workaround */
-		if (op == Token.Is)
-		{
-			Type type = right.ToType(compiler);
-			String inst;
-			if (jtrue)
-				inst = "jinst";
-			else
-				inst = "jninst";
-			compiler.AddCode(inst + "\t$" + left.regid + ", " + type.ToString() + ", " + compiler.GetLabelName(jtarget));
-
-			return new JumpTargetValue(location, jtarget);
-		}
-
 		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false);
 		String inst;
 		/* TODO */
@@ -732,6 +718,31 @@ class BinComparisonNode: BinNode
 		}
 		else
 			throw new CompilerException("Unhandled jcc case.", location);
+		return new JumpTargetValue(location, jtarget);
+	}
+}
+
+class IsNode: Node
+{
+	public Node value, type;
+	public (Location location)
+	{
+		this.location = location;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
+	{
+		jtarget = compiler.FixJumpTarget(jtarget);
+
+		RegisterValue value = this.value.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
+		Type type = this.type.ToType(compiler);
+		String inst;
+		if (jtrue)
+			inst = "jinst";
+		else
+			inst = "jninst";
+		compiler.AddCode(inst + "\t$" + value.regid + ", " + type.ToString() + ", " + compiler.GetLabelName(jtarget));
+
 		return new JumpTargetValue(location, jtarget);
 	}
 }
