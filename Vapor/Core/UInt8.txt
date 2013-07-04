@@ -1,6 +1,6 @@
 namespace Core;
 
-class UInt16
+class UInt8
 {
 	/* HACK: const */
 	public static uint8 MinValue { get { return 0; }}

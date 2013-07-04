@@ -209,27 +209,69 @@ class NullValue: ImmediateValue
 
 class IntegerValue: ImmediateValue
 {
-	String value;
+	public String value;
+	public Type minimumSignedType, minimumUnsignedType;
 
 	public (Location location, String value)
 	{
 		this.location = location;
-		/* TODO */
 		this.value = value;
-		this.type = Type.Int32;
+		DetermineMinimumType();
+		if (minimumSignedType.CanImplicitlyConvertTo(Type.Int32))
+			this.type = Type.Int32;
+		else if (minimumUnsignedType.CanImplicitlyConvertTo(Type.UInt32))
+			this.type = Type.UInt32;
+		else
+			throw new CompilerException("Numeric constant \"" + value + "\" is too large.", location);
+	}
+
+	public DetermineMinimumType()
+	{
+		bool ok;
+		/* Determine minimum signed type */
+		{
+			int32 number;
+			ok, number = Int32.TryParse(value);
+			if (ok)
+			{
+				/* HACK: int32 comparison */
+				if (number < [int32] Int16.MinValue || number > [int32] Int16.MaxValue)
+					minimumSignedType = Type.Int32;
+				else if (number < [int32] Int8.MinValue || number > [int32] Int8.MaxValue)
+					minimumSignedType = Type.Int16;
+				else
+					minimumSignedType = Type.Int8;
+			}
+			else
+				minimumSignedType = Type.Unit;
+		}
+		/* Determine minimum unsigned type */
+		{
+			uint32 number;
+			ok, number = UInt32.TryParse(value);
+			if (ok)
+			{
+				/* HACK: uint32 comparison */
+				if ([int32] number < [int32] UInt16.MinValue || [int32] number > [int32] UInt16.MaxValue)
+					minimumUnsignedType = Type.UInt32;
+				else if ([int32] number < [int32] UInt8.MinValue || [int32] number > [int32] UInt8.MaxValue)
+					minimumUnsignedType = Type.UInt16;
+				else
+					minimumUnsignedType = Type.UInt8;
+			}
+			else
+				minimumUnsignedType = Type.Unit;
+		}
 	}
 
 	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
-		/* TODO */
-		return type is Int8Type || type is UInt8Type || type is Int16Type || type is UInt16Type
-			|| type is Int32Type || type is UInt32Type;
+		return minimumSignedType.CanImplicitlyConvertTo(type) || minimumUnsignedType.CanImplicitlyConvertTo(type);
 	}
 
 	public override ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
-		/* TODO */
-		compiler.AddCode("ldi\t$" + regid + ", " + value);
+		compiler.AddCode("ld" + type.Suffix + "\t$" + regid + ", " + value);
 		return new RegisterValue(location, regid, Type.Int32);
 	}
 
