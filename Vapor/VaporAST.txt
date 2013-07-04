@@ -527,9 +527,9 @@ class UnaryNode: Node
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
+		/* TODO: Constant folding */
 		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, false).EnsureRegister(compiler, targetreg);
-		/* HACK: not */
-		if (value.type is Int32Type)
+		if (value.type.StackType.Equals(Type.Int32) > 0 || value.type.StackType.Equals(Type.UInt32) > 0)
 		{
 			String inst;
 			if (op == Token.Neg)
@@ -537,9 +537,9 @@ class UnaryNode: Node
 			else if (op == Token.BitNot)
 				inst = "noti";
 			else
-				throw new CompilerException("Unsupported unary operatior.", location);
+				throw new Exception();
 			compiler.AddCode(inst + "\t$" + targetreg + ", $" + value.regid);
-			return new RegisterValue(location, targetreg, value.type);
+			return compiler.FixRawValue(new RegisterValue(location, targetreg, value.type), targetreg);
 		}
 		else
 			throw new CompilerException("Int32 expected.", location); /* TODO */
