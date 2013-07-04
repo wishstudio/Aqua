@@ -1,0 +1,36 @@
+namespace Core;
+
+class Int8
+{
+	/* HACK: const */
+	public static int8 MinValue { get { return -128; }}
+	public static int8 MaxValue { get { return 127; }}
+
+	public static ToString(int8 number) -> String
+	{
+		return Number.ToString(number);
+	}
+
+	public static Parse(String string) -> int8
+	{
+		int32 number = Number.ParseInt32(string);
+		/* HACK: int8 comparison */
+		if (number < [int32] MinValue || number > [int32] MaxValue)
+			throw new OverflowException();
+		return [int8] number;
+	}
+
+	public static TryParse(String string) -> bool, int16
+	{
+		bool ok;
+		int32 number;
+		ok, number = Number.TryParseInt32(string);
+		if (ok)
+		{
+			/* HACK: int8 comparison */
+			if (number < [int32] MinValue || number > [int32] MaxValue)
+				ok = false;
+		}
+		return ok, [int16] number;
+	}
+}

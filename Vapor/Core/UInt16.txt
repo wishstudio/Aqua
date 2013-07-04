@@ -1,0 +1,37 @@
+namespace Core;
+
+class UInt16
+{
+	/* HACK: const */
+	public static uint16 MinValue { get { return 0; }}
+	public static uint16 MaxValue { get { return 65535; }}
+
+	public static ToString(uint16 number) -> String
+	{
+		/* HACK: Method matching */
+		return Number.ToString([uint32] number);
+	}
+
+	public static Parse(String string) -> uint16
+	{
+		uint32 number = Number.ParseUInt32(string);
+		/* HACK: uint32 comparison */
+		if ([int32] number < [int32] MinValue || [int32] number > [int32] MaxValue)
+			throw new OverflowException();
+		return [uint16] number;
+	}
+
+	public static TryParse(String string) -> bool, uint16
+	{
+		bool ok;
+		uint32 number;
+		ok, number = Number.TryParseUInt32(string);
+		if (ok)
+		{
+			/* HACK: uint32 comparison */
+			if ([int32] number < [int32] MinValue || [int32] number > [int32] MaxValue)
+				ok = false;
+		}
+		return ok, [uint16] number;
+	}
+}

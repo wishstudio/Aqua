@@ -1,0 +1,144 @@
+namespace Core;
+
+using Core.Native;
+
+class Number
+{
+	/* ToString functions */
+	public static ToString(int32 number) -> String
+	{
+		if (number == -2147483648)
+			return "-2147483648";
+		/* -2147483647: length is 11 */
+		int buffer = Memory.AllocateMemory(22);
+		int32 n = Math.Abs(number), i = 22;
+		do
+		{
+			i = i - 2;
+			*(buffer + i) = [char] (n % 10 + 48); /* '0' */
+			n = n / 10;
+		}
+		while (n > 0);
+		if (number < 0)
+		{
+			i = i - 2;
+			*(buffer + i) = [char] 45; /* '-' */
+		}
+		String ret = String.FromCharBuffer(buffer + i, (22 - i) / 2);
+		Memory.FreeMemory(buffer);
+		return ret;
+	}
+
+	public static ToString(uint32 number) -> String
+	{
+		/* 4294967295: length is 10 */
+		int buffer = Memory.AllocateMemory(20);
+		int32 i = 20;
+		do
+		{
+			i = i - 2;
+			*(buffer + i) = [char] (number % 10 + 48); /* '0' */
+			number = number / 10;
+		}
+		/* HACK: uint32 */
+		while ([int32] number != 0);
+		String ret = String.FromCharBuffer(buffer + i, (22 - i) / 2);
+		Memory.FreeMemory(buffer);
+		return ret;
+	}
+
+	/* Parse functions */
+	public static ParseInt32(String str) -> int32
+	{
+		int32 ret = 0;
+		if ([int32] str[0] == '-')
+		{
+			for (int32 i = 1; i < str.Length; i = i + 1)
+			{
+				int32 digit = [int32] str[i] - '0';
+				if (digit < 0 || digit > 9)
+					throw new FormatException();
+				if (ret < -214748364 || (ret == -214748364 && digit > 8))
+					throw new OverflowException();
+				ret = ret * 10 - digit;
+			}
+			return ret;
+		}
+		else
+		{
+			for (int32 i = 0; i < str.Length; i = i + 1)
+			{
+				int32 digit = [int32] str[i] - '0';
+				if (digit < 0 || digit > 9)
+					throw new FormatException();
+				if (ret > 214748364 || (ret == 214748364 && digit > 7))
+					throw new OverflowException();
+				ret = ret * 10 + digit;
+			}
+			return ret;
+		}
+	}
+
+	public static TryParseInt32(String str) -> bool, int32
+	{
+		int32 ret = 0;
+		if ([int32] str[0] == '-')
+		{
+			for (int32 i = 1; i < str.Length; i = i + 1)
+			{
+				int32 digit = [int32] str[i] - '0';
+				if (digit < 0 || digit > 9)
+					return false, 0;
+				if (ret < -214748364 || (ret == -214748364 && digit > 8))
+					return false, 0;
+				ret = ret * 10 - digit;
+			}
+			return true, ret;
+		}
+		else
+		{
+			for (int32 i = 0; i < str.Length; i = i + 1)
+			{
+				int32 digit = [int32] str[i] - '0';
+				if (digit < 0 || digit > 9)
+					return false, 0;
+				if (ret > 214748364 || (ret == 214748364 && digit > 7))
+					return false, 0;
+				ret = ret * 10 + digit;
+			}
+			return true, ret;
+		}
+	}
+
+	public static ParseUInt32(String str) -> uint32
+	{
+		uint32 ret = 0;
+		for (int32 i = 0; i < str.Length; i = i + 1)
+		{
+			/* HACK: uint32 */
+			int32 digit = [int32] str[i] - '0';
+			if (digit < 0 || digit > 9)
+				throw new FormatException();
+			if ([int32] ret > 429496729 || ([int32] ret == 429496729 && digit > 5))
+				throw new OverflowException();
+			ret = ret * 10 + [uint32] digit;
+		}
+		return ret;
+	}
+
+	public static TryParseUInt32(String str) -> bool, uint32
+	{
+		uint32 ret = 0;
+		for (int32 i = 0; i < str.Length; i = i + 1)
+		{
+			/* HACK: uint32 */
+			int32 digit = [int32] str[i] - '0';
+			if (digit < 0 || digit > 9)
+				return false, 0;
+			if ([int32] ret > 429496729 || ([int32] ret == 429496729 && digit > 5))
+				return false, 0;
+			ret = ret * 10 + [uint32] digit;
+		}
+		return true, ret;
+	}
+}

@@ -23,3 +23,15 @@ class KeyNotFoundException: Exception
 class IndexOutOfBoundException: Exception
 {
 }
+
+class NotImplementedException: Exception
+{
+}
+
+class FormatException: Exception
+{
+}
+
+class OverflowException: Exception
+{
+}

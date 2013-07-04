@@ -1,0 +1,26 @@
+namespace Core;
+
+class UInt32
+{
+	/* HACK: const */
+	public static uint32 MinValue { get { return 0; }}
+	public static uint32 MaxValue { get { return 4294967295; }}
+
+	public static ToString(uint32 number) -> String
+	{
+		return Number.ToString(number);
+	}
+
+	public static Parse(String string) -> uint32
+	{
+		return Number.ParseUInt32(string);
+	}
+
+	public static TryParse(String string) -> bool, uint32
+	{
+		bool ok;
+		uint32 number;
+		ok, number = Number.TryParseUInt32(string);
+		return ok, number;
+	}
+}

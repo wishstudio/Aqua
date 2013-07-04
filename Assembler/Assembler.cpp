@@ -17,6 +17,11 @@ inline int to_int32_num(std::string str)
 	return atoi(str.c_str());
 }
 
+inline unsigned int to_uint32_num(std::string str)
+{
+	return strtoul(str.c_str(), NULL, 10);
+}
+
 inline void _PUT(std::string &code, unsigned int v)
 {
 	code += (char) v;
@@ -749,6 +754,28 @@ int getCallingConvention()
 		getToken(); \
 	}
 
+#define BINU(opcode) \
+	{ \
+		assert(tt == tkRegister); \
+		int a = tn; \
+		getToken(); \
+		assert(tt == tkComma); \
+		getToken(); \
+		int b = tn; \
+		assert(tt == tkRegister); \
+		getToken(); \
+		assert(tt == tkComma); \
+		getToken(); \
+		if (tt == tkRegister) \
+			PUT(opcode), PUT(a), PUT(b), PUT(tn); \
+		else \
+		{ \
+			assert(tt == tkNum); \
+			PUT(opcode + 1), PUT(a), PUT(b), PUT(0), PUT4(to_uint32_num(ti)); \
+		} \
+		getToken(); \
+	}
+
 #define BINADDR(opcode) \
 	{ \
 		assert(tt == tkRegister); \
@@ -1054,10 +1081,15 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				continue;
 			}
 			OP("addi", BINI(0x00))
+			OP("addu", BINU(0x00))
 			OP("subi", BINI(0x02))
+			OP("subu", BINU(0x02))
 			OP("muli", BINI(0x04))
+			OP("mulu", BINU(0x06))
 			OP("divi", BINI(0x08))
+			OP("divu", BINU(0x0A))
 			OP("remi", BINI(0x0C))
+			OP("remu", BINU(0x0E))
 	
 			OP("andi", BINI(0x10))
 			OP("andu", BINI(0x10))
