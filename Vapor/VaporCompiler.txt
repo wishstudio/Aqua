@@ -447,6 +447,7 @@ class Compiler
 
 	private CompileCustomBinaryOperator(Location location, int32 op, Value left, Value right, int32 firstreg) -> Value
 	{
+		/* TODO: Is this right? */
 		Value l = left.EnsureSingleSlot(this, firstreg);
 		Value r = right.EnsureSingleSlot(this, firstreg + 1);
 

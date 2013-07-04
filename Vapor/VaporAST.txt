@@ -564,74 +564,91 @@ class BinArithNode: BinNode
 		this.location = location;
 	}
 
+	private GetNumOpcode(int32 op) -> String
+	{
+		if (op == Token.Add)
+			return "add";
+		else if (op == Token.Sub)
+			return "sub";
+		else if (op == Token.Mul)
+			return "mul";
+		else if (op == Token.Div)
+			return "div";
+		else if (op == Token.Rem)
+			return "rem";
+		else if (op == Token.BitAnd)
+			return "and";
+		else if (op == Token.BitOr)
+			return "or";
+		else if (op == Token.BitXor)
+			return "xor";
+		else
+			throw new Exception();
+	}
+
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
-		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
-		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false);
-		String inst;
+		Value left = this.left.CompileExpression(compiler, freereg, freereg, 0, false)
+			.EnsureSingleSlot(compiler, freereg);
 
-		/* TODO */
-		if ((left.type is IntType || left.type is PointerType) && (right is IntegerValue || right.type is Int32Type))
+		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false)
+			.EnsureSingleSlot(compiler, freereg + 1);
+
+		if (left.type is PrimitiveType && right.type is PrimitiveType)
 		{
-			right = right.EnsureRegister(compiler, freereg + 1);
-			if (left.type is PointerType)
-			{
-				Type valueType = ([PointerType] left.type).ValueType;
+			left, right = compiler.UnifyTypes(location, left, right, freereg, freereg + 1);
 
-				RegisterValue ret = new RegisterValue(location, targetreg, left.type);
-				compiler.AddCode("addp\t$" + targetreg + ", $" + left.regid + ", $" + ([RegisterValue] right).regid
-					+ ", " + valueType.ToString());
-				return ret;
+			String inst = GetNumOpcode(op) + left.type.Suffix;
+
+			/* TODO: Constant folding */
+			if (left is IntegerValue
+				&& (op == Token.Add || op == Token.Mul || op == Token.BitAnd || op == Token.BitOr || op == Token.BitXor))
+			{
+				RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+				compiler.AddCode(inst + "\t$" + targetreg + ", $" + r.regid + ", " + ([IntegerValue] left).value);
 			}
+			else if (right is IntegerValue)
+			{
+				RegisterValue l = left.EnsureRegister(compiler, freereg);
+				compiler.AddCode(inst + "\t$" + targetreg + ", $" + l.regid + ", " + ([IntegerValue] right).value);
+			}
+			else
+			{
+				RegisterValue l = left.EnsureRegister(compiler, freereg);
+				RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+				compiler.AddCode(inst + "\t$" + targetreg + ", $" + l.regid + ", $" + r.regid);
+			}
+			return compiler.FixRawValue(new RegisterValue(location, targetreg, left.type), targetreg);
+		}
+		else if (left.type is PointerType)
+		{
+			RegisterValue l = left.EnsureRegister(compiler, freereg);
+			RegisterValue r = right.ToTypedRegister(compiler, freereg + 1, freereg + 1, Type.Int32);
+			Type valueType = ([PointerType] left.type).ValueType;
+			compiler.AddCode("addp\t$" + targetreg + ", $" + l.regid + ", $" + r.regid + ", " + valueType.ToString());
+			return new RegisterValue(location, targetreg, left.type);
+		}
+		else if (left.type is IntType)
+		{
+			/* HACK: Temporary workaround: int */
+			if (right.CanImplicitlyConvertTo(Type.Int32))
+			{}
+			else
+				throw new CompilerException("int +/- int32 only.", location);
+			String inst;
 			if (op == Token.Add)
 				inst = "addni";
 			else if (op == Token.Sub)
 				inst = "subni";
 			else
-				throw new CompilerException("Unsupported binary operatior.", location);
-		}
-		/* HACK: not */
-		/* TODO */
-		else if (left.type is PrimitiveType && (right is ImmediateValue || right.type is PrimitiveType))
-		{
-			if (op == Token.Add)
-				inst = "add";
-			else if (op == Token.Sub)
-				inst = "sub";
-			else if (op == Token.Mul)
-				inst = "mul";
-			else if (op == Token.Div)
-				inst = "div";
-			else if (op == Token.Rem)
-				inst = "rem";
-			else if (op == Token.BitAnd)
-				inst = "and";
-			else if (op == Token.BitOr)
-				inst = "or";
-			else if (op == Token.BitXor)
-				inst = "xor";
-			else
-				throw new CompilerException("Unsupported binary operatior.", location);
-			Value l;
-			l, right = compiler.UnifyTypes(location, left, right, freereg, freereg + 1);
-			left = l.EnsureRegister(compiler, freereg);
-			inst = inst + left.type.StackType.Suffix;
+				throw new CompilerException("Unsupported int operator.", location);
+			RegisterValue l = left.EnsureRegister(compiler, freereg);
+			RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+			compiler.AddCode(inst + "\t$" + targetreg + ", $" + l.regid + ", $" + r.regid);
+			return new RegisterValue(location, targetreg, Type.Int);
 		}
 		else
 			return compiler.CompileCustomBinaryOperator(location, op, left, right, freereg);
-
-		RegisterValue ret = new RegisterValue(location, targetreg, left.type);
-	
-		/* TODO */
-		if (right is IntegerValue && left.type is Int32Type)
-			compiler.AddCode(inst + "\t$" + targetreg + ", $" + left.regid + ", " + ([IntegerValue] right).value);
-		else
-		{
-			compiler.AddCode(inst + "\t$" + targetreg + ", $" + left.regid + ", $"
-				+ right.EnsureRegister(compiler, freereg + 1).regid);
-			ret = compiler.FixRawValue(ret, targetreg);
-		}
-		return ret;
 	}
 }
 
