@@ -675,8 +675,6 @@ class BinComparisonNode: BinNode
 				return "eq";
 			else if (op == Token.NEQ)
 				return "neq";
-			else
-				throw new Exception();
 		}
 		else
 		{
@@ -692,27 +690,27 @@ class BinComparisonNode: BinNode
 				return "neq";
 			else if (op == Token.NEQ)
 				return "eq";
-			else
-				throw new Exception();
 		}
+		throw new Exception();
 	}
 
 	private GetNullOpcode(bool jtrue) -> String
 	{
 		if (jtrue)
+		{
 			if (op == Token.EQ)
 				return "n";
 			else if (op == Token.NEQ)
 				return "nn";
-			else
-				throw new Exception();
+		}
 		else
+		{
 			if (op == Token.EQ)
 				return "nn";
 			else if (op == Token.NEQ)
 				return "n";
-			else
-				throw new Exception();
+		}
+		throw new Exception();
 	}
 
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
