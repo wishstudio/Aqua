@@ -36,7 +36,7 @@ class String
 		int rawLeft = &firstChar, rawRight = &right.firstChar;
 		for (int32 i = 0; i < length; i = i + 1)
 		{
-			if (*rawLeft != *rawRight)
+			if ([int32] *rawLeft != [int32] *rawRight)
 				return 0;
 			rawLeft = rawLeft + 2;
 			rawRight = rawRight + 2;

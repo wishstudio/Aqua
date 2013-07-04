@@ -402,7 +402,7 @@ class Compiler
 	}
 
 	/* Convert types to a unified stack type for doing arithmetic */
-	private UnifyTypes(Node node, Value left, Value right, int32 leftreg, int32 rightreg) -> Value, Value
+	private UnifyTypes(Location location, Value left, Value right, int32 leftreg, int32 rightreg) -> Value, Value
 	{
 		/* TODO: Immediate value */
 		Type type;
@@ -420,7 +420,7 @@ class Compiler
 		else if (left.CanImplicitlyConvertTo(Type.UInt32) && right.CanImplicitlyConvertTo(Type.UInt32))
 			type = Type.UInt32;
 		else
-			throw new CompilerException("Uncompatible types.", node.location);
+			throw new CompilerException("Uncompatible types.", location);
 
 		Value l = left.ToTyped(this, leftreg, type);
 		Value r = right.ToTyped(this, rightreg, type);
@@ -445,14 +445,14 @@ class Compiler
 			return value;
 	}
 
-	private CompileCustomBinaryOperator(Node node, int32 op, Value left, Value right, int32 firstreg) -> Value
+	private CompileCustomBinaryOperator(Location location, int32 op, Value left, Value right, int32 firstreg) -> Value
 	{
 		Value l = left.EnsureSingleSlot(this, firstreg);
 		Value r = right.EnsureSingleSlot(this, firstreg + 1);
 
 		String methodName = GetOperatorMethodName(op);
 		if (methodName == null)
-			throw new CompilerException("Unsupported operator.", node.location);
+			throw new CompilerException("Unsupported operator.", location);
 
 		Vector methods = new Vector();
 		if (l.type is ClassType)
@@ -464,9 +464,9 @@ class Compiler
 		values.Add(l);
 		values.Add(r);
 
-		Method method = PrepareCall(node, methods, values, firstreg);
+		Method method = PrepareCall(location, methods, values, firstreg);
 		AddCode("call\t$" + firstreg + ", " + GetMethodSignature(method));
-		return new RegisterValue(node.location, firstreg, ResolveType([TypeCache] method.returnTypes[0]));
+		return new RegisterValue(location, firstreg, ResolveType([TypeCache] method.returnTypes[0]));
 	}
 
 	private ResolveType(TypeCache type) -> Type
@@ -583,7 +583,7 @@ class Compiler
 	/* Choose best method in `methods`,
 	   Ensures `values` are converted to proper types and placed sequentially from `firstreg`
 	   Returns best method */
-	private PrepareCall(Node node, Vector methods, Vector values, int32 firstreg) -> Method
+	private PrepareCall(Location location, Vector methods, Vector values, int32 firstreg) -> Method
 	{
 		Vector candidates = new Vector();
 		/* Check valid candidates */
@@ -606,7 +606,7 @@ class Compiler
 					candidates.Add(method);
 			}
 		}
-		Method method = ChooseBestMethod(node, candidates, values);
+		Method method = ChooseBestMethod(location, candidates, values);
 		/* Prepare values */
 		for (int32 i = 0; i < values.Size; i = i + 1)
 			([Value] values[i]).ToTypedRegister(
@@ -625,10 +625,10 @@ class Compiler
 	 *    If T2 -> T1 and not T1 -> T2, T2 is better.
 	 * 4. Otherwise, neither is better.
 	 */
-	private ChooseBestMethod(Node node, Vector methods, Vector values) -> Method
+	private ChooseBestMethod(Location location, Vector methods, Vector values) -> Method
 	{
 		if (methods.Size == 0)
-			throw new CompilerException("No method prototype match type of given parameters.", node.location);
+			throw new CompilerException("No method prototype match type of given parameters.", location);
 		for (int32 i = 0; i < methods.Size; i = i + 1)
 		{
 			Method current = [Method] methods[i];
@@ -683,6 +683,6 @@ class Compiler
 			if (ok)
 				return current;
 		}
-		throw new CompilerException("Ambiguous function call.", node.location);
+		throw new CompilerException("Ambiguous function call.", location);
 	}
 }

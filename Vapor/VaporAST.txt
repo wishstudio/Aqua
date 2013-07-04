@@ -402,7 +402,7 @@ class ArrayElementNode: Node
 		{
 			RegisterValue index = this.index.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false)
 				.EnsureRegister(compiler, freereg + 1);
-			return compiler.CompileCustomBinaryOperator(this, Token.Array, array, index, freereg);
+			return compiler.CompileCustomBinaryOperator(location, Token.Array, array, index, freereg);
 		}
 	}
 }
@@ -613,12 +613,12 @@ class BinArithNode: BinNode
 			else
 				throw new CompilerException("Unsupported binary operatior.", location);
 			Value l;
-			l, right = compiler.UnifyTypes(this, left, right, freereg, freereg + 1);
+			l, right = compiler.UnifyTypes(location, left, right, freereg, freereg + 1);
 			left = l.EnsureRegister(compiler, freereg);
 			inst = inst + left.type.StackType.Suffix;
 		}
 		else
-			return compiler.CompileCustomBinaryOperator(this, op, left, right, freereg);
+			return compiler.CompileCustomBinaryOperator(location, op, left, right, freereg);
 
 		RegisterValue ret = new RegisterValue(location, targetreg, left.type);
 	
@@ -642,83 +642,122 @@ class BinComparisonNode: BinNode
 		this.location = location;
 	}
 
+	private GetNumOpcode(bool jtrue) -> String
+	{
+		if (jtrue)
+		{
+			if (op == Token.LT)
+				return "lt";
+			else if (op == Token.LE)
+				return "le";
+			else if (op == Token.GT)
+				return "gt";
+			else if (op == Token.GE)
+				return "ge";
+			else if (op == Token.EQ)
+				return "eq";
+			else if (op == Token.NEQ)
+				return "neq";
+			else
+				throw new Exception();
+		}
+		else
+		{
+			if (op == Token.LT)
+				return "ge";
+			else if (op == Token.LE)
+				return "gt";
+			else if (op == Token.GT)
+				return "le";
+			else if (op == Token.GE)
+				return "lt";
+			else if (op == Token.EQ)
+				return "neq";
+			else if (op == Token.NEQ)
+				return "eq";
+			else
+				throw new Exception();
+		}
+	}
+
+	private GetNullOpcode(bool jtrue) -> String
+	{
+		if (jtrue)
+			if (op == Token.EQ)
+				return "n";
+			else if (op == Token.NEQ)
+				return "nn";
+			else
+				throw new Exception();
+		else
+			if (op == Token.EQ)
+				return "nn";
+			else if (op == Token.NEQ)
+				return "n";
+			else
+				throw new Exception();
+	}
+
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		jtarget = compiler.FixJumpTarget(jtarget);
 
-		RegisterValue left = this.left.CompileExpression(compiler, freereg, freereg, 0, false).EnsureRegister(compiler, freereg);
+		Value left = this.left.CompileExpression(compiler, freereg, freereg, 0, false)
+			.EnsureSingleSlot(compiler, freereg);
 
-		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false);
-		String inst;
-		/* TODO */
-		if ((left.type is Int32Type || left.type is CharType)
-			&& (right is IntegerValue || left.type.Equals(right.type) > 0))
+		Value right = this.right.CompileExpression(compiler, freereg + 1, freereg + 1, 0, false)
+			.EnsureSingleSlot(compiler, freereg + 1);
+
+		if (left.type is PrimitiveType && right.type is PrimitiveType)
 		{
-			if (jtrue)
+			left, right = compiler.UnifyTypes(location, left, right, freereg, freereg + 1);
+
+			if (left.type.StackType.Equals(Type.Int32) > 0 || left.type.StackType.Equals(Type.UInt32) > 0)
 			{
-				if (op == Token.LT)
-					inst = "lt";
-				else if (op == Token.LE)
-					inst = "le";
-				else if (op == Token.GT)
-					inst = "gt";
-				else if (op == Token.GE)
-					inst = "ge";
-				else if (op == Token.EQ)
-					inst = "eq";
-				else if (op == Token.NEQ)
-					inst = "neq";
-				else
-					throw new CompilerException("Unsupported comparison operatior.", location);
+				if (left is IntegerValue && ([IntegerValue] left).value.Equals("0") > 0)
+				{
+					/* HACK: not */
+					if (jtrue)
+						jtrue = false;
+					else
+						jtrue = true;
+					RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+					compiler.AddCode("j" + GetNumOpcode(jtrue) + "zi\t$" + r.regid + ", " + compiler.GetLabelName(jtarget));
+					return new JumpTargetValue(location, jtarget);
+				}
+				else if (right is IntegerValue && ([IntegerValue] right).value.Equals("0") > 0)
+				{
+					RegisterValue l = left.EnsureRegister(compiler, freereg);
+					compiler.AddCode("j" + GetNumOpcode(jtrue) + "zi\t$" + l.regid + ", " + compiler.GetLabelName(jtarget));
+					return new JumpTargetValue(location, jtarget);
+				}
 			}
-			else
+			RegisterValue l = left.EnsureRegister(compiler, freereg);
+			RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+			compiler.AddCode("j" + GetNumOpcode(jtrue) + "i\t$" + l.regid + ", $" + r.regid + ", " + compiler.GetLabelName(jtarget));
+			return new JumpTargetValue(location, jtarget);
+		}
+
+		if (left.type is ReferenceType && right.type is ReferenceType)
+		{
+			if (op == Token.EQ || op == Token.NEQ)
 			{
-				if (op == Token.LT)
-					inst = "ge";
-				else if (op == Token.LE)
-					inst = "gt";
-				else if (op == Token.GT)
-					inst = "le";
-				else if (op == Token.GE)
-					inst = "lt";
-				else if (op == Token.EQ)
-					inst = "neq";
-				else if (op == Token.NEQ)
-					inst = "eq";
-				else
-					throw new CompilerException("Unsupported comparison operatior.", location);
-			}
-			if (right is IntegerValue && ([IntegerValue] right).value.Equals("0") > 0)
-				compiler.AddCode("j" + inst + "zi\t$" + left.regid + ", " + compiler.GetLabelName(jtarget));
-			else
-			{
-				RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
-				compiler.AddCode("j" + inst + "i\t$" + left.regid + ", $" + r.regid + ", " + compiler.GetLabelName(jtarget));
+				if (left is NullValue)
+				{
+					RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+					compiler.AddCode("j" + GetNullOpcode(jtrue) + "\t$" + r.regid + ", " + compiler.GetLabelName(jtarget));
+					return new JumpTargetValue(location, jtarget);
+				}
+				if (right is NullValue)
+				{
+					RegisterValue l = left.EnsureRegister(compiler, freereg);
+					compiler.AddCode("j" + GetNullOpcode(jtrue) + "\t$" + l.regid + ", " + compiler.GetLabelName(jtarget));
+					return new JumpTargetValue(location, jtarget);
+				}
 			}
 		}
-		/* HACK: not */
-		else if ((left.type is IntType || left.type is ArrayType || left.type is ClassType)
-			&& right is NullValue)
-		{
-			if (jtrue)
-				if (op == Token.EQ)
-					inst = "jn";
-				else if (op == Token.NEQ)
-					inst = "jnn";
-				else
-					throw new CompilerException("Unsupported comparison operatior.", location);
-			else
-				if (op == Token.EQ)
-					inst = "jnn";
-				else if (op == Token.NEQ)
-					inst = "jn";
-				else
-					throw new CompilerException("Unsupported comparison operatior.", location);
-			compiler.AddCode(inst + "\t$" + left.regid + ", " + compiler.GetLabelName(jtarget));
-		}
-		else
-			throw new CompilerException("Unhandled jcc case.", location);
-		return new JumpTargetValue(location, jtarget);
+
+		return compiler.CompileCustomBinaryOperator(location, op, left, right, freereg);
 	}
 }
 
@@ -835,7 +874,7 @@ class NewNode: Node
 			Value value = ([Node] parameters[i]).CompileExpression(compiler, freereg + 2 + i, freereg + 2 + i, 0, false);
 			values.Add(value.EnsureSingleSlot(compiler, freereg + 2 + i));
 		}
-		Method method = compiler.PrepareCall(this, methods, values, freereg + 2);
+		Method method = compiler.PrepareCall(location, methods, values, freereg + 2);
 		compiler.AddCode("new\t$" + freereg + ", " + compiler.GetMethodSignature(method));
 		return new RegisterValue(location, freereg, type);
 	}
@@ -998,7 +1037,7 @@ class CallNode: ListNode
 			values.Add(value.EnsureSingleSlot(compiler, firstreg + i));
 		}
 
-		Method method = compiler.PrepareCall(this, methods, values, firstreg);
+		Method method = compiler.PrepareCall(location, methods, values, firstreg);
 
 		/* Call function */
 		String inst;

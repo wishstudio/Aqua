@@ -238,7 +238,11 @@ class UInt32Type: PrimitiveType
 	}
 }
 
-class IntType: PrimitiveType
+class ReferenceType: Type
+{
+}
+
+class IntType: ReferenceType
 {
 	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
@@ -257,7 +261,7 @@ class IntType: PrimitiveType
 	}
 }
 
-class PointerType: Type
+class PointerType: ReferenceType
 {
 	private Type valueType;
 
@@ -293,7 +297,7 @@ class PointerType: Type
 	}
 }
 
-class ArrayType: Type
+class ArrayType: ReferenceType
 {
 	private Type elementType;
 
@@ -323,7 +327,7 @@ class ArrayType: Type
 	}
 }
 
-class ClassType: Type
+class ClassType: ReferenceType
 {
 	private Class classObject;
 
