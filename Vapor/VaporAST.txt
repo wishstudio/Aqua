@@ -598,7 +598,7 @@ class BinArithNode: BinNode
 		{
 			left, right = compiler.UnifyTypes(location, left, right, freereg, freereg + 1);
 
-			String inst = GetNumOpcode(op) + left.type.Suffix;
+			String inst = GetNumOpcode(op) + left.type.StackType.Suffix;
 
 			/* TODO: Constant folding */
 			if (left is IntegerValue
@@ -746,11 +746,14 @@ class BinComparisonNode: BinNode
 					compiler.AddCode("j" + GetNumOpcode(jtrue) + "zi\t$" + l.regid + ", " + compiler.GetLabelName(jtarget));
 					return new JumpTargetValue(location, jtarget);
 				}
+				RegisterValue l = left.EnsureRegister(compiler, freereg);
+				RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+				compiler.AddCode("j" + GetNumOpcode(jtrue) + left.type.StackType.Suffix + "\t$" + l.regid + ", $" + r.regid
+					+ ", " + compiler.GetLabelName(jtarget));
+				return new JumpTargetValue(location, jtarget);
 			}
-			RegisterValue l = left.EnsureRegister(compiler, freereg);
-			RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
-			compiler.AddCode("j" + GetNumOpcode(jtrue) + "i\t$" + l.regid + ", $" + r.regid + ", " + compiler.GetLabelName(jtarget));
-			return new JumpTargetValue(location, jtarget);
+			else
+				throw new CompilerException("Unsupported comparison type.", location);
 		}
 
 		if (left.type is ReferenceType && right.type is ReferenceType)
