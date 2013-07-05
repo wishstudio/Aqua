@@ -55,7 +55,9 @@ static Class *loadClassObject(Class *classObject)
 		classObject->baseClass = resolveClass(classObject->bytecodeFile, classDef->baseClassRef);
 	classObject->staticSize = 0;
 	classObject->staticSize = 0;
-	if (classObject->baseClass == nullptr)
+	if (classObject->modifier & MODIFIER_VALUETYPE)
+		classObject->instanceSize = 0;
+	else if (classObject->baseClass == nullptr)
 		classObject->instanceSize = sizeof(VTable *);
 	else
 		classObject->instanceSize = classObject->baseClass->instanceSize;
