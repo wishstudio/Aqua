@@ -432,9 +432,9 @@ class TypeCastNode: Node
 		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, false).EnsureRegister(compiler, targetreg);
 		Type type = this.type.ToType(compiler);
 		/* HACK: Workaround */
-		if ((value.type is PointerType && type is IntType)
+		if ((value.type is PointerType || value.type is IntType) && (type is PointerType || type is IntType))
 		{
-			value.type = Type.Int;
+			value.type = type;
 			return value;
 		}
 		else if (value.type is PointerType && type is PointerType)
