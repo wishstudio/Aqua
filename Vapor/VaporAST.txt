@@ -860,6 +860,29 @@ class BinLogicNode: BinNode
 	}
 }
 
+class NotNode: Node
+{
+	public Node value;
+
+	public (Location location, Node value)
+	{
+		this.location = location;
+		this.value = value;
+	}
+
+	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
+	{
+		jtarget = compiler.FixJumpTarget(jtarget);
+
+		/* HACK: not */
+		if (jtrue)
+			jtrue = false;
+		else
+			jtrue = true;
+		return value.CompileExpression(compiler, freereg, freereg, jtarget, jtrue).ToJumpTarget(compiler, freereg, jtarget, jtrue);
+	}
+}
+
 class NewNode: Node
 {
 	public Node type;

@@ -740,6 +740,11 @@ class Parser
 			node.operand = ParseObjectAccess();
 			return node;
 		}
+		else if (lex.token == Token.Not)
+		{
+			lex.Next();
+			return new NotNode(GetCurrentLocation(), ParseObjectAccess());
+		}
 		else if (lex.token == Token.Star)
 		{
 			DereferenceNode node = new DereferenceNode(GetCurrentLocation());

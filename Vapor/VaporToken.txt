@@ -11,8 +11,8 @@ class Token
 	public static int32[] BinPriority;
 
 	/* Unary operations */
-	public static int32 Not, Neg, BitNot, UnaryOp;
-	public static int32 Star, AddressOf;
+	public static int32 Neg, BitNot, UnaryOp;
+	public static int32 Not, Star, AddressOf;
 
 	/* Symbols */
 	public static int32 EOF, Number, Ident, String, Comma;
@@ -50,8 +50,8 @@ class Token
 		Token.BinPriority = priority;
 
 		/* Unary operations */
-		Token.Not, Token.Neg, Token.BitNot, Token.UnaryOp = 20, 21, 22, 22;
-		Token.Star, Token.AddressOf = 23, 24;
+		Token.Neg, Token.BitNot, Token.UnaryOp = 20, 21, 21;
+		Token.Not, Token.Star, Token.AddressOf = 22, 23, 24;
 
 		/* Symbols */
 		Token.EOF, Token.Number, Token.Ident, Token.String, Token.Comma = 30, 31, 32, 33, 34;
