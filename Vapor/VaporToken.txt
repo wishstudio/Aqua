@@ -26,6 +26,7 @@ class Token
 	public static int32 Continue, Break;
 	public static int32 Try, Catch, Finally, Throw;
 	public static int32 Namespace, Using;
+	public static int32 Class, Struct;
 
 	public static InitToken()
 	{
@@ -67,5 +68,6 @@ class Token
 		Token.Continue, Token.Break = 64, 65;
 		Token.Try, Token.Catch, Token.Finally, Token.Throw = 66, 67, 68, 69;
 		Token.Namespace, Token.Using = 70, 71;
+		Token.Class, Token.Struct = 72, 73;
 	}
 }

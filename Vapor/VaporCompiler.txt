@@ -225,10 +225,13 @@ class Compiler
 		{
 			currentClass = [Class] classes[i];
 			currentSourceFile = currentClass.sourceFile;
+			String modifier = Modifier.ToString(currentClass.modifier);
+			if (modifier.Length > 0)
+				modifier = modifier + " ";
 			if (currentClass.baseClass == null)
-				AddCode(".class " + currentClass.name);
+				AddCode(".class " + modifier + currentClass.name);
 			else
-				AddCode(".class " + currentClass.name + ": " + currentClass.baseClass.name);
+				AddCode(".class " + modifier + currentClass.name + ": " + currentClass.baseClass.name);
 			AddCode("{");
 			Tab();
 

@@ -472,6 +472,7 @@ void resolveBytecodeFile(const wchar_t *fileName)
 		InternalString *className = resolveInternalString(bytecodeFile, bytecodeFile->classDefTable[i].name);
 		Class *classObject = &bytecodeFile->classTable[i];
 		classObject->name = className;
+		classObject->modifier = bytecodeFile->classDefTable[i].modifier;
 		classObject->loadState = Class::LoadState::Unloaded;
 		classObject->bytecodeFile = bytecodeFile;
 		classObject->classId = i;

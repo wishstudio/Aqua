@@ -368,3 +368,34 @@ class ClassType: ReferenceType
 		get { return classObject; }
 	}
 }
+
+class ValueType: Type
+{
+	private Class classObject;
+
+	public (Class classObject)
+	{
+		this.classObject = classObject;
+	}
+
+	public override CanImplicitlyConvertTo(Type type) -> bool
+	{
+		/* HACK: object pointer comparison */
+		return type is ValueType && ([ValueType] type).classObject.name.Equals(classObject.name) > 0;
+	}
+
+	public override ToString() -> String
+	{
+		return classObject.name;
+	}
+
+	public override String Suffix
+	{
+		get { return "v"; }
+	}
+
+	public Class Class
+	{
+		get { return classObject; }
+	}
+}

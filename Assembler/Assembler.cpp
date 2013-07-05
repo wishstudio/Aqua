@@ -671,6 +671,7 @@ int getMethodRef()
 #define MODIFIER_INTERNAL	0x0100
 #define MODIFIER_NATIVE		0x0200
 #define MODIFIER_INTERFACE	0x1000
+#define MODIFIER_VALUETYPE	0x2000
 int getModifier()
 {
 	int modifier = 0;
@@ -697,6 +698,8 @@ int getModifier()
 			modifier |= MODIFIER_NATIVE;
 		else if (ti == "interface")
 			modifier |= MODIFIER_INTERFACE;
+		else if (ti == "valuetype")
+			modifier |= MODIFIER_VALUETYPE;
 		else
 			ok = false;
 		if (ok)
@@ -1588,13 +1591,15 @@ void compile_class()
 	getToken(); /* Skip '}' */
 	std::string data;
 	_PUT2(data, new_internal_string(name));
-	_PUT2(data, base_class_ref); /* padding */
+	_PUT2(data, class_modifier);
+	_PUT2(data, base_class_ref);
 	_PUT2(data, field_count);
 	_PUT2(data, field_def_table_start_index);
 	_PUT2(data, method_count);
 	_PUT2(data, method_def_table_start_index);
 	_PUT2(data, property_count);
 	_PUT2(data, property_def_table_start_index);
+	_PUT2(data, 0); /* padding */
 	class_def_table.push_back(data);
 }
 

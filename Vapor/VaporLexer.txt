@@ -175,6 +175,10 @@ class Lexer
 				token = Token.Namespace;
 			else if (ident.Equals("using") > 0)
 				token = Token.Using;
+			else if (ident.Equals("class") > 0)
+				token = Token.Class;
+			else if (ident.Equals("struct") > 0)
+				token = Token.Struct;
 		}
 		else if (ch == '-' || (ch >= '0' && ch <= '9'))
 		{

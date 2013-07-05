@@ -162,9 +162,14 @@ class Parser
 			lex.Assert(Token.Semicolon);
 			lex.Next();
 		}
-		while (lex.token == Token.Ident && lex.ident.Equals("class") > 0)
+		while (lex.token != Token.EOF)
 		{
 			Class classObject = new Class(GetCurrentLocation());
+			classObject.modifier = ParseModifier();
+			if (lex.token != Token.Class && lex.token != Token.Struct)
+				throw new ParserException();
+			if (lex.token == Token.Struct)
+				classObject.modifier = classObject.modifier | Modifier.ValueType;
 			classObject.sourceFile = sourceFile;
 			lex.CheckNext(Token.Ident);
 			/* TODO: This should be a function */
@@ -194,7 +199,12 @@ class Parser
 			}
 			current.children.Add(name, classObject);
 			classObject.name = fullName;
-			if (lex.token == Token.Colon)
+			if (classObject.modifier & Modifier.ValueType > 0)
+			{
+				Location location = GetCurrentLocation();
+				classObject.baseType = new FieldNode(location, new IdentNode(location, "Core"), "ValueType");
+			}
+			else if (lex.token == Token.Colon)
 			{
 				lex.Next();
 				classObject.baseType = ParseType();

@@ -39,6 +39,7 @@
 #define MODIFIER_INTERNAL	0x0100
 #define MODIFIER_NATIVE		0x0200
 #define MODIFIER_INTERFACE	0x1000
+#define MODIFIER_VALUETYPE	0x2000
 
 #define EXCEPTION_CLAUSE_CATCH		0
 #define EXCEPTION_CLAUSE_FINALLY	1
@@ -103,6 +104,7 @@ struct MethodRef
 struct ClassDef
 {
 	uint16 name;
+	uint16 modifier;
 	uint16 baseClassRef;
 	uint16 fieldCount;
 	uint16 fieldStartIndex;
@@ -110,6 +112,7 @@ struct ClassDef
 	uint16 methodStartIndex;
 	uint16 propertyCount;
 	uint16 propertyStartIndex;
+	uint16 __padding;
 };
 
 struct FieldDef
@@ -360,6 +363,7 @@ struct Class
 	Class *baseClass;
 
 	InternalString *name;
+	uint16 modifier;
 	uint16 fieldCount;
 	Field *fields;
 	uint16 methodCount;

@@ -37,7 +37,13 @@ class Node
 		if (type is Type)
 			return [Type] type;
 		if (type is Class)
-			return new ClassType([Class] type);
+		{
+			Class classObject = [Class] type;
+			if (classObject.modifier & Modifier.ValueType > 0)
+				return new ValueType(classObject);
+			else
+				return new ClassType(classObject);
+		}
 		throw new CompilerException("Type expected.", location);
 	}
 
@@ -247,6 +253,10 @@ class FieldNode: Node
 			regid = v.regid;
 			if (type is ClassType)
 				classObject = ([ClassType] type).Class;
+			else if (type is ValueType)
+				classObject = ([ValueType] type).Class;
+			else if (type is PointerType && ([PointerType] type).ValueType is ValueType)
+				classObject = ([ValueType] ([PointerType] type).ValueType).Class;
 		}
 		return classObject, regid;
 	}
@@ -422,7 +432,7 @@ class TypeCastNode: Node
 		RegisterValue value = operand.CompileExpression(compiler, freereg, targetreg, 0, false).EnsureRegister(compiler, targetreg);
 		Type type = this.type.ToType(compiler);
 		/* HACK: Workaround */
-		if (value.type is PointerType && type is IntType)
+		if ((value.type is PointerType && type is IntType)
 		{
 			value.type = Type.Int;
 			return value;
@@ -1615,6 +1625,7 @@ class Class
 {
 	public SourceFile sourceFile;
 	public Namespace baseNamespace;
+	public int32 modifier;
 	public String name;
 	public Node baseType;
 	public Class baseClass;
@@ -1667,7 +1678,7 @@ class Modifier
 {
 	public static int32 Public, Private, Protected;
 	public static int32 Static, Virtual, Override, Abstract;
-	public static int32 Internal, Native, Interface;
+	public static int32 Internal, Native, Interface, ValueType;
 	public static Hash hash;
 
 	public static Parse(String string) -> int32
@@ -1698,7 +1709,7 @@ class Modifier
 	{
 		Modifier.Public, Modifier.Private, Modifier.Protected = 1, 2, 4;
 		Modifier.Static, Modifier.Virtual, Modifier.Override, Modifier.Abstract = 8, 16, 32, 64;
-		Modifier.Internal, Modifier.Native, Modifier.Interface = 128, 256, 512;
+		Modifier.Internal, Modifier.Native, Modifier.Interface, Modifier.ValueType = 128, 256, 512, 1024;
 
 		hash = new Hash();
 		hash.Add("public", Int32.ToString(Modifier.Public));
@@ -1711,6 +1722,7 @@ class Modifier
 		hash.Add("internal", Int32.ToString(Modifier.Internal));
 		hash.Add("native", Int32.ToString(Modifier.Native));
 		hash.Add("interface", Int32.ToString(Modifier.Interface));
+		hash.Add("valuetype", Int32.ToString(Modifier.ValueType));
 	}
 }
 
