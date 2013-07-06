@@ -23,6 +23,12 @@ class Win32
 	[stdcall, "kernel32.dll", "DebugBreak"]
 
 	/* File functions */
+	public static native GetFileSize(
+		int hFile,
+		int32* lpFileSizeHigh
+	) -> int32;
+	[stdcall, "kernel32.dll", "GetFileSize"]
+
 	public static native CreateFile(
 		int lpFileName,
 		int32 dwDesiredAccess,

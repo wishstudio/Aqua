@@ -32,13 +32,21 @@ class FileStream
 		this.mode = mode;
 	}
 
+	public int32 Length
+	{
+		get
+		{
+			return Win32.GetFileSize(fileHandle, null);
+		}
+	}
+
 	public ReadByte() -> int32
 	{
 		if (mode != 0)
 			throw new InvalidOperationException();
 		if (bufferPos == bufferSize)
 		{
-			Win32.ReadFile(fileHandle, &buffer[0], 1024, &bufferSize, null);
+			Win32.ReadFile(fileHandle, &buffer[0], buffer.Length, &bufferSize, null);
 			bufferPos = 0;
 			if (bufferSize == 0)
 				return -1;
@@ -46,6 +54,44 @@ class FileStream
 		uint8 byte = buffer[bufferPos];
 		bufferPos = bufferPos + 1;
 		return byte;
+	}
+
+	public Read(uint8[] data, int32 length) -> int32
+	{
+		if (mode != 0)
+			throw new InvalidOperationException();
+		/* Read data from buffer */
+		int32 rb = Math.Min(length, bufferSize - bufferPos);
+		if (rb > 0)
+		{
+			/* HACK */
+			Memory.CopyMemory([int] data, [int] &buffer[bufferPos], rb);
+		}
+		bufferPos = bufferPos + rb;
+		length = length - rb;
+		if (length > 0)
+		{
+			if (length * 2 < buffer.Length)
+			{
+				/* Length is too small, use internal buffer */
+				Win32.ReadFile(fileHandle, &buffer[0], buffer.Length, &bufferSize, null);
+				bufferPos = 0;
+				int32 rb2 = Math.Min(length, bufferSize - bufferPos);
+				if (rb2 > 0)
+				{
+					/* HACK */
+					Memory.CopyMemory([int] data, [int] buffer, rb2);
+				}
+				return rb + rb2;
+			}
+			else
+			{
+				/* Length is long enough, bypass our internal buffer */
+				int32 bytesRead;
+				Win32.ReadFile(fileHandle, &data[rb], length, &bytesRead, null);
+				return rb + bytesRead;
+			}
+		}
 	}
 
 	public Write(uint8[] data, int32 length) -> int32

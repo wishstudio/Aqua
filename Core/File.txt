@@ -1,0 +1,14 @@
+namespace Core;
+
+class File
+{
+	public static ReadAllBytes(String fileName) -> uint8[]
+	{
+		FileStream fs = new FileStream(fileName, 0);
+		int32 length = fs.Length;
+		uint8[] buffer = new uint8[length];
+		fs.Read(buffer, length);
+		fs.Close();
+		return buffer;
+	}
+}
