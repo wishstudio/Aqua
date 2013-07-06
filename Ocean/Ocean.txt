@@ -1,0 +1,18 @@
+namespace Ocean;
+
+using Core;
+
+class Ocean
+{
+	public static Main(String[] args)
+	{
+		if (args.Length != 1)
+		{
+			Console.WriteLine("Ocean: the bytecode manipulator");
+			Console.WriteLine("  usage: ocean <filename>");
+			return;
+		}
+		BytecodeReader reader = new BytecodeReader();
+		reader.ReadFile(args[0]);
+	}
+}

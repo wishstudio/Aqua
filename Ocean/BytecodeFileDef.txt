@@ -1,0 +1,143 @@
+namespace Ocean;
+
+using Core;
+
+/* Bytecode file header/overall structure */
+struct BytecodeFileDef
+{
+	/* Signature */
+	uint32 magic;
+	uint32 bytecodeVersion;
+
+	/* Table sizes */
+	uint16 internalStringCount;
+	uint16 stringCount;
+	uint16 typeCount;
+	uint16 fieldRefCount;
+	uint16 methodRefCount;
+	uint16 classDefCount;
+	uint16 fieldDefCount;
+	uint16 methodDefCount;
+	uint16 propertyDefCount;
+	uint16 _padding;
+
+	/* Heap sizes */
+	uint32 internalStringHeapSize;
+	uint32 stringHeapSize;
+	uint32 typeHeapSize;
+	uint32 codeHeapSize;
+
+	/* Index tables */
+	/* internalStringIndexTable */
+	/* stringIndexTable */
+	/* typeIndexTable */
+
+	/* Tables */
+	/* fieldRefTable */
+	/* methodRefTable */
+	/* classDefTable */
+	/* fieldDefTable */
+	/* methodDefTable */
+	/* propertyDefTable */
+
+	/* Heaps */
+	/* internalStringHeap */
+	/* stringHeap */
+	/* typeHeap */
+	/* codeHeap */
+}
+
+/* Table entry structures */
+struct FieldRef
+{
+	uint16 classTypeRef;
+	uint16 fieldName;
+}
+
+struct MethodRef
+{
+	uint16 classTypeRef;
+	uint16 methodName;
+	uint16 methodType;
+	uint16 _padding;
+}
+
+struct ClassDef
+{
+	uint16 name;
+	uint16 modifier;
+	uint16 baseClassTypeRef;
+	uint16 fieldCount;
+	uint16 fieldDefTableStartIndex;
+	uint16 methodCount;
+	uint16 methodDefTableStartIndex;
+	uint16 propertyCount;
+	uint16 propertyDefTableStartIndex;
+	uint16 _padding;
+}
+
+struct FieldDef
+{
+	uint16 name;
+	uint16 type;
+	uint16 modifier;
+	uint16 _padding;
+}
+
+struct MethodDef
+{
+	uint16 name;
+	uint16 type;
+	uint16 modifier;
+	uint16 registerCount;
+	uint32 codeDataOffset;
+	uint32 codeSlotCount;
+	uint32 exceptionTableSlotCount;
+}
+
+struct MethodDefNative
+{
+	uint16 name;
+	uint16 type;
+	uint16 modifier;
+	uint16 callingConvention;
+	uint16 dllname;
+	uint16 originalName;
+	uint32 _padding, _padding2;
+}
+
+struct PropertyDef
+{
+	uint16 name;
+	uint16 type;
+	uint16 modifier;
+	uint16 flags;
+	uint16 getterMethodRef;
+	uint16 setterMethodRef;
+}
+
+/* Heap data structures */
+struct InternalStringRef
+{
+	uint32 length;
+	uint8 data; /* cesu8 */
+}
+
+struct StringRef
+{
+	uint32 length;
+	uint16 data; /* utf-16 */
+}
+
+struct TypeRef
+{
+}
+
+struct ExceptionClauseDef
+{
+	uint32 flags;
+	uint32 tryStartPos, tryEndPos;
+	uint32 handlerStartPos, handlerEndPos;
+	uint16 catchClassRef;
+	uint16 registerId;
+}

@@ -1,0 +1,23 @@
+namespace Ocean;
+
+using Core;
+
+class InvalidBytecodeException: Exception
+{
+}
+
+class BytecodeReader
+{
+	public ()
+	{
+	}
+
+	public ReadFile(String fileName)
+	{
+		uint8[] data = File.ReadAllBytes(fileName);
+		BytecodeFileDef* bytecodeFileDef = [BytecodeFileDef*] &data[0];
+		if (bytecodeFileDef.magic != 1635086657) /* Aqua */
+			throw new InvalidBytecodeException();
+		Console.WriteLine(UInt32.ToString(bytecodeFileDef.bytecodeVersion));
+	}
+}
