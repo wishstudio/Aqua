@@ -369,6 +369,8 @@ class Lexer
 				/* Block comment */
 				for (;;)
 				{
+					if (ch == -1)
+						throw new ParserException();
 					NextChar();
 					if (ch == '*')
 					{
