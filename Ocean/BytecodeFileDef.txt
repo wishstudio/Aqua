@@ -47,6 +47,22 @@ struct BytecodeFileDef
 	/* codeHeap */
 }
 
+/* Index table entry structure */
+struct InternalStringIndex
+{
+	uint32 offset;
+}
+
+struct StringIndex
+{
+	uint32 offset;
+}
+
+struct TypeIndex
+{
+	uint32 offset;
+}
+
 /* Table entry structures */
 struct FieldRef
 {

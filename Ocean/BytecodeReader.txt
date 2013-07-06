@@ -18,6 +18,51 @@ class BytecodeReader
 		BytecodeFileDef* bytecodeFileDef = [BytecodeFileDef*] &data[0];
 		if (bytecodeFileDef.magic != 1635086657) /* Aqua */
 			throw new InvalidBytecodeException();
-		Console.WriteLine(UInt32.ToString(bytecodeFileDef.bytecodeVersion));
+		if (bytecodeFileDef.bytecodeVersion != 0)
+			throw new InvalidBytecodeException();
+
+		/* HACK: sizeof */
+		uint8* pointer = [uint8*] ([BytecodeFileDef *] &data[0] + 1);
+
+		/* Index tables */
+		InternalStringIndex* internalStringIndexTable = [InternalStringIndex*] pointer;
+		pointer = [uint8*] ([InternalStringIndex*] pointer + bytecodeFileDef.internalStringCount);
+
+		StringIndex* stringIndexTable = [StringIndex*] pointer;
+		pointer = [uint8*] ([StringIndex*] pointer + bytecodeFileDef.stringCount);
+
+		TypeIndex* typeIndexTable;
+		pointer = [uint8*] ([TypeIndex*] pointer + bytecodeFileDef.typeCount);
+
+		/* Tables */
+		FieldRef* fieldRefTable = [FieldRef*] pointer;
+		pointer = [uint8*] ([FieldRef*] pointer + bytecodeFileDef.fieldRefCount);
+
+		MethodRef* methodRefTable = [MethodRef*] pointer;
+		pointer = [uint8*] ([MethodRef*] pointer + bytecodeFileDef.methodRefCount);
+
+		ClassDef* classDefTable = [ClassDef*] pointer;
+		pointer = [uint8*] ([ClassDef*] pointer + bytecodeFileDef.classDefCount);
+
+		FieldDef* fieldDefTable = [FieldDef*] pointer;
+		pointer = [uint8*] ([FieldDef*] pointer + bytecodeFileDef.fieldDefCount);
+
+		MethodDef* methodDefTable = [MethodDef*] pointer;
+		pointer = [uint8*] ([MethodDef*] pointer + bytecodeFileDef.methodDefCount);
+
+		PropertyDef* propertyDefTable = [PropertyDef*] pointer;
+		pointer = [uint8*] ([PropertyDef*] pointer + bytecodeFileDef.propertyDefCount);
+
+		uint8* internalStringHeap = pointer;
+		pointer = pointer + bytecodeFileDef.internalStringHeapSize;
+
+		uint8* stringHeap = pointer;
+		pointer = pointer + bytecodeFileDef.stringHeapSize;
+
+		uint8* typeHeap = pointer;
+		pointer = pointer + bytecodeFileDef.typeHeapSize;
+
+		uint8* codeHeap = pointer;
+		pointer = pointer + bytecodeFileDef.codeHeapSize;
 	}
 }
