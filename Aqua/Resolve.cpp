@@ -19,31 +19,6 @@ PointerHash3<Class, InternalString, Type, Method> methodHash;
 Class *objectClass;
 Class *stringClass;
 
-uint32 sizeOf(Type *type)
-{
-	switch (type->type)
-	{
-	case TYPE_INT8: return 1;
-	case TYPE_UINT8: return 1;
-	case TYPE_INT16: return 2;
-	case TYPE_UINT16: return 2;
-	case TYPE_INT32: return 4;
-	case TYPE_UINT32: return 4;
-	case TYPE_INT64: return 8;
-	case TYPE_UINT64: return 8;
-	case TYPE_FLOAT32: return 4;
-	case TYPE_FLOAT64: return 8;
-	case TYPE_INT: return 4;
-	case TYPE_UINT: return 4;
-	case TYPE_BOOL: return 1;
-	case TYPE_CHAR: return 2;
-	case TYPE_CLASS: return sizeof(pointer);
-	case TYPE_ARRAY: return sizeof(pointer);
-	case TYPE_POINTER: return sizeof(pointer);
-	default: assert(("Unexpected type.", 0)); return 0;
-	}
-}
-
 /* INTERNAL CALL */
 static Class *loadClassObject(Class *classObject)
 {
@@ -184,6 +159,42 @@ static Class *loadClassObject(Class *classObject)
 	/* Update load state */
 	classObject->loadState = Class::LoadState::Loaded;
 	return classObject;
+}
+
+uint32 sizeOf(Type *type)
+{
+	switch (type->type)
+	{
+	case TYPE_INT8: return 1;
+	case TYPE_UINT8: return 1;
+	case TYPE_INT16: return 2;
+	case TYPE_UINT16: return 2;
+	case TYPE_INT32: return 4;
+	case TYPE_UINT32: return 4;
+	case TYPE_INT64: return 8;
+	case TYPE_UINT64: return 8;
+	case TYPE_FLOAT32: return 4;
+	case TYPE_FLOAT64: return 8;
+	case TYPE_INT: return 4;
+	case TYPE_UINT: return 4;
+	case TYPE_BOOL: return 1;
+	case TYPE_CHAR: return 2;
+	case TYPE_CLASS:
+	{
+		Class *classObject = ((ClassType *) type)->classObject;
+		if (classObject->modifier & MODIFIER_VALUETYPE)
+		{
+			if (classObject->loadState == Class::LoadState::Unloaded)
+				loadClassObject(classObject);
+			return classObject->instanceSize;
+		}
+		else
+			return sizeof(pointer);
+	}
+	case TYPE_ARRAY: return sizeof(pointer);
+	case TYPE_POINTER: return sizeof(pointer);
+	default: assert(("Unexpected type.", 0)); return 0;
+	}
 }
 
 /* Resolve an internal string using c style string */
