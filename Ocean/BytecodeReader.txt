@@ -1,6 +1,7 @@
 namespace Ocean;
 
 using Core;
+using Core.Native;
 
 class InvalidBytecodeException: Exception
 {
@@ -8,6 +9,9 @@ class InvalidBytecodeException: Exception
 
 class BytecodeReader
 {
+	private String[] internalStringTable;
+	private String[] stringTable;
+
 	public ()
 	{
 	}
@@ -21,18 +25,17 @@ class BytecodeReader
 		if (bytecodeFileDef.bytecodeVersion != 0)
 			throw new InvalidBytecodeException();
 
-		/* HACK: sizeof */
-		uint8* pointer = [uint8*] ([BytecodeFileDef *] &data[0] + 1);
+		uint8* pointer = [uint8*] (bytecodeFileDef + 1);
 
 		/* Index tables */
-		InternalStringIndex* internalStringIndexTable = [InternalStringIndex*] pointer;
-		pointer = [uint8*] ([InternalStringIndex*] pointer + bytecodeFileDef.internalStringCount);
+		int32* internalStringIndexTable = [int32*] pointer;
+		pointer = [uint8*] ([int32*] pointer + bytecodeFileDef.internalStringCount);
 
-		StringIndex* stringIndexTable = [StringIndex*] pointer;
-		pointer = [uint8*] ([StringIndex*] pointer + bytecodeFileDef.stringCount);
+		int32* stringIndexTable = [int32*] pointer;
+		pointer = [uint8*] ([int32*] pointer + bytecodeFileDef.stringCount);
 
-		TypeIndex* typeIndexTable;
-		pointer = [uint8*] ([TypeIndex*] pointer + bytecodeFileDef.typeCount);
+		int32* typeIndexTable = [int32*] pointer;
+		pointer = [uint8*] ([int32*] pointer + bytecodeFileDef.typeCount);
 
 		/* Tables */
 		FieldRef* fieldRefTable = [FieldRef*] pointer;
@@ -53,6 +56,7 @@ class BytecodeReader
 		PropertyDef* propertyDefTable = [PropertyDef*] pointer;
 		pointer = [uint8*] ([PropertyDef*] pointer + bytecodeFileDef.propertyDefCount);
 
+		/* Heaps */
 		uint8* internalStringHeap = pointer;
 		pointer = pointer + bytecodeFileDef.internalStringHeapSize;
 
@@ -64,5 +68,38 @@ class BytecodeReader
 
 		uint8* codeHeap = pointer;
 		pointer = pointer + bytecodeFileDef.codeHeapSize;
+
+		/* Resolving */
+		ResolveInternalString(bytecodeFileDef.internalStringCount, internalStringIndexTable, internalStringHeap);
+		ResolveString(bytecodeFileDef.stringCount, stringIndexTable, stringHeap);
+	}
+
+	public ResolveInternalString(int32 count, int32* index, uint8* heap)
+	{
+		Encoding encoding = new Encoding(65001);
+		internalStringTable = new String[count];
+
+		int buffer = Memory.AllocateMemory(1024); /* TODO: This should be enough for now */
+		for (int32 i = 0; i < count; i = i + 1)
+		{
+			InternalStringRef *ref = [InternalStringRef*] (heap + *index);
+			int32 length = encoding.FromBytes(buffer, 512, &ref.data, ref.length);
+			internalStringTable[i] = String.FromCharBuffer(buffer, length);
+
+			index = index + 1;
+		}
+		Memory.FreeMemory(buffer);
+	}
+
+	public ResolveString(int32 count, int32* index, uint8* heap)
+	{
+		stringTable = new String[count];
+		for (int32 i = 0; i < count; i = i + 1)
+		{
+			StringRef *ref = [StringRef*] (heap + *index);
+			stringTable[i] = String.FromCharBuffer(&ref.data, ref.length);
+
+			index = index + 1;
+		}
 	}
 }

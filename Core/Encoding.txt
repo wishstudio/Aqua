@@ -14,6 +14,16 @@ class Encoding
 	) -> int32;
 	[stdcall, "kernel32.dll", "WideCharToMultiByte"]
 
+	private static native MultiByteToWideChar(
+		int32 CodePage,
+		int32 dwFlags,
+		int lpMultiByteStr,
+		int32 cbMultiByte,
+		int lpWideCharStr,
+		int32 cchWideChar
+	) -> int32;
+	[stdcall, "kernel32.dll", "MultiByteToWideChar"]
+
 	int32 codePage;
 
 	public (int32 codePage)
@@ -25,6 +35,17 @@ class Encoding
 	public ToBytes(char[] text, int32 length, uint8[] buffer) -> int32
 	{
 		return WideCharToMultiByte(codePage, 0, &text[0], length, &buffer[0], buffer.Length, null, null);
+	}
+
+	/* Only UTF-8 implemented now */
+	public FromBytes(char[] buffer, uint8[] bytes, int32 length) -> int32
+	{
+		return MultiByteToWideChar(codePage, 0, &bytes[0], length, &buffer[0], buffer.Length);
+	}
+
+	public FromBytes(int buffer, int32 bufferLength, int bytes, int32 length) -> int32
+	{
+		return MultiByteToWideChar(codePage, 0, bytes, length, buffer, bufferLength);
 	}
 
 	public GetMaxByteLength(int32 maxCharLength) -> int32

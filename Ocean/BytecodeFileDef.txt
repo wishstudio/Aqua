@@ -47,34 +47,18 @@ struct BytecodeFileDef
 	/* codeHeap */
 }
 
-/* Index table entry structure */
-struct InternalStringIndex
-{
-	uint32 offset;
-}
-
-struct StringIndex
-{
-	uint32 offset;
-}
-
-struct TypeIndex
-{
-	uint32 offset;
-}
-
 /* Table entry structures */
 struct FieldRef
 {
 	uint16 classTypeRef;
-	uint16 fieldName;
+	uint16 name;
 }
 
 struct MethodRef
 {
 	uint16 classTypeRef;
-	uint16 methodName;
-	uint16 methodType;
+	uint16 name;
+	uint16 type;
 	uint16 _padding;
 }
 
@@ -135,13 +119,13 @@ struct PropertyDef
 /* Heap data structures */
 struct InternalStringRef
 {
-	uint32 length;
+	int32 length;
 	uint8 data; /* cesu8 */
 }
 
 struct StringRef
 {
-	uint32 length;
+	int32 length;
 	uint16 data; /* utf-16 */
 }
 
