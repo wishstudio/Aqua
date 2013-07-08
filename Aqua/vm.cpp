@@ -10,6 +10,7 @@
 #include "Hash.h"
 #include "Object.h"
 #include "Resolve.h"
+#include "VM.h"
 #include "VMTypes.h"
 
 static void invokeNativeMethod(Method *method, reg *reg)
@@ -52,7 +53,7 @@ L2:
 #define OP_B ((cd >> 16) & 0xFF)
 #define OP_C (cd >> 24)
 #define OP_BC (cd >> 16)
-#define REG(i) (base[i])
+#define REG(i) (currentBase[i])
 #define rA REG(OP_A)
 #define rB REG(OP_B)
 #define rC REG(OP_C)
@@ -219,7 +220,7 @@ L2:
 #define ENTERFRAME() \
 	{ \
 		bytecodeFile = currentFrame->method->classObject->bytecodeFile; \
-		base = currentFrame->registerBase; \
+		currentBase = currentFrame->registerBase; \
 		code = currentFrame->method->code; \
 		pc = currentFrame->nextpc; \
 	}
@@ -247,10 +248,10 @@ L2:
 		{ \
 			currentFrame->nextpc = pc; \
 			currentFrame++; \
-			currentFrame->registerBase = base + basereg; \
+			currentFrame->registerBase = currentBase + basereg; \
 			currentFrame->method = method; \
 			bytecodeFile = method->classObject->bytecodeFile; \
-			base += basereg; \
+			currentBase += basereg; \
 			code = method->code; \
 			pc = 0; \
 		} \
@@ -266,13 +267,6 @@ L2:
 
 #define DEFAULT_REGISTER_STACK_SIZE  1048576
 #define DEFAULT_FRAME_STACK_SIZE     1048576
-struct Frame
-{
-	reg *registerBase;
-	Method *method;
-	uint32 nextpc;
-	uint32 nextExceptionClause; /* Next exception clause to handle */
-};
 
 static inline bool instanceOf(pointer object, Class *classObject)
 {
@@ -285,12 +279,17 @@ static inline bool instanceOf(pointer object, Class *classObject)
 static pointer currentException;
 static uint32 currentLeaveTarget;
 
-static void runMethod(Frame *startFrame, Method *startMethod, reg *base)
+Frame *currentFrame;
+reg *currentBase;
+
+void runMethod(Frame *startFrame, Method *startMethod, reg *startBase)
 {
 	BytecodeFile *bytecodeFile = startMethod->classObject->bytecodeFile;
-	Frame *currentFrame = startFrame;
+	currentFrame = startFrame;
 	currentFrame->method = startMethod;
-	currentFrame->registerBase = base;
+	currentFrame->registerBase = startBase;
+
+	currentBase = startBase;
 
 	uint32 pc = 0;
 	uint32 *code = startMethod->code;

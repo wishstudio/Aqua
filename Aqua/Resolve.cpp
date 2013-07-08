@@ -7,6 +7,7 @@
 
 #include "Object.h"
 #include "Resolve.h"
+#include "VM.h"
 
 InternHash<InternalString> internalStringHash;
 InternHash<String> stringHash;
@@ -18,6 +19,8 @@ PointerHash3<Class, InternalString, Type, Method> methodHash;
 
 Class *objectClass;
 Class *stringClass;
+static InternalString *cctorString;
+static Type *cctorType;
 
 /* INTERNAL CALL */
 static Class *loadClassObject(Class *classObject)
@@ -158,6 +161,18 @@ static Class *loadClassObject(Class *classObject)
 
 	/* Update load state */
 	classObject->loadState = Class::LoadState::Loaded;
+
+	if (classObject->modifier & MODIFIER_STATICCTOR)
+	{
+		/* Call the static constructor */
+		Method *cctorMethod = methodHash.find(classObject, cctorString, cctorType);
+		Frame *oldFrame = currentFrame;
+		reg *oldBase = currentBase;
+		runMethod(currentFrame + 1, cctorMethod, currentBase + currentFrame->method->registerCount);
+		currentBase = oldBase;
+		currentFrame = oldFrame;
+	}
+
 	return classObject;
 }
 
@@ -500,4 +515,8 @@ void initializeResolveCache()
 	/* loadClass needs objectClass to know whether the class does not have a base class */
 	objectClass = classHash.find(resolveInternalString("Core.Object"));
 	stringClass = resolveClass(resolveInternalString("Core.String"));
+
+	/* Predefined objects to accelerate static constructor resolution */
+	cctorString = resolveInternalString(".cctor");
+	cctorType = resolveFunctionType(0, 0);
 }

@@ -672,6 +672,7 @@ int getMethodRef()
 #define MODIFIER_NATIVE		0x0200
 #define MODIFIER_INTERFACE	0x1000
 #define MODIFIER_VALUETYPE	0x2000
+#define MODIFIER_STATICCTOR	0x8000
 int getModifier()
 {
 	int modifier = 0;
@@ -1500,6 +1501,8 @@ void compile_class()
 			assert(tt == tkIdent && ti == "function");
 			getToken();
 			_PUT2(data, new_internal_string(ti));
+			if (ti == ".cctor")
+				class_modifier |= MODIFIER_STATICCTOR;
 			getToken();
 			_PUT2(data, getType());
 			_PUT2(data, modifier);
