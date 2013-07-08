@@ -1160,6 +1160,8 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 
 			OP("jinst", JINST(0x64))
 			OP("jninst", JINST(0x65))
+			OP("jeqa", BINADDR(0x66))
+			OP("jneqa", BINADDR(0x67))
 	
 			OP("jzi", UNARYADDR(0x70))
 			OP("jeqzi", UNARYADDR(0x70))

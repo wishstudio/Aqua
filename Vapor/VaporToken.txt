@@ -4,7 +4,7 @@ class Token
 {
 	/* Binary operations */
 	public static int32 Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, BinArith;
-	public static int32 LT, LE, GT, GE, EQ, NEQ, Is, BinComparison;
+	public static int32 LT, LE, GT, GE, EQ, NEQ, Is, RefEQ, RefNEQ, BinComparison;
 	public static int32 And, Or, BinLogic;
 	public static int32 BinOp;
 
@@ -35,10 +35,11 @@ class Token
 		Token.BitAnd, Token.BitOr, Token.BitXor, Token.BinArith = 5, 6, 7, 7;
 
 		Token.LT, Token.LE, Token.GT, Token.GE, Token.EQ, Token.NEQ, Token.Is = 8, 9, 10, 11, 12, 13, 14;
-		Token.BinComparison = 14;
+		Token.RefEQ, Token.RefNEQ = 15, 16;
+		Token.BinComparison = 16;
 
-		Token.And, Token.Or, Token.BinLogic = 15, 16, 16;
-		Token.BinOp = 16;
+		Token.And, Token.Or, Token.BinLogic = 17, 18, 18;
+		Token.BinOp = 18;
 
 		int32[] priority = new int32[17];
 		priority[0], priority[1] = 10, 10; /* Add, Sub */
@@ -46,8 +47,9 @@ class Token
 		priority[5], priority[6], priority[7] = 6, 6, 6; /* BitAnd, BitOr, BitXor */
 		priority[8], priority[9], priority[10], priority[11], priority[12], priority[13] = 5, 5, 5, 5, 5, 5; /* Comparison */
 		priority[14] = 4; /* Is */
-		priority[15] = 2; /* And */
-		priority[16] = 3; /* Or */
+		priority[15], priority[16] = 5, 5; /* RefEQ, RefNEQ */
+		priority[17] = 2; /* And */
+		priority[18] = 3; /* Or */
 		Token.BinPriority = priority;
 
 		/* Unary operations */

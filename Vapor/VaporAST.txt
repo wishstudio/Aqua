@@ -723,6 +723,25 @@ class BinComparisonNode: BinNode
 		throw new Exception();
 	}
 
+	private GetRefOpcode(bool jtrue) -> String
+	{
+		if (jtrue)
+		{
+			if (op == Token.RefEQ)
+				return "eq";
+			else if (op == Token.RefNEQ)
+				return "neq";
+		}
+		else
+		{
+			if (op == Token.RefEQ)
+				return "neq";
+			else if (op == Token.RefNEQ)
+				return "eq";
+		}
+		throw new Exception();
+	}
+
 	public override CompileExpression(Compiler compiler, int32 freereg, int32 targetreg, int32 jtarget, bool jtrue) -> Value
 	{
 		jtarget = compiler.FixJumpTarget(jtarget);
@@ -768,7 +787,8 @@ class BinComparisonNode: BinNode
 
 		if (left.type is ReferenceType && right.type is ReferenceType)
 		{
-			if (op == Token.EQ || op == Token.NEQ)
+			if ((left is NullValue || right is NullValue)
+				&& (op == Token.EQ || op == Token.NEQ || op == Token.RefEQ || op == Token.RefNEQ))
 			{
 				if (left is NullValue)
 				{
@@ -782,6 +802,14 @@ class BinComparisonNode: BinNode
 					compiler.AddCode("j" + GetNullOpcode(jtrue) + "\t$" + l.regid + ", " + compiler.GetLabelName(jtarget));
 					return new JumpTargetValue(location, jtarget);
 				}
+			}
+			if (op == Token.RefEQ || op == Token.RefNEQ)
+			{
+				RegisterValue l = left.EnsureRegister(compiler, freereg);
+				RegisterValue r = right.EnsureRegister(compiler, freereg + 1);
+				compiler.AddCode("j" + GetRefOpcode(jtrue) + "a\t$" + l.regid + ", $" + r.regid
+					+ ", " + compiler.GetLabelName(jtarget));
+				return new JumpTargetValue(location, jtarget);
 			}
 		}
 

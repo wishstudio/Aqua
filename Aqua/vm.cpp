@@ -106,6 +106,8 @@ L2:
 
 #define JINST() pc = (instanceOf(POINTER(rA), resolveClass(bytecodeFile, OP_BC)))? pc + INT32(_imm32): pc + 1
 #define JNINST() pc = (!instanceOf(POINTER(rA), resolveClass(bytecodeFile, OP_BC)))? pc + INT32(_imm32): pc + 1
+#define JEQA() pc = (POINTER(rA) == POINTER(rB)? pc + INT32(_imm32): pc + 1)
+#define JNEQA() pc = (POINTER(rA) != POINTER(rB)? pc + INT32(_imm32): pc + 1)
 
 /* Load/store */
 #define LDF(type, regtype) \
@@ -357,6 +359,8 @@ MAIN_DISPATCH:
 
 		OP(0x64, JINST()) // JINST $a, type, addr
 		OP(0x65, JNINST()) // JNINST $a, type, addr
+		OP(0x66, JEQA()) // JEQA $a, $b, addr
+		OP(0x67, JNEQA()) // JNEQA $a, $b, addr
 
 		OP(0x70, UNARY_JMP(== 0)) // JZI $a, addr
 		OP(0x71, UNARY_JMP(!= 0)) // JNZI $a, addr

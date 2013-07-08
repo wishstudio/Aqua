@@ -301,8 +301,14 @@ class Lexer
 			NextChar();
 			if (ch == '=')
 			{
-				token = Token.NEQ;
 				NextChar();
+				if (ch == '=')
+				{
+					NextChar();
+					token = Token.RefNEQ;
+				}
+				else
+					token = Token.NEQ;
 			}
 			else
 				token = Token.Not;
@@ -344,8 +350,14 @@ class Lexer
 			NextChar();
 			if (ch == '=')
 			{
-				token = Token.EQ;
 				NextChar();
+				if (ch == '=')
+				{
+					NextChar();
+					token = Token.RefEQ;
+				}
+				else
+					token = Token.EQ;
 			}
 			else
 				token = Token.Assign;
