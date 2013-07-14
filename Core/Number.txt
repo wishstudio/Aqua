@@ -4,6 +4,21 @@ using Core.Native;
 
 class Number
 {
+	private static int32 Error_NoError, Error_Format, Error_Overflow;
+
+	static ()
+	{
+		InitNumber();
+	}
+
+	/* HACK: Temporary workaround */
+	public static InitNumber()
+	{
+		Error_NoError = 0;
+		Error_Format = 1;
+		Error_Overflow = 2;
+	}
+
 	/* ToString functions */
 	public static ToString(int32 number) -> String
 	{
@@ -50,36 +65,27 @@ class Number
 	/* Parse functions */
 	public static ParseInt32(String str) -> int32
 	{
-		int32 ret = 0;
-		if ([int32] str[0] == '-')
-		{
-			for (int32 i = 1; i < str.Length; i = i + 1)
-			{
-				int32 digit = [int32] str[i] - '0';
-				if (digit < 0 || digit > 9)
-					throw new FormatException();
-				if (ret < -214748364 || (ret == -214748364 && digit > 8))
-					throw new OverflowException();
-				ret = ret * 10 - digit;
-			}
-			return ret;
-		}
+		int32 errcode, num;
+		errcode, num = ParseInt32Core(str);
+		if (errcode == Error_Format)
+			throw new FormatException();
+		else if (errcode == Error_Overflow)
+			throw new OverflowException();
 		else
-		{
-			for (int32 i = 0; i < str.Length; i = i + 1)
-			{
-				int32 digit = [int32] str[i] - '0';
-				if (digit < 0 || digit > 9)
-					throw new FormatException();
-				if (ret > 214748364 || (ret == 214748364 && digit > 7))
-					throw new OverflowException();
-				ret = ret * 10 + digit;
-			}
-			return ret;
-		}
+			return num;
 	}
 
 	public static TryParseInt32(String str) -> bool, int32
+	{
+		int32 errcode, num;
+		errcode, num = ParseInt32Core(str);
+		if (errcode == Error_NoError)
+			return true, num;
+		else
+			return false, 0;
+	}
+
+	public static ParseInt32Core(String str) -> int32, int32
 	{
 		int32 ret = 0;
 		if ([int32] str[0] == '-')
@@ -88,12 +94,12 @@ class Number
 			{
 				int32 digit = [int32] str[i] - '0';
 				if (digit < 0 || digit > 9)
-					return false, 0;
+					return Error_Format, 0;
 				if (ret < -214748364 || (ret == -214748364 && digit > 8))
-					return false, 0;
+					return Error_Overflow, 0;
 				ret = ret * 10 - digit;
 			}
-			return true, ret;
+			return Error_NoError, ret;
 		}
 		else
 		{
@@ -101,32 +107,40 @@ class Number
 			{
 				int32 digit = [int32] str[i] - '0';
 				if (digit < 0 || digit > 9)
-					return false, 0;
+					return Error_Format, 0;
 				if (ret > 214748364 || (ret == 214748364 && digit > 7))
-					return false, 0;
+					return Error_Overflow, 0;
 				ret = ret * 10 + digit;
 			}
-			return true, ret;
+			return Error_NoError, ret;
 		}
 	}
 
 	public static ParseUInt32(String str) -> uint32
 	{
-		uint32 ret = 0;
-		for (int32 i = 0; i < str.Length; i = i + 1)
-		{
-			/* HACK: uint32 */
-			int32 digit = [int32] str[i] - '0';
-			if (digit < 0 || digit > 9)
-				throw new FormatException();
-			if ([int32] ret > 429496729 || ([int32] ret == 429496729 && digit > 5))
-				throw new OverflowException();
-			ret = ret * 10 + [uint32] digit;
-		}
-		return ret;
+		int32 errcode;
+		uint32 num;
+		errcode, num = ParseUInt32Core(str);
+		if (errcode == Error_Format)
+			throw new FormatException();
+		else if (errcode == Error_Overflow)
+			throw new OverflowException();
+		else
+			return num;
 	}
 
 	public static TryParseUInt32(String str) -> bool, uint32
+	{
+		int32 errcode;
+		uint32 num;
+		errcode, num = ParseUInt32Core(str);
+		if (errcode == Error_NoError)
+			return true, num;
+		else
+			return false, 0;
+	}
+
+	public static ParseUInt32Core(String str) -> int32, uint32
 	{
 		uint32 ret = 0;
 		for (int32 i = 0; i < str.Length; i = i + 1)
@@ -134,11 +148,11 @@ class Number
 			/* HACK: uint32 */
 			int32 digit = [int32] str[i] - '0';
 			if (digit < 0 || digit > 9)
-				return false, 0;
+				return Error_Format, 0;
 			if ([int32] ret > 429496729 || ([int32] ret == 429496729 && digit > 5))
-				return false, 0;
+				return Error_Overflow, 0;
 			ret = ret * 10 + [uint32] digit;
 		}
-		return true, ret;
+		return Error_NoError, ret;
 	}
 }
