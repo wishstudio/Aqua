@@ -1733,7 +1733,7 @@ class Modifier
 		return ret;
 	}
 
-	public static InitModifier()
+	static ()
 	{
 		Modifier.Public, Modifier.Private, Modifier.Protected = 1, 2, 4;
 		Modifier.Static, Modifier.Virtual, Modifier.Override, Modifier.Abstract = 8, 16, 32, 64;
@@ -1777,7 +1777,7 @@ class CallingConvention
 			return 0;
 	}
 
-	public static InitCallingConvention()
+	static ()
 	{
 		CallingConvention.Unknown, CallingConvention.Stdcall = 1, 2;
 	}

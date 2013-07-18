@@ -8,12 +8,6 @@ class Number
 
 	static ()
 	{
-		InitNumber();
-	}
-
-	/* HACK: Temporary workaround */
-	public static InitNumber()
-	{
 		Error_NoError = 0;
 		Error_Format = 1;
 		Error_Overflow = 2;

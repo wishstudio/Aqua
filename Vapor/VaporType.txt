@@ -21,7 +21,7 @@ class Type
 
 	public static Type Unit, UnitPointer, Bool, Int8, UInt8, Int16, UInt16, Char, Int32, UInt32, Int;
 
-	public static InitType()
+	static ()
 	{
 		Type.Unit = new UnitType();
 		Type.UnitPointer = new PointerType(Type.Unit);

@@ -28,7 +28,7 @@ class Token
 	public static int32 Namespace, Using;
 	public static int32 Class, Struct;
 
-	public static InitToken()
+	static ()
 	{
 		/* Binary operations */
 		Token.Add, Token.Sub, Token.Mul, Token.Div, Token.Rem = 0, 1, 2, 3, 4;
