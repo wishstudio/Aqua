@@ -132,7 +132,7 @@ class Lexer
 			token = Token.Ident;
 			while ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
 			{
-				ident = ident.AppendChar([char] ch);
+				ident = ident + [char] ch;
 				NextChar();
 			}
 			if (ident.Equals("this") > 0)
@@ -183,7 +183,7 @@ class Lexer
 		else if (ch == '-' || (ch >= '0' && ch <= '9'))
 		{
 			ident = "";
-			ident = ident.AppendChar([char] ch);
+			ident = ident + [char] ch;
 			NextChar();
 			if (ident.Equals("-") > 0 && (ch < '0' || ch > '9'))
 			{
@@ -200,7 +200,7 @@ class Lexer
 				token = Token.Number;
 				while (ch >= '0' && ch <= '9')
 				{
-					ident = ident.AppendChar([char] ch);
+					ident = ident + [char] ch;
 					NextChar();
 				}
 			}
@@ -212,11 +212,11 @@ class Lexer
 			NextChar();
 			while (ch != '"')
 			{
-				ident = ident.AppendChar([char] ch);
+				ident = ident + [char] ch;
 				if (ch == '\\')
 				{
 					NextChar();
-					ident = ident.AppendChar([char] ch);
+					ident = ident + [char] ch;
 				}
 				NextChar();
 			}

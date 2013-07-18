@@ -7,8 +7,8 @@
 /* static Core.String.AllocateString(int32 length) -> Core.String */
 static void Core_String_AllocateString(reg *stack)
 {
-	int32 length = INT32(stack[0]);
-	POINTER(stack[0]) = (pointer) CreateString(length);
+	int32 size = INT32(stack[0]);
+	POINTER(stack[0]) = (pointer) CreateString(size);
 }
 
 /* static Core.Native.Memory.CopyMemory(int destination, int source, int32 size) */
@@ -46,38 +46,38 @@ void initializeCoreLibraryInternal()
 {
 	registerInternalMethod(
 		stringClass,
-		resolveInternalString("AllocateString"),
+		resolveString("AllocateString"),
 		resolveFunctionType(1, 1, resolvePrimitiveType(TYPE_INT32), resolveClassType(stringClass)),
 		Core_String_AllocateString
 	);
 
-	Class *nativeConverterClass = resolveClass(resolveInternalString("Core.Native.Converter"));
+	Class *nativeConverterClass = resolveClass(resolveString("Core.Native.Converter"));
 
-	Class *nativeMemoryClass = resolveClass(resolveInternalString("Core.Native.Memory"));
+	Class *nativeMemoryClass = resolveClass(resolveString("Core.Native.Memory"));
 	registerInternalMethod(
 		nativeMemoryClass,
-		resolveInternalString("CopyMemory"),
+		resolveString("CopyMemory"),
 		resolveFunctionType(3, 0, resolvePrimitiveType(TYPE_INT), resolvePrimitiveType(TYPE_INT), resolvePrimitiveType(TYPE_INT32)),
 		Core_Native_Memory_CopyMemory
 	);
 	
 	registerInternalMethod(
 		nativeMemoryClass,
-		resolveInternalString("MoveMemory"),
+		resolveString("MoveMemory"),
 		resolveFunctionType(3, 0, resolvePrimitiveType(TYPE_INT), resolvePrimitiveType(TYPE_INT), resolvePrimitiveType(TYPE_INT32)),
 		Core_Native_Memory_MoveMemory
 	);
 
 	registerInternalMethod(
 		nativeMemoryClass,
-		resolveInternalString("AllocateMemory"),
+		resolveString("AllocateMemory"),
 		resolveFunctionType(1, 1, resolvePrimitiveType(TYPE_INT32), resolvePrimitiveType(TYPE_INT)),
 		Core_Native_Memory_AllocateMemory
 	);
 
 	registerInternalMethod(
 		nativeMemoryClass,
-		resolveInternalString("FreeMemory"),
+		resolveString("FreeMemory"),
 		resolveFunctionType(1, 0, resolvePrimitiveType(TYPE_INT)),
 		Core_Native_Memory_FreeMemory
 	);

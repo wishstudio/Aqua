@@ -1,10 +1,15 @@
 namespace Core.Native;
 
+using Core;
+
 class Converter
 {
 	static public ToWCharPtr(Core.String string) -> int
 	{
-		return string.RawData;
+		/* TODO */
+		int buffer = Memory.AllocateMemory(8192);
+		Win32.MultiByteToWideChar(65001, 0, string.RawData, string.Size, buffer, 4096);
+		return buffer;
 	}
 }
 
@@ -21,6 +26,29 @@ class Win32
 	/* Debug helper */
 	public static native DebugBreak();
 	[stdcall, "kernel32.dll", "DebugBreak"]
+
+	/* Encoding functions */
+	private static native WideCharToMultiByte(
+		int32 CodePage,
+		int32 dwFlags,
+		int lpWideCharStr,
+		int32 cchWideChar,
+		int lpMultiByteStr,
+		int32 cbMultiByte,
+		int lpDefaultChar,
+		int lpUsedDefaultChar
+	) -> int32;
+	[stdcall, "kernel32.dll", "WideCharToMultiByte"]
+
+	private static native MultiByteToWideChar(
+		int32 CodePage,
+		int32 dwFlags,
+		int lpMultiByteStr,
+		int32 cbMultiByte,
+		int lpWideCharStr,
+		int32 cchWideChar
+	) -> int32;
+	[stdcall, "kernel32.dll", "MultiByteToWideChar"]
 
 	/* File functions */
 	public static native GetFileSize(

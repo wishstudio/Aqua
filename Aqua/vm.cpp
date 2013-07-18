@@ -450,7 +450,14 @@ MAIN_DISPATCH:
 		OP(0xC6, FLOAT32(rA) = FLOAT32(imm32)) // LDF $a, imm32
 		OP(0xC7, FLOAT64(rA) = FLOAT64(imm64)) // LDFL $a, imm64
 
-		OP(0xC8, POINTER(rA) = (pointer) resolveString(bytecodeFile, OP_BC)) // LDSTR $a, "str"
+		case 0xC8: // LDSTR $a, "str"
+		{
+			String *str = resolveString(bytecodeFile, OP_BC);
+			str->vtable = stringClass->vtable;
+			POINTER(rA) = (pointer) str;
+			OP_END();
+		}
+
 		OP(0xC9, INT32(rA) = *((int32 *) (POINTER(rB) + sizeof(VTable *)))) // LDLEN $a, $b
 		
 		OP(0xCB, POINTER(rA) = 0) // LDNULL $a
@@ -580,9 +587,7 @@ MAIN_DISPATCH:
 			case 0x04: // PRINTS rC
 			{
 				String *string = (String *) POINTER(rC);
-				for (int32 i = 0; i < string->length; i++)
-					wprintf(L"%c", string->data[i]);
-				wprintf(L"\n");
+				printf("%s\n", string->data);
 				OP_END();
 			}
 
@@ -591,40 +596,33 @@ MAIN_DISPATCH:
 				OP_END();
 
 			case 0x08: // READI rC
-				scanf("%d\n", &INT32(rC));
+				scanf_s("%d\n", &INT32(rC));
 				OP_END();
 
 			case 0x09: // READU rC
-				scanf("%u\n", &UINT32(rC));
+				scanf_s("%u\n", &UINT32(rC));
 				OP_END();
 
 			case 0x0A: // READL rC
-				scanf("%lld\n", &INT64(rC));
+				scanf_s("%lld\n", &INT64(rC));
 				OP_END();
 
 			case 0x0B: // READUL rC
-				scanf("%ulld\n", &UINT64(rC));
+				scanf_s("%ulld\n", &UINT64(rC));
 				OP_END();
 
 			case 0x0C: // READS rC
 			{
-				wchar_t buffer[256];
-				uint32 len;
-				for (len = 0;; len++)
+				char buffer[256];
+				int32 size;
+				for (size = 0;; size++)
 				{
-					wscanf_s(L"%c", &buffer[len]);
-					if (buffer[len] == '\n')
+					scanf_s("%c", &buffer[size]);
+					if (buffer[size] == '\n')
 						break;
 				}
 
-				pointer object = (pointer) malloc(sizeof(String) + len * 2 + 2);
-				*((Class **) object) = stringClass;
-				String *string = (String *) (object + sizeof(VTable *));
-				string->length = len;
-				memcpy(string->data, buffer, len * 2);
-				string->data[len] = 0;
-
-				POINTER(rC) = (pointer) string;
+				POINTER(rC) = (pointer) CreateString(size, buffer);
 				OP_END();
 			};
 			}
@@ -724,11 +722,11 @@ int main()
 	int entryClassNameLengthW = lstrlenW(argv[1]);
 	char *entryClassName = (char *) malloc(utf16ToUtf8((const uint16 *) argv[1], entryClassNameLengthW, nullptr) + 1);
 	entryClassName[utf16ToUtf8((const uint16 *) argv[1], entryClassNameLengthW, entryClassName)] = 0;
-	Class *entryClass = resolveClass(resolveInternalString(entryClassName));
+	Class *entryClass = resolveClass(resolveString(entryClassName));
 	free(entryClassName);
 
 	/* Find 'Main()' entry point */
-	InternalString *entryMethodName = resolveInternalString("Main");
+	String *entryMethodName = resolveString("Main");
 	Type *entryType = resolveFunctionType(0, 0);
 	Method *startMethod = methodHash.find(entryClass, entryMethodName, entryType);
 	if (startMethod == nullptr)
@@ -745,6 +743,7 @@ int main()
 	Array<String *, 1> *args = CreateArray<String *>(argcount);
 	for (int i = p; i < argc; i++)
 		args->data[i - p] = CreateString(lstrlenW(argv[i]), (const uint16 *) argv[i]);
+	LocalFree(argv);
 	
 	/* Initialize register stack and frame stack */
 	reg *registerStack = (uint64 *) malloc(sizeof(uint64) * DEFAULT_REGISTER_STACK_SIZE);

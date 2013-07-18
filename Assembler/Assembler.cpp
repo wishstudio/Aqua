@@ -126,7 +126,6 @@ void FPUTIT(const std::vector<int> &index_table)
 		FPUT4(index_table[i]);
 }
 
-std::vector<int> internal_string_index_table;
 std::vector<int> string_index_table;
 std::vector<int> type_index_table;
 
@@ -137,35 +136,17 @@ std::vector<std::string> field_def_table;
 std::vector<std::string> method_def_table;
 std::vector<std::string> property_def_table;
 
-std::string internal_string_heap;
 std::string string_heap;
 std::string type_heap;
 std::string code_heap;
 
-std::unordered_map<std::string, int> internal_string_hash;
-std::unordered_map<std::wstring, int> string_hash;
+std::unordered_map<std::string, int> string_hash;
 std::unordered_map<std::string, int> type_hash;
 std::unordered_map<std::string, int> field_hash;
 std::unordered_map<std::string, int> method_hash;
 
 /* Heap data objects */
-int new_internal_string(const std::string &string)
-{
-	if (internal_string_hash.count(string))
-		return internal_string_hash[string];
-	else
-	{
-		_PUTALIGN(internal_string_heap, 4);
-		int index = internal_string_index_table.size();
-		internal_string_index_table.push_back(internal_string_heap.size());
-		_PUT4(internal_string_heap, string.size());
-		_PUTS(internal_string_heap, string);
-		internal_string_hash.insert(std::make_pair(string, index));
-		return index;
-	}
-}
-
-int new_string(const std::wstring &string)
+int new_string(const std::string &string)
 {
 	if (string_hash.count(string))
 		return string_hash[string];
@@ -175,7 +156,7 @@ int new_string(const std::wstring &string)
 		int index = string_index_table.size();
 		string_index_table.push_back(string_heap.size());
 		_PUT4(string_heap, string.size());
-		_PUTWS(string_heap, string);
+		_PUTS(string_heap, string);
 		string_hash.insert(std::make_pair(string, index));
 		return index;
 	}
@@ -232,7 +213,7 @@ int new_type_ref(int type, int basetype)
 
 int new_class_ref(const std::string &classname)
 {
-	return new_type_ref(TYPE_CLASS, new_internal_string(classname));
+	return new_type_ref(TYPE_CLASS, new_string(classname));
 }
 
 int new_array_ref(int element_type)
@@ -263,7 +244,7 @@ int new_field_ref(int class_ref, const std::string &field_name)
 {
 	std::string data;
 	_PUT2(data, class_ref);
-	_PUT2(data, new_internal_string(field_name));
+	_PUT2(data, new_string(field_name));
 	if (field_hash.count(data))
 		return field_hash[data];
 	else
@@ -279,7 +260,7 @@ int new_method_ref(int class_ref, const std::string &method_name, int method_typ
 {
 	std::string data;
 	_PUT2(data, class_ref);
-	_PUT2(data, new_internal_string(method_name));
+	_PUT2(data, new_string(method_name));
 	_PUT2(data, method_type);
 	_PUT2(data, 0); /* padding */
 	if (method_hash.count(data))
@@ -316,7 +297,6 @@ enum TokenType
 
 int tn;
 std::string ti;
-std::wstring ts;
 char ch;
 int maxRegister;
 int currentLine;
@@ -397,13 +377,6 @@ void getToken()
 				ti = ti + ch;
 			getCh();
 		}
-		const char *bytes = ti.c_str();
-		int size = MultiByteToWideChar(CP_ACP, 0, bytes, ti.length(), NULL, 0);
-		wchar_t *buffer = (wchar_t *) alloca(size * sizeof(wchar_t));
-		MultiByteToWideChar(CP_ACP, 0, bytes, ti.length(), buffer, size);
-		ts = L"";
-		for (int i = 0; i < size; i++)
-			ts = ts + buffer[i];
 		getCh();
 		return;
 	}
@@ -1255,7 +1228,7 @@ std::string compile_method(int *register_count, int *code_size, int *exception_c
 				assert(tt == tkComma);
 				getToken();
 				assert(tt == tkString);
-				PUT(0xC8), PUT(a), PUT2(new_string(ts));
+				PUT(0xC8), PUT(a), PUT2(new_string(ti));
 				getToken();
 				continue;
 			}
@@ -1485,7 +1458,7 @@ void compile_class()
 			int modifier = getModifier();
 			int type = getType();
 			assert(tt == tkIdent);
-			_PUT2(data, new_internal_string(ti));
+			_PUT2(data, new_string(ti));
 			_PUT2(data, type);
 			_PUT2(data, modifier);
 			_PUT2(data, 0); /* padding */
@@ -1500,7 +1473,7 @@ void compile_class()
 			int modifier = getModifier();
 			assert(tt == tkIdent && ti == "function");
 			getToken();
-			_PUT2(data, new_internal_string(ti));
+			_PUT2(data, new_string(ti));
 			if (ti == ".cctor")
 				class_modifier |= MODIFIER_STATICCTOR;
 			getToken();
@@ -1523,12 +1496,12 @@ void compile_class()
 				assert(tt == tkComma);
 				getToken();
 				assert(tt == tkString);
-				int dllname = new_internal_string(ti);
+				int dllname = new_string(ti);
 				getToken();
 				assert(tt == tkComma);
 				getToken();
 				assert(tt == tkString);
-				int originalname = new_internal_string(ti);
+				int originalname = new_string(ti);
 				getToken();
 				assert(tt == tkSRight);
 				getToken();
@@ -1558,7 +1531,7 @@ void compile_class()
 			int modifier = getModifier();
 			int type = getType();
 			assert(tt == tkIdent);
-			int name = new_internal_string(ti);
+			int name = new_string(ti);
 			getToken();
 			int flags = 0;
 			int getter = 0;
@@ -1595,7 +1568,7 @@ void compile_class()
 	}
 	getToken(); /* Skip '}' */
 	std::string data;
-	_PUT2(data, new_internal_string(name));
+	_PUT2(data, new_string(name));
 	_PUT2(data, class_modifier);
 	_PUT2(data, base_class_ref);
 	_PUT2(data, field_count);
@@ -1633,7 +1606,6 @@ void output()
 	FPUT4(0);
 
 	// Table sizes
-	FPUT2(internal_string_index_table.size());
 	FPUT2(string_index_table.size());
 	FPUT2(type_index_table.size());
 	FPUT2(field_ref_table.size());
@@ -1642,16 +1614,13 @@ void output()
 	FPUT2(field_def_table.size());
 	FPUT2(method_def_table.size());
 	FPUT2(property_def_table.size());
-	FPUT2(0);
 	
 	// Heap sizes
-	FPUT4(internal_string_heap.size());
 	FPUT4(string_heap.size());
 	FPUT4(type_heap.size());
 	FPUT4(code_heap.size());
 
 	// Index tables
-	FPUTIT(internal_string_index_table);
 	FPUTIT(string_index_table);
 	FPUTIT(type_index_table);
 	
@@ -1664,7 +1633,6 @@ void output()
 	FPUTT(property_def_table);
 
 	// Heaps
-	FPUTS(internal_string_heap);
 	FPUTS(string_heap);
 	FPUTS(type_heap);
 	FPUTS(code_heap);

@@ -226,7 +226,7 @@ class Compiler
 			currentClass = [Class] classes[i];
 			currentSourceFile = currentClass.sourceFile;
 			String modifier = Modifier.ToString(currentClass.modifier);
-			if (modifier.Length > 0)
+			if (modifier.Size > 0)
 				modifier = modifier + " ";
 			if (currentClass.baseClass == null)
 				AddCode(".class " + modifier + currentClass.name);
@@ -255,7 +255,7 @@ class Compiler
 	private CompileField(Field field)
 	{
 		String modifier = Modifier.ToString(field.modifier);
-		if (modifier.Length > 0)
+		if (modifier.Size > 0)
 			modifier = modifier + " ";
 		AddCode(".field " + modifier + ResolveType(field.type).ToString() + " " + field.name);
 	}
@@ -263,7 +263,7 @@ class Compiler
 	private CompileProperty(Property property)
 	{
 		String modifier = Modifier.ToString(property.modifier);
-		if (modifier.Length > 0)
+		if (modifier.Size > 0)
 			modifier = modifier + " ";
 		AddCode(".property " + modifier + ResolveType(property.type).ToString() + " " + property.name);
 		if (property.getter != null)
@@ -275,7 +275,7 @@ class Compiler
 	private CompileMethod(Method method)
 	{
 		String modifier = Modifier.ToString(method.modifier);
-		if (modifier.Length > 0)
+		if (modifier.Size > 0)
 			modifier = modifier + " ";
 
 		AddCode(".method " + modifier + "function " + method.name + ResolvePrototype(method));

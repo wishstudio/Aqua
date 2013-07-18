@@ -55,7 +55,6 @@ struct BytecodeHeader
 	uint32 version;
 
 	/* table sizes */
-	uint16 internalStringCount;
 	uint16 stringCount;
 	uint16 typeCount;
 	uint16 fieldRefCount;
@@ -64,18 +63,11 @@ struct BytecodeHeader
 	uint16 fieldDefCount;
 	uint16 methodDefCount;
 	uint16 propertyDefCount;
-	uint16 _padding;
 
 	/* heap sizes */
-	uint32 internalStringHeapSize;
 	uint32 stringHeapSize;
 	uint32 typeHeapSize;
 	uint32 codeHeapSize;
-};
-
-struct InternalStringIndex
-{
-	uint32 offset;
 };
 
 struct StringIndex
@@ -194,37 +186,21 @@ struct FunctionTypeRef: public TypeRef
 	uint16 types[]; /* first param types, then return types */
 };
 
-struct InternalString
-{
-	uint32 length;
-	char data[];
-
-	static inline uint32 hash(InternalString *string)
-	{
-		return hashString(string->data, string->length);
-	}
-
-	static inline bool isEqual(InternalString *left, InternalString *right)
-	{
-		return left->length == right->length && !memcmp(left->data, right->data, left->length);
-	}
-};
-
 struct VTable;
 struct String
 {
 	VTable *vtable;
-	int32 length; /* In characters */
-	uint16 data[];
+	int32 size;
+	char data[];
 
 	static inline uint32 hash(String *string)
 	{
-		return hashString(string->data, string->length * 2);
+		return hashString(string->data, string->size);
 	}
 
 	static inline bool isEqual(String *left, String *right)
 	{
-		return left->length == right->length && !memcmp(left->data, right->data, left->length * 2);
+		return left->size == right->size && !memcmp(left->data, right->data, left->size);
 	}
 };
 
@@ -301,7 +277,7 @@ inline bool Type::isEqual(Type *left, Type *right)
 
 struct Field
 {
-	InternalString *name;
+	String *name;
 	Type *type;
 	Class *classObject;
 	uint16 modifier;
@@ -321,7 +297,7 @@ struct ExceptionClause
 
 struct Method
 {
-	InternalString *name;
+	String *name;
 	Type *type;
 	Class *classObject;
 	uint16 modifier;
@@ -363,7 +339,7 @@ struct Class
 
 	Class *baseClass;
 
-	InternalString *name;
+	String *name;
 	uint16 modifier;
 	uint16 fieldCount;
 	Field *fields;
@@ -379,9 +355,6 @@ struct Class
 
 struct BytecodeFile
 {
-	uint16 internalStringCount;
-	InternalStringIndex *internalStringIndexTable;
-	InternalString **internalStringTable;
 	uint16 stringCount;
 	StringIndex *stringIndexTable;
 	String **stringTable;
@@ -403,7 +376,6 @@ struct BytecodeFile
 	MethodDef *methodDefTable;
 	Class *classTable;
 
-	char *internalStringHeap;
 	char *stringHeap;
 	char *typeHeap;
 	char *codeHeap;

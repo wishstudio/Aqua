@@ -9,17 +9,16 @@
 #include "Resolve.h"
 #include "VM.h"
 
-InternHash<InternalString> internalStringHash;
 InternHash<String> stringHash;
 InternHash<Type> typeHash;
 
-PointerHash1<void, Class> classHash;
-PointerHash2<Class, InternalString, Field> fieldHash;
-PointerHash3<Class, InternalString, Type, Method> methodHash;
+PointerHash1<String, Class> classHash;
+PointerHash2<Class, String, Field> fieldHash;
+PointerHash3<Class, String, Type, Method> methodHash;
 
 Class *objectClass;
-Class *stringClass;
-static InternalString *cctorString;
+Class *stringClass = nullptr;
+static String *cctorString;
 static Type *cctorType;
 
 /* INTERNAL CALL */
@@ -46,7 +45,7 @@ static Class *loadClassObject(Class *classObject)
 		Field *field = &classObject->fields[i];
 		FieldDef *fieldDef = &bytecodeFile->fieldDefTable[classDef->fieldStartIndex + i];
 		field->classObject = classObject;
-		field->name = resolveInternalString(bytecodeFile, fieldDef->name);
+		field->name = resolveString(bytecodeFile, fieldDef->name);
 		field->type = resolveType(bytecodeFile, fieldDef->type);
 		field->modifier = fieldDef->modifier;
 		if (field->modifier & MODIFIER_STATIC)
@@ -80,14 +79,14 @@ static Class *loadClassObject(Class *classObject)
 		Method *method = &classObject->methods[i];
 		MethodDef *methodDef = &bytecodeFile->methodDefTable[classDef->methodStartIndex + i];
 		method->classObject = classObject;
-		method->name = resolveInternalString(bytecodeFile, methodDef->name);
+		method->name = resolveString(bytecodeFile, methodDef->name);
 		method->type = resolveType(bytecodeFile, methodDef->type);
 		method->modifier = methodDef->modifier;
 		if (method->modifier & MODIFIER_NATIVE)
 		{
-			HMODULE library = LoadLibraryA(resolveInternalString(bytecodeFile, methodDef->dllName)->data);
+			HMODULE library = LoadLibraryA(resolveString(bytecodeFile, methodDef->dllName)->data);
 			method->callingConvention = methodDef->callingConvention;
-			method->nativeMethod = GetProcAddress(library, resolveInternalString(bytecodeFile, methodDef->originalName)->data);
+			method->nativeMethod = GetProcAddress(library, resolveString(bytecodeFile, methodDef->originalName)->data);
 		}
 		else
 		{
@@ -213,32 +212,17 @@ uint32 sizeOf(Type *type)
 }
 
 /* Resolve an internal string using c style string */
-InternalString *resolveInternalString(const char *string)
+String *resolveString(const char *string)
 {	
 	/* NOTICE: Make sure internal string is null-terminated */
-	uint32 len = strlen(string);
-	InternalString *s = (InternalString *) malloc(sizeof(InternalString) + len + 1);
-	s->length = len;
-	memcpy(s->data, string, len + 1);
-	InternalString *si = internalStringHash.findOrCreate(s);
+	uint32 size = strlen(string);
+	String *s = (String *) malloc(sizeof(String) + size + 1);
+	s->size = size;
+	memcpy(s->data, string, size + 1);
+	String *si = stringHash.findOrCreate(s);
 	if (si != s)
 		free(s);
 	return si;
-}
-
-InternalString *resolveInternalString(BytecodeFile *bytecodeFile, uint16 id)
-{
-	if (bytecodeFile->internalStringTable[id])
-		return bytecodeFile->internalStringTable[id];
-
-	InternalString *string = (InternalString *) (bytecodeFile->internalStringHeap + bytecodeFile->internalStringIndexTable[id].offset);
-	return (bytecodeFile->internalStringTable[id] = internalStringHash.findOrCreate(string, [](InternalString *string) -> InternalString * {
-		/* Make internal string null-terminated */
-		InternalString *ret = (InternalString *) malloc(sizeof(InternalString) + string->length + 1);
-		memcpy(ret, string, sizeof(InternalString) + string->length);
-		ret->data[string->length] = 0;
-		return ret;
-	}));
 }
 
 String *resolveString(BytecodeFile *bytecodeFile, uint16 id)
@@ -249,7 +233,13 @@ String *resolveString(BytecodeFile *bytecodeFile, uint16 id)
 	/* String value in bytecode does not contain VTable pointer */
 	String *string = (String *) (bytecodeFile->stringHeap + bytecodeFile->stringIndexTable[id].offset - sizeof(VTable *));
 	return (bytecodeFile->stringTable[id] = stringHash.findOrCreate(string, [](String *string) -> String * {
-		return CreateString(string->length, string->data);
+		/* Manually create the string since CreateString() needs stringClass,
+		   which may not available when this function is called */
+		String *s = (String *) malloc(sizeof(String) + string->size + 1);
+		s->size = string->size;
+		s->data[s->size] = 0;
+		memcpy(s->data, string->data, string->size);
+		return s;
 	}));
 }
 
@@ -348,7 +338,7 @@ Type *resolveType(BytecodeFile *bytecodeFile, uint16 id)
 	else if (ref->type == TYPE_CLASS)
 	{
 		/* NOTICE: All possible class objects must at least be present at "Unloaded" state at this point */
-		InternalString *className = resolveInternalString(bytecodeFile, ((ClassTypeRef *) ref)->className);
+		String *className = resolveString(bytecodeFile, ((ClassTypeRef *) ref)->className);
 		Class *classObject = classHash.find(className);
 		bytecodeFile->typeTable[id] = resolveClassType(classObject);
 	}
@@ -373,7 +363,7 @@ Type *resolveType(BytecodeFile *bytecodeFile, uint16 id)
 	return bytecodeFile->typeTable[id];
 }
 
-Class *resolveClass(InternalString *className)
+Class *resolveClass(String *className)
 {
 	Class *classObject = classHash.find(className);
 	assert(("Class does not exist.", classObject));
@@ -400,7 +390,7 @@ Field *resolveField(BytecodeFile *bytecodeFile, uint16 id)
 		return bytecodeFile->fieldTable[id];
 
 	Class *classObject = resolveClass(bytecodeFile, bytecodeFile->fieldRefTable[id].classRef);
-	InternalString *name = resolveInternalString(bytecodeFile, bytecodeFile->fieldRefTable[id].name);
+	String *name = resolveString(bytecodeFile, bytecodeFile->fieldRefTable[id].name);
 	return (bytecodeFile->fieldTable[id] = fieldHash.find(classObject, name));
 }
 
@@ -410,12 +400,12 @@ Method *resolveMethod(BytecodeFile *bytecodeFile, uint16 id)
 		return bytecodeFile->methodTable[id];
 
 	Class *classObject = resolveClass(bytecodeFile, bytecodeFile->methodRefTable[id].classRef);
-	InternalString *name = resolveInternalString(bytecodeFile, bytecodeFile->methodRefTable[id].name);
+	String *name = resolveString(bytecodeFile, bytecodeFile->methodRefTable[id].name);
 	Type *type = resolveType(bytecodeFile, bytecodeFile->methodRefTable[id].type);
 	return (bytecodeFile->methodTable[id] = methodHash.find(classObject, name, type));
 }
 
-void registerInternalMethod(Class *classObject, InternalString *name, Type *type, InternalMethod *internalMethod)
+void registerInternalMethod(Class *classObject, String *name, Type *type, InternalMethod *internalMethod)
 {
 	Method *method = methodHash.find(classObject, name, type);
 	method->internalMethod = internalMethod;
@@ -459,7 +449,6 @@ void resolveBytecodeFile(const wchar_t *fileName)
 
 	BytecodeFile *bytecodeFile = new BytecodeFile();
 	memset(bytecodeFile, 0, sizeof BytecodeFile);
-	bytecodeFile->internalStringCount = header->internalStringCount;
 	bytecodeFile->stringCount = header->stringCount;
 	bytecodeFile->typeCount = header->typeCount;
 	bytecodeFile->fieldRefCount = header->fieldRefCount;
@@ -467,7 +456,6 @@ void resolveBytecodeFile(const wchar_t *fileName)
 	bytecodeFile->classDefCount = header->classDefCount;
 
 	/* Index tables */
-	bytecodeFile->internalStringIndexTable = RAW_STEP_TABLE(InternalStringIndex, header->internalStringCount);
 	bytecodeFile->stringIndexTable = RAW_STEP_TABLE(StringIndex, header->stringCount);
 	bytecodeFile->typeIndexTable = RAW_STEP_TABLE(TypeIndex, header->typeCount);
 	
@@ -480,13 +468,11 @@ void resolveBytecodeFile(const wchar_t *fileName)
 	RAW_STEP_TABLE(PropertyDef, header->propertyDefCount);
 
 	/* Heaps */
-	bytecodeFile->internalStringHeap = RAW_STEP(char, header->internalStringHeapSize);
 	bytecodeFile->stringHeap = RAW_STEP(char, header->stringHeapSize);
 	bytecodeFile->typeHeap = RAW_STEP(char, header->typeHeapSize);
 	bytecodeFile->codeHeap = RAW_STEP(char, header->codeHeapSize);
 
 	/* Preallocate tables */
-	bytecodeFile->internalStringTable = (InternalString **) calloc(bytecodeFile->internalStringCount, sizeof(InternalString *));
 	bytecodeFile->stringTable = (String **) calloc(bytecodeFile->stringCount, sizeof(String *));
 	bytecodeFile->typeTable = (Type **) calloc(bytecodeFile->typeCount, sizeof(Type *));
 	bytecodeFile->fieldTable = (Field **) calloc(bytecodeFile->fieldRefCount, sizeof(Field *));
@@ -497,7 +483,7 @@ void resolveBytecodeFile(const wchar_t *fileName)
 	bytecodeFile->classTable = (Class *) malloc(sizeof(Class) * bytecodeFile->classDefCount);
 	for (uint16 i = 0; i < bytecodeFile->classDefCount; i++)
 	{
-		InternalString *className = resolveInternalString(bytecodeFile, bytecodeFile->classDefTable[i].name);
+		String *className = resolveString(bytecodeFile, bytecodeFile->classDefTable[i].name);
 		Class *classObject = &bytecodeFile->classTable[i];
 		classObject->name = className;
 		classObject->modifier = bytecodeFile->classDefTable[i].modifier;
@@ -513,10 +499,10 @@ void initializeResolveCache()
 {
 	/* objectClass must be declared before resolving Core.Object */
 	/* loadClass needs objectClass to know whether the class does not have a base class */
-	objectClass = classHash.find(resolveInternalString("Core.Object"));
-	stringClass = resolveClass(resolveInternalString("Core.String"));
+	objectClass = classHash.find(resolveString("Core.Object"));
+	stringClass = resolveClass(resolveString("Core.String"));
 
 	/* Predefined objects to accelerate static constructor resolution */
-	cctorString = resolveInternalString(".cctor");
+	cctorString = resolveString(".cctor");
 	cctorType = resolveFunctionType(0, 0);
 }

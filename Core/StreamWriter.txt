@@ -5,7 +5,7 @@ class StreamWriter
 	private FileStream stream;
 	private Encoding encoding;
 	private int32 bufferSize, currentBufferPos;
-	private char[] charBuffer;
+	private uint8[] charBuffer;
 	private uint8[] byteBuffer;
 
 	public (FileStream stream, Encoding encoding)
@@ -14,7 +14,7 @@ class StreamWriter
 		this.encoding = encoding;
 
 		bufferSize = 1024;
-		charBuffer = new char[bufferSize];
+		charBuffer = new uint8[bufferSize];
 		byteBuffer = new uint8[encoding.GetMaxByteLength(bufferSize)];
 
 		currentBufferPos = 0;
@@ -28,15 +28,14 @@ class StreamWriter
 
 	public Write(String string)
 	{
-		int32 current = 0, length = string.Length;
-		while (current < length)
+		int32 current = 0, size = string.Size;
+		while (current < size)
 		{
-			int32 count = Math.Min(length - current, bufferSize - currentBufferPos);
-			string.CopyTo(current, charBuffer, currentBufferPos, count);
+			int32 count = string.CopyTo(current, charBuffer, currentBufferPos);
 			current = current + count;
 			currentBufferPos = currentBufferPos + count;
 
-			if (currentBufferPos == bufferSize)
+			if (currentBufferPos == bufferSize || current < size)
 				Flush();
 		}
 	}

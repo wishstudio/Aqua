@@ -4,65 +4,54 @@ using Core.Native;
 
 class String
 {
-	private internal int32 length;
-	private internal char firstChar;
+	private internal int32 size;
+	private internal uint8 firstByte;
 
-	private static internal AllocateString(int32 length) -> String;
+	private static internal AllocateString(int32 size) -> String;
 
-	private static CopyStringData(String dest, int32 destPos, String source, int32 sourcePos, int32 length)
+	public static FromCharBuffer(int buffer, int32 size) -> String
 	{
-		Memory.CopyMemory(dest.RawData + destPos * 2, source.RawData + sourcePos * 2, length * 2);
-	}
-
-	public static FromCharBuffer(int buffer, int32 length) -> String
-	{
-		String ret = String.AllocateString(length);
-		Memory.CopyMemory(&ret.firstChar, buffer, length * 2);
-		return ret;
-	}
-
-	public AppendChar(char ch) -> String
-	{
-		String ret = String.AllocateString(length + 1);
-		Memory.CopyMemory(&ret.firstChar, &firstChar, length * 2);
-		*([int] &ret.firstChar + length * 2) = ch;
+		String ret = String.AllocateString(size);
+		Memory.CopyMemory(&ret.firstByte, buffer, size);
 		return ret;
 	}
 
 	public Equals(String right) -> int32
 	{
-		if (length != right.length)
+		if (size != right.size)
 			return 0;
-		int rawLeft = &firstChar, rawRight = &right.firstChar;
-		for (int32 i = 0; i < length; i = i + 1)
+		int rawLeft = &firstByte, rawRight = &right.firstByte;
+		for (int32 i = 0; i < size; i = i + 1)
 		{
 			if ([int32] *rawLeft != [int32] *rawRight)
 				return 0;
-			rawLeft = rawLeft + 2;
-			rawRight = rawRight + 2;
+			rawLeft = rawLeft + 1;
+			rawRight = rawRight + 1;
 		}
 		return 1;
 	}
-
-	public SubString(int32 offset, int32 length) -> String
+	
+	public CopyTo(int32 sourceIndex, uint8[] destination, int32 destinationIndex) -> int32
 	{
-		if (offset < 0 || offset >= this.length)
-			throw new IndexOutOfBoundException();
-		if (length > this.length - offset)
-			length = this.length - offset;
-		return String.FromCharBuffer([int] &firstChar + offset * 2, length);
-	}
-
-	public CopyTo(int32 sourceIndex, char[] destination, int32 destinationIndex, int32 count)
-	{
-		Memory.CopyMemory(&destination[destinationIndex], [int] &firstChar + sourceIndex * 2, count * 2);
+		int32 srcCount = size - sourceIndex;
+		int32 dstCount = destination.Length - destinationIndex;
+		int32 count;
+		if (srcCount <= dstCount)
+			count = srcCount;
+		else
+		{
+			count = dstCount;
+			/* TODO: Determine break point */
+		}
+		Memory.CopyMemory(&destination[destinationIndex], [int] &firstByte + sourceIndex, count);
+		return count;
 	}
 
 	public static + (String left, String right) -> String
 	{
-		String ret = String.AllocateString(left.Length + right.Length);
-		CopyStringData(ret, 0, left, 0, left.Length);
-		CopyStringData(ret, left.Length, right, 0, right.Length);
+		String ret = String.AllocateString(left.size + right.size);
+		Memory.CopyMemory(&ret.firstByte, &left.firstByte, left.size);
+		Memory.CopyMemory(&ret.firstByte + left.size, &right.firstByte, right.size);
 		return ret;
 	}
 
@@ -76,18 +65,21 @@ class String
 		return Int32.ToString(left) + right;
 	}
 
-	public static [] (String string, int32 index) -> char
+	public static + (String left, char ch) -> String
 	{
-		return *([int] &string.firstChar + index * 2);
+		String ret = AllocateString(size + 1);
+		Memory.CopyMemory(&ret.firstByte, &firstByte, size);
+		*([int] &ret.firstByte + size) = ch;
+		return ret;
 	}
 
-	public int32 Length
+	public int32 Size
 	{
-		get { return length; }
+		get { return size; }
 	}
 
-	public int RawData
+	public uint8* RawData
 	{
-		get { return &firstChar; }
+		get { return &firstByte; }
 	}
 }
