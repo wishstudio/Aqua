@@ -79,41 +79,6 @@ class Number
 			return false, 0;
 	}
 
-	public static ParseInt32Core(String str) -> int32, int32
-	{
-		int32 ret = 0;
-		uint8* s = str.RawData;
-		/* HACK: Binary comparison */
-		if ([int32] (*s) == '-')
-		{
-			for (int32 i = 1; i < str.Size; i = i + 1)
-			{
-				s = s + 1;
-				int32 digit = [int32] (*s) - '0';
-				if (digit < 0 || digit > 9)
-					return Error_Format, 0;
-				if (ret < -214748364 || (ret == -214748364 && digit > 8))
-					return Error_Overflow, 0;
-				ret = ret * 10 - digit;
-			}
-			return Error_NoError, ret;
-		}
-		else
-		{
-			for (int32 i = 0; i < str.Size; i = i + 1)
-			{
-				int32 digit = [int32] (*s) - '0';
-				s = s + 1;
-				if (digit < 0 || digit > 9)
-					return Error_Format, 0;
-				if (ret > 214748364 || (ret == 214748364 && digit > 7))
-					return Error_Overflow, 0;
-				ret = ret * 10 + digit;
-			}
-			return Error_NoError, ret;
-		}
-	}
-
 	public static ParseUInt32(String str) -> uint32
 	{
 		int32 errcode;
@@ -138,20 +103,114 @@ class Number
 			return false, 0;
 	}
 
+	public static ParseInt32Core(String str) -> int32, int32
+	{
+		int32 errcode, num;
+
+		uint8* s = str.RawData;
+		int32 size = str.Size;
+		if (size > 2 && *s == '0' && (*(s + 1) == 'x' || *(s + 1) == 'X'))
+		{
+			uint32 unum;
+			errcode, unum = HexToUInt32(s + 2, size - 2);
+			if ([int32] unum < 0)
+				return Error_Overflow, 0;
+			num = [int32] unum;
+		}
+		else
+			errcode, num = NumToInt32(s, size);
+		return errcode, num;
+	}
+
 	public static ParseUInt32Core(String str) -> int32, uint32
 	{
+		int32 errcode;
+		uint32 num;
+
+		uint8* s = str.RawData;
+		int32 size = str.Size;
+		if (size > 2 && *s == '0' && (*(s + 1) == 'x' || *(s + 1) == 'X'))
+			errcode, num = HexToUInt32(s + 2, size - 2);
+		else
+			errcode, num = NumToUInt32(s, size);
+		return errcode, num;
+	}
+
+	private static NumToInt32(uint8* s, int32 size) -> int32, int32
+	{
+		if (size == 0)
+			return Error_Format, 0;
+		int32 ret = 0;
+		if (*s == '-')
+		{
+			for (int32 i = 1; i < size; i = i + 1)
+			{
+				s = s + 1;
+				int32 digit = [int32] (*s) - '0';
+				if (digit < 0 || digit > 9)
+					return Error_Format, 0;
+				if (ret < -214748364 || (ret == -214748364 && digit > 8))
+					return Error_Overflow, 0;
+				ret = ret * 10 - digit;
+			}
+			return Error_NoError, ret;
+		}
+		else
+		{
+			for (int32 i = 0; i < size; i = i + 1)
+			{
+				int32 digit = [int32] (*s) - '0';
+				s = s + 1;
+				if (digit < 0 || digit > 9)
+					return Error_Format, 0;
+				if (ret > 214748364 || (ret == 214748364 && digit > 7))
+					return Error_Overflow, 0;
+				ret = ret * 10 + digit;
+			}
+			return Error_NoError, ret;
+		}
+	}
+
+	private static NumToUInt32(uint8* s, int32 size) -> int32, uint32
+	{
+		if (size == 0)
+			return Error_Format, 0;
 		uint32 ret = 0;
-		uint8 *s = str.RawData;
-		for (int32 i = 0; i < str.Size; i = i + 1)
+		for (int32 i = 0; i < size; i = i + 1)
 		{
 			/* HACK: uint32 */
-			int32 digit = [int32] (*s) - '0';
+			uint32 digit = [uint32] (*s) - '0';
 			s = s + 1;
 			if (digit < 0 || digit > 9)
 				return Error_Format, 0;
 			if ([int32] ret > 429496729 || ([int32] ret == 429496729 && digit > 5))
 				return Error_Overflow, 0;
-			ret = ret * 10 + [uint32] digit;
+			ret = ret * 10 + digit;
+		}
+		return Error_NoError, ret;
+	}
+
+	private static HexToUInt32(uint8* s, int32 size) -> int32, uint32
+	{
+		if (size == 0)
+			return Error_Format, 0;
+		uint32 ret = 0;
+		for (int32 i = 0; i < size; i = i + 1)
+		{
+			uint32 ch = [uint32] *s;
+			uint32 digit;
+			if (ch >= 'a' && ch <= 'f')
+				digit = ch - 'a' + 10;
+			else if (ch >= 'A' && ch <= 'F')
+				digit = ch - 'A' + 10;
+			else if (ch >= '0' && ch <= '9')
+				digit = ch - '0';
+			else
+				return Error_Format, 0;
+			s = s + 1;
+			if (ret > 429496729 || (ret == 429496729 && digit > 5))
+				return Error_Overflow, 0;
+			ret = ret * 16 + digit;
 		}
 		return Error_NoError, ret;
 	}

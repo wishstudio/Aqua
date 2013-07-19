@@ -271,7 +271,14 @@ class IntegerValue: ImmediateValue
 
 	public override ToRegister(Compiler compiler, int32 regid, int32 freereg) -> RegisterValue
 	{
-		compiler.AddCode("ld" + type.Suffix + "\t$" + regid + ", " + value);
+		String v;
+		if (type.StackType is Int32Type)
+			v = Int32.ToString(Int32.Parse(value));
+		else if (type.StackType is UInt32Type)
+			v = UInt32.ToString(UInt32.Parse(value));
+		else
+			throw new CompilerException("INTERNAL ERROR", location);
+		compiler.AddCode("ld" + type.Suffix + "\t$" + regid + ", " + v);
 		return new RegisterValue(location, regid, Type.Int32);
 	}
 

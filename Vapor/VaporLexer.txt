@@ -198,6 +198,11 @@ class Lexer
 			else
 			{
 				token = Token.Number;
+				if (ident.Equals("0") > 0 && (ch == 'x' || ch == 'X'))
+				{
+					ident = ident + [char] ch;
+					NextChar();
+				}
 				while (ch >= '0' && ch <= '9')
 				{
 					ident = ident + [char] ch;
