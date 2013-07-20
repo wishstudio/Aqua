@@ -1,0 +1,14 @@
+namespace Core;
+
+/* HACK: Interface */
+/* HACK: Generics */
+
+class IEquatable
+{
+	public abstract Equals(Object x) -> bool;
+}
+
+class IHashable: IEquatable
+{
+	public abstract GetHashCode() -> int32;
+}

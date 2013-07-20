@@ -283,7 +283,7 @@ class FieldNode: Node
 		/* TODO */
 		if (object is Value && ([Value] object).type is ArrayType)
 		{
-			if (field.Equals("Length") == 0)
+			if (!field.Equals("Length"))
 				throw new CompilerException("Unknown field.", location);
 			RegisterValue v = ([Value] object).EnsureRegister(compiler, freereg);
 			compiler.AddCode("ldlen\t$" + targetreg + ", $" + v.regid);
@@ -758,7 +758,7 @@ class BinComparisonNode: BinNode
 
 			if (left.type.StackType.Equals(Type.Int32) > 0 || left.type.StackType.Equals(Type.UInt32) > 0)
 			{
-				if (left is IntegerValue && ([IntegerValue] left).value.Equals("0") > 0)
+				if (left is IntegerValue && ([IntegerValue] left).value.Equals("0"))
 				{
 					/* HACK: not */
 					if (jtrue)
@@ -769,7 +769,7 @@ class BinComparisonNode: BinNode
 					compiler.AddCode("j" + GetNumOpcode(jtrue) + "zi\t$" + r.regid + ", " + compiler.GetLabelName(jtarget));
 					return new JumpTargetValue(location, jtarget);
 				}
-				else if (right is IntegerValue && ([IntegerValue] right).value.Equals("0") > 0)
+				else if (right is IntegerValue && ([IntegerValue] right).value.Equals("0"))
 				{
 					RegisterValue l = left.EnsureRegister(compiler, freereg);
 					compiler.AddCode("j" + GetNumOpcode(jtrue) + "zi\t$" + l.regid + ", " + compiler.GetLabelName(jtarget));
@@ -1682,7 +1682,7 @@ class Namespace
 	{
 		children = new Hash();
 		this.base = base;
-		if (base != null && base.name.Equals("") == 0)
+		if (base != null && !base.name.Equals(""))
 			this.name = base.name + "." + name;
 		else
 			this.name = name;
@@ -1726,7 +1726,7 @@ class Modifier
 		String ret = "";
 		for (int32 i = 0; i < hash.Size; i = i + 1)
 			if (modifier & Int32.Parse([String] hash.values[i]) > 0)
-				if (ret.Equals("") > 0)
+				if (ret.Equals(""))
 					ret = ret + [String] hash.keys[i];
 				else
 					ret = ret + " " + [String] hash.keys[i];
@@ -1769,9 +1769,9 @@ class CallingConvention
 
 	public static Parse(String cc) -> int32
 	{
-		if (cc.Equals("unknown") > 0)
+		if (cc.Equals("unknown"))
 			return CallingConvention.Unknown;
-		else if (cc.Equals("stdcall") > 0)
+		else if (cc.Equals("stdcall"))
 			return CallingConvention.Stdcall;
 		else
 			return 0;

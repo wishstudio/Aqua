@@ -135,49 +135,49 @@ class Lexer
 				ident = ident + [char] ch;
 				NextChar();
 			}
-			if (ident.Equals("this") > 0)
+			if (ident.Equals("this"))
 				token = Token.This;
-			else if (ident.Equals("null") > 0)
+			else if (ident.Equals("null"))
 				token = Token.Null;
-			else if (ident.Equals("true") > 0)
+			else if (ident.Equals("true"))
 				token = Token.True;
-			else if (ident.Equals("false") > 0)
+			else if (ident.Equals("false"))
 				token = Token.False;
-			else if (ident.Equals("new") > 0)
+			else if (ident.Equals("new"))
 				token = Token.New;
-			else if (ident.Equals("if") > 0)
+			else if (ident.Equals("if"))
 				token = Token.If;
-			else if (ident.Equals("else") > 0)
+			else if (ident.Equals("else"))
 				token = Token.Else;
-			else if (ident.Equals("for") > 0)
+			else if (ident.Equals("for"))
 				token = Token.For;
-			else if (ident.Equals("while") > 0)
+			else if (ident.Equals("while"))
 				token = Token.While;
-			else if (ident.Equals("do") > 0)
+			else if (ident.Equals("do"))
 				token = Token.Do;
-			else if (ident.Equals("return") > 0)
+			else if (ident.Equals("return"))
 				token = Token.Return;
-			else if (ident.Equals("continue") > 0)
+			else if (ident.Equals("continue"))
 				token = Token.Continue;
-			else if (ident.Equals("break") > 0)
+			else if (ident.Equals("break"))
 				token = Token.Break;
-			else if (ident.Equals("try") > 0)
+			else if (ident.Equals("try"))
 				token = Token.Try;
-			else if (ident.Equals("catch") > 0)
+			else if (ident.Equals("catch"))
 				token = Token.Catch;
-			else if (ident.Equals("finally") > 0)
+			else if (ident.Equals("finally"))
 				token = Token.Finally;
-			else if (ident.Equals("throw") > 0)
+			else if (ident.Equals("throw"))
 				token = Token.Throw;
-			else if (ident.Equals("is") > 0)
+			else if (ident.Equals("is"))
 				token = Token.Is;
-			else if (ident.Equals("namespace") > 0)
+			else if (ident.Equals("namespace"))
 				token = Token.Namespace;
-			else if (ident.Equals("using") > 0)
+			else if (ident.Equals("using"))
 				token = Token.Using;
-			else if (ident.Equals("class") > 0)
+			else if (ident.Equals("class"))
 				token = Token.Class;
-			else if (ident.Equals("struct") > 0)
+			else if (ident.Equals("struct"))
 				token = Token.Struct;
 		}
 		else if (ch == '-' || (ch >= '0' && ch <= '9'))
@@ -185,7 +185,7 @@ class Lexer
 			ident = "";
 			ident = ident + [char] ch;
 			NextChar();
-			if (ident.Equals("-") > 0 && (ch < '0' || ch > '9'))
+			if (ident.Equals("-") && (ch < '0' || ch > '9'))
 			{
 				if (ch == '>')
 				{
@@ -198,7 +198,7 @@ class Lexer
 			else
 			{
 				token = Token.Number;
-				if (ident.Equals("0") > 0 && (ch == 'x' || ch == 'X'))
+				if (ident.Equals("0") && (ch == 'x' || ch == 'X'))
 				{
 					ident = ident + [char] ch;
 					NextChar();

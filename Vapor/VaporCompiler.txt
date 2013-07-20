@@ -305,7 +305,7 @@ class Compiler
 					for (int32 i = 0; i < methods.Size; i = i + 1)
 					{
 						Method another = [Method] methods[i];
-						if (ResolvePrototype(method).Equals(ResolvePrototype(another)) > 0)
+						if (ResolvePrototype(method).Equals(ResolvePrototype(another)))
 						{
 							if (another.modifier & Modifier.Virtual > 0 || another.modifier & Modifier.Abstract > 0)
 							{
@@ -347,7 +347,7 @@ class Compiler
 			for (int32 i = 0; i < method.paramNames.Size; i = i + 1)
 			{
 				String name = [String] method.paramNames[i];
-				if (name.Equals("") == 0)
+				if (!name.Equals(""))
 				{
 					Variable var = new Variable();
 					var.regid = freereg + i;
@@ -360,7 +360,7 @@ class Compiler
 			for (int32 i = 0; i < method.returnNames.Size; i = i + 1)
 			{
 				String name = [String] method.returnNames[i];
-				if (name.Equals("") == 0)
+				if (!name.Equals(""))
 				{
 					Variable var = new Variable();
 					var.regid = freereg + i;
@@ -571,7 +571,7 @@ class Compiler
 				for (int32 j = 0; j < methods.Size; j = j + 1)
 				{
 					Method another = [Method] methods[j];
-					if (ResolvePrototype(method).Equals(ResolvePrototype(another)) > 0)
+					if (ResolvePrototype(method).Equals(ResolvePrototype(another)))
 					{
 						ok = false;
 						break;

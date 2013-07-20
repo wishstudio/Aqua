@@ -20,7 +20,7 @@ class Hash
 	public Contains(String key) -> int32 found, Object value
 	{
 		for (int32 i = 0; i < keys.size; i = i + 1)
-			if (([String] keys[i]).Equals(key) > 0)
+			if (([String] keys[i]).Equals(key))
 				return 1, values[i];
 		return 0, null;
 	}
@@ -29,7 +29,7 @@ class Hash
 	{
 		Vector ret = new Vector();
 		for (int32 i = 0; i < keys.size; i = i + 1)
-			if (([String] keys[i]).Equals(key) > 0)
+			if (([String] keys[i]).Equals(key))
 				ret.Add(values[i]);
 		return ret;
 	}

@@ -75,23 +75,23 @@ class Parser
 			return null;
 
 		Node type;
-		if (lex.ident.Equals("bool") > 0)
+		if (lex.ident.Equals("bool"))
 			type = new PrimitiveTypeNode(location, Type.Bool);
-		else if (lex.ident.Equals("int8") > 0)
+		else if (lex.ident.Equals("int8"))
 			type = new PrimitiveTypeNode(location, Type.Int8);
-		else if (lex.ident.Equals("uint8") > 0)
+		else if (lex.ident.Equals("uint8"))
 			type = new PrimitiveTypeNode(location, Type.UInt8);
-		else if (lex.ident.Equals("int16") > 0)
+		else if (lex.ident.Equals("int16"))
 			type = new PrimitiveTypeNode(location, Type.Int16);
-		else if (lex.ident.Equals("uint16") > 0)
+		else if (lex.ident.Equals("uint16"))
 			type = new PrimitiveTypeNode(location, Type.UInt16);
-		else if (lex.ident.Equals("int32") > 0)
+		else if (lex.ident.Equals("int32"))
 			type = new PrimitiveTypeNode(location, Type.Int32);
-		else if (lex.ident.Equals("uint32") > 0)
+		else if (lex.ident.Equals("uint32"))
 			type = new PrimitiveTypeNode(location, Type.UInt32);
-		else if (lex.ident.Equals("char") > 0)
+		else if (lex.ident.Equals("char"))
 			type = new PrimitiveTypeNode(location, Type.Char);
-		else if (lex.ident.Equals("int") > 0)
+		else if (lex.ident.Equals("int"))
 			type = new PrimitiveTypeNode(location, Type.Int);
 		else
 			type = new IdentNode(location, lex.ident);
@@ -174,7 +174,7 @@ class Parser
 			lex.CheckNext(Token.Ident);
 			/* TODO: This should be a function */
 			String fullName;
-			if (startNamespace.name.Equals("") > 0)
+			if (startNamespace.name.Equals(""))
 				fullName = lex.ident;
 			else
 				fullName = startNamespace.name + "." + lex.ident;
@@ -209,7 +209,7 @@ class Parser
 				lex.Next();
 				classObject.baseType = ParseType();
 			}
-			else if (classObject.name.Equals("Core.Object") > 0)
+			else if (classObject.name.Equals("Core.Object"))
 				classObject.baseType = null;
 			else
 			{
@@ -346,12 +346,12 @@ class Parser
 							for (;;)
 							{
 								if (lex.token == Token.Ident &&
-									(lex.ident.Equals("get") > 0 || lex.ident.Equals("set") > 0))
+									(lex.ident.Equals("get") || lex.ident.Equals("set")))
 								{
 									Method method = new Method(GetCurrentLocation());
 									method.classObject = classObject;
 									method.modifier = modifier;
-									if (lex.ident.Equals("get") > 0)
+									if (lex.ident.Equals("get"))
 									{
 										if (property.getter != null)
 											throw new ParserException();

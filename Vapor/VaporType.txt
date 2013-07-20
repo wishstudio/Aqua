@@ -345,7 +345,7 @@ class ClassType: ReferenceType
 			while (c != null)
 			{
 				/* HACK: object pointer comparison */
-				if (c.name.Equals(dst.name) > 0)
+				if (c.name.Equals(dst.name))
 					return true;
 				c = c.baseClass;
 			}
@@ -381,7 +381,7 @@ class ValueType: Type
 	public override CanImplicitlyConvertTo(Type type) -> bool
 	{
 		/* HACK: object pointer comparison */
-		return type is ValueType && ([ValueType] type).classObject.name.Equals(classObject.name) > 0;
+		return type is ValueType && ([ValueType] type).classObject.name.Equals(classObject.name);
 	}
 
 	public override ToString() -> String

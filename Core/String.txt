@@ -2,7 +2,7 @@ namespace Core;
 
 using Core.Native;
 
-class String
+class String: IHashable
 {
 	private internal int32 size;
 	private internal uint8 firstByte;
@@ -16,8 +16,9 @@ class String
 		return ret;
 	}
 
-	public Equals(String right) -> int32
+	public override Equals(Object x) -> bool
 	{
+		String right = [String] x;
 		if (size != right.size)
 			return 0;
 		int rawLeft = &firstByte, rawRight = &right.firstByte;
